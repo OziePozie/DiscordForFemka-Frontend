@@ -542,6 +542,29 @@ export function getMatch(id: string): Promise<MatchDto> {
   return api<MatchDto>(`/api/v1/matches/${encodeURIComponent(id)}`);
 }
 
+export function markMatchReady(matchId: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/matches/${encodeURIComponent(matchId)}/ready`,
+    { method: 'POST' },
+  );
+}
+
+export function markMatchUnready(matchId: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/matches/${encodeURIComponent(matchId)}/unready`,
+    { method: 'POST' },
+  );
+}
+
+// ──────────────── Admin: match lobby ────────────────
+
+export function recreateLobby(matchId: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(matchId)}/lobby/recreate`,
+    { method: 'POST' },
+  );
+}
+
 // ──────────────── Admin Players ────────────────
 
 export interface AdminPlayersPageParams {

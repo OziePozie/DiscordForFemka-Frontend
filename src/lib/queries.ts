@@ -23,9 +23,9 @@ import {
   getTeamById,
   getAdminMmrRequestsPage,
   approveMmrRequest,
+  rejectMmrRequest,
   refreshMyMmr,
   createMyMmrChangeRequest,
-  rejectMmrRequest,
   disbandTeam,
   transferCaptaincy,
   listTeamInvites,
@@ -55,6 +55,9 @@ import {
   acceptInvite,
   declineInvite,
   getMatch,
+  markMatchReady,
+  markMatchUnready,
+  recreateLobby,
   getAdminPlayersPage,
   updateAdminPlayer,
   banAdminPlayer,
@@ -667,6 +670,39 @@ export function useMatch(id: string | undefined) {
     queryKey: id ? qk.match(id) : ['match', 'none'],
     queryFn: () => getMatch(id!),
     enabled: Boolean(id),
+  });
+}
+
+export function useMarkMatchReady() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: (matchId) => markMatchReady(matchId),
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+    },
+  });
+}
+
+export function useMarkMatchUnready() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: (matchId) => markMatchUnready(matchId),
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+    },
+  });
+}
+
+export function useRecreateLobby() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: (matchId) => recreateLobby(matchId),
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+    },
   });
 }
 

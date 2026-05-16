@@ -1,18 +1,42 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useMatch } from '@/lib/queries';
+import {
+  useMatch,
+  useMarkMatchReady,
+  useMarkMatchUnready,
+  useRecreateLobby,
+  useMe,
+} from '@/lib/queries';
+import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/components/ui/use-toast';
+import { ProblemDetailError } from '@/lib/api/client';
+import {
+  GAME_MODE_LABEL,
   MATCH_FORMAT_LABEL,
   MATCH_KIND_LABEL,
   MATCH_STATUS_LABEL,
+  REGION_LABEL,
+  type GameMode,
+  type MatchDto,
   type MatchStatus,
+  type Region,
   type TeamPublicDto,
 } from '@/lib/api/types';
 
@@ -40,6 +64,14 @@ function fmtDateTime(iso?: string | null): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function describeError(e: unknown): string {
+  if (e instanceof ProblemDetailError) {
+    return `${e.title}${e.detail ? `: ${e.detail}` : ''}`;
+  }
+  if (e instanceof Error) return e.message;
+  return 'Неизвестная ошибка';
 }
 
 function TeamBlock({
@@ -75,9 +107,214 @@ function TeamBlock({
   );
 }
 
+interface ReadinessSideProps {
+  team: TeamPublicDto;
+  align: 'left' | 'right';
+  readyAt: string | null | undefined;
+  isMyTeam: boolean;
+  disabled: boolean;
+  onReady: () => void;
+  onUnready: () => void;
+  pending: boolean;
+}
+
+function ReadinessSide({
+  team,
+  align,
+  readyAt,
+  isMyTeam,
+  disabled,
+  onReady,
+  onUnready,
+  pending,
+}: ReadinessSideProps) {
+  const isReady = !!readyAt;
+  return (
+    <div
+      className={`flex min-w-0 flex-1 flex-col gap-2 ${
+        align === 'right' ? 'items-end text-right' : 'items-start text-left'
+      }`}
+    >
+      <Link
+        to={`/teams/${team.id}`}
+        className="truncate text-base font-semibold hover:underline"
+      >
+        {team.name}{' '}
+        <span className="text-sm text-muted-foreground">[{team.tag}]</span>
+      </Link>
+      {isReady ? (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 text-base font-semibold text-green-700">
+            <span aria-hidden>✓</span>
+            <span>Готова</span>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {fmtDateTime(readyAt)}
+          </div>
+        </div>
+      ) : (
+        <div className="text-base font-medium text-muted-foreground">
+          Ожидает подтверждения
+        </div>
+      )}
+      {isMyTeam && (
+        <Button
+          size="sm"
+          variant={isReady ? 'outline' : 'default'}
+          disabled={disabled || pending}
+          onClick={isReady ? onUnready : onReady}
+        >
+          {pending
+            ? 'Сохранение…'
+            : isReady
+              ? 'Отменить готовность'
+              : 'Подтвердить готовность'}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+interface LobbyCardProps {
+  match: MatchDto;
+  isAdmin: boolean;
+}
+
+function LobbyCard({ match, isAdmin }: LobbyCardProps) {
+  const { toast } = useToast();
+  const recreate = useRecreateLobby();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const lobbyId = match.lobbyId!;
+  const gameMode = match.gameMode as GameMode | null | undefined;
+  const region = match.region as Region | null | undefined;
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(lobbyId);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast({
+        title: 'Не удалось скопировать',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleRecreate() {
+    try {
+      await recreate.mutateAsync(match.id);
+      toast({ title: 'Лобби пересоздано' });
+      setConfirmOpen(false);
+    } catch (e) {
+      toast({
+        title: 'Не удалось пересоздать лобби',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <CardTitle className="text-lg">Лобби Dota 2</CardTitle>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setConfirmOpen(true)}
+              disabled={recreate.isPending}
+            >
+              Пересоздать лобби
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            ID лобби
+          </div>
+          <div className="mt-1 flex items-center gap-2">
+            <code className="rounded-md bg-muted px-3 py-2 font-mono text-2xl font-bold tracking-wider">
+              {lobbyId}
+            </code>
+            <Button size="sm" variant="outline" onClick={handleCopy}>
+              {copied ? 'Скопировано' : 'Копировать'}
+            </Button>
+          </div>
+          {match.lobbyCreatedAt && (
+            <div className="mt-1 text-xs text-muted-foreground">
+              Создано: {fmtDateTime(match.lobbyCreatedAt)}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {gameMode && (
+            <Badge variant="secondary">{GAME_MODE_LABEL[gameMode]}</Badge>
+          )}
+          {region && <Badge variant="outline">{REGION_LABEL[region]}</Badge>}
+          <Badge variant="outline">
+            Coin toss: {match.coinToss ? '✓' : '—'}
+          </Badge>
+          <Badge variant="outline">
+            Auto-launch: {match.autoLaunch ? '✓' : '—'}
+          </Badge>
+        </div>
+
+        {match.tournamentId && (
+          <div className="text-sm text-muted-foreground">
+            Турнир:{' '}
+            <span className="font-mono text-foreground">
+              {match.tournamentId}
+            </span>
+          </div>
+        )}
+
+        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          В клиенте Dota 2 → Custom Lobbies → найди ID или жди приглашения.
+        </div>
+      </CardContent>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Пересоздать лобби?</DialogTitle>
+            <DialogDescription>
+              Текущий ID будет недействителен, бот создаст новое лобби.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleRecreate}
+              disabled={recreate.isPending}
+            >
+              {recreate.isPending ? 'Пересоздание…' : 'Пересоздать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 export default function MatchDetailsPage() {
   const { id } = useParams<{ id: string }>();
+  const { session } = useAuth();
+  const me = useMe();
+  const { toast } = useToast();
   const q = useMatch(id);
+  const markReady = useMarkMatchReady();
+  const markUnready = useMarkMatchUnready();
 
   if (q.isLoading) {
     return (
@@ -100,6 +337,40 @@ export default function MatchDetailsPage() {
   const finished = m.status === 'FINISHED';
   const aWin = finished && m.winnerTeamId === m.teamA.id;
   const bWin = finished && m.winnerTeamId === m.teamB.id;
+
+  const isAdmin = !!session?.roles?.includes('ADMIN');
+  const captainOfA = !!me.data?.teams?.some(
+    (t) => t.role === 'CAPTAIN' && t.teamId === m.teamA.id,
+  );
+  const captainOfB = !!me.data?.teams?.some(
+    (t) => t.role === 'CAPTAIN' && t.teamId === m.teamB.id,
+  );
+
+  const canToggleReady =
+    m.status === 'SCHEDULED' && !m.lobbyId && (captainOfA || captainOfB);
+
+  async function handleToggle(side: 'A' | 'B') {
+    if (!m) return;
+    const readyAt = side === 'A' ? m.teamAReadyAt : m.teamBReadyAt;
+    try {
+      if (readyAt) {
+        await markUnready.mutateAsync(m.id);
+        toast({ title: 'Готовность отменена' });
+      } else {
+        await markReady.mutateAsync(m.id);
+        toast({ title: 'Готовность подтверждена' });
+      }
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  const showReadiness = m.status === 'SCHEDULED' && !m.lobbyId;
+  const showLobby = !!m.lobbyId;
 
   return (
     <div className="space-y-6">
@@ -140,6 +411,45 @@ export default function MatchDetailsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {showReadiness && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Готовность команд</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-stretch gap-6 sm:flex-nowrap">
+              <ReadinessSide
+                team={m.teamA}
+                align="left"
+                readyAt={m.teamAReadyAt}
+                isMyTeam={canToggleReady && captainOfA}
+                disabled={!canToggleReady}
+                onReady={() => handleToggle('A')}
+                onUnready={() => handleToggle('A')}
+                pending={
+                  (markReady.isPending || markUnready.isPending) && captainOfA
+                }
+              />
+              <div className="hidden self-stretch border-l sm:block" />
+              <ReadinessSide
+                team={m.teamB}
+                align="right"
+                readyAt={m.teamBReadyAt}
+                isMyTeam={canToggleReady && captainOfB}
+                disabled={!canToggleReady}
+                onReady={() => handleToggle('B')}
+                onUnready={() => handleToggle('B')}
+                pending={
+                  (markReady.isPending || markUnready.isPending) && captainOfB
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showLobby && <LobbyCard match={m} isAdmin={isAdmin} />}
 
       <Card>
         <CardHeader>

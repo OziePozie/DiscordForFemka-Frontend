@@ -39,9 +39,15 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import {
+  GAME_MODES,
+  GAME_MODE_LABEL,
+  REGIONS,
+  REGION_LABEL,
   TOURNAMENT_FORMAT_LABEL,
   TOURNAMENT_STATUS_LABEL,
   type BracketDto,
+  type GameMode,
+  type Region,
   type SeasonDto,
   type TournamentDto,
   type TournamentFormat,
@@ -62,6 +68,9 @@ const FORMATS: TournamentFormat[] = [
   'SHOWMATCH',
 ];
 
+// "—" sentinel for nullable selects (Radix Select disallows empty-string values).
+const NONE = '__none__';
+
 type FormState = {
   name: string;
   slug: string;
@@ -75,6 +84,12 @@ type FormState = {
   registrationClosesAt: string;
   startsAt: string;
   endsAt: string;
+  // Match defaults (captain-readiness feature).
+  defaultGameMode: string; // GameMode | NONE
+  defaultRegion: string; // Region | NONE
+  defaultCoinToss: boolean;
+  defaultAutoLaunch: boolean;
+  dotaLeagueId: string;
 };
 
 function emptyForm(seasonId: string | null): FormState {
@@ -91,6 +106,11 @@ function emptyForm(seasonId: string | null): FormState {
     registrationClosesAt: '',
     startsAt: '',
     endsAt: '',
+    defaultGameMode: NONE,
+    defaultRegion: NONE,
+    defaultCoinToss: true,
+    defaultAutoLaunch: false,
+    dotaLeagueId: '',
   };
 }
 
@@ -196,6 +216,15 @@ export default function AdminTournamentsPage() {
   }
 
   function openEdit(t: TournamentDto) {
+    // TODO: drop the `extra` cast once openapi regenerates with the new
+    // tournament defaults — they are not yet in TournamentDto.
+    const extra = t as TournamentDto & {
+      defaultGameMode?: GameMode | null;
+      defaultRegion?: Region | null;
+      defaultCoinToss?: boolean | null;
+      defaultAutoLaunch?: boolean | null;
+      dotaLeagueId?: number | null;
+    };
     setForm({
       name: t.name,
       slug: t.slug,
@@ -209,6 +238,12 @@ export default function AdminTournamentsPage() {
       registrationClosesAt: formatDateTimeLocal(t.registrationClosesAt),
       startsAt: formatDateTimeLocal(t.startsAt),
       endsAt: formatDateTimeLocal(t.endsAt),
+      defaultGameMode: extra.defaultGameMode ?? NONE,
+      defaultRegion: extra.defaultRegion ?? NONE,
+      defaultCoinToss: extra.defaultCoinToss ?? true,
+      defaultAutoLaunch: extra.defaultAutoLaunch ?? false,
+      dotaLeagueId:
+        extra.dotaLeagueId != null ? String(extra.dotaLeagueId) : '',
     });
     setDialog({ kind: 'edit', tournament: t });
   }
@@ -229,7 +264,24 @@ export default function AdminTournamentsPage() {
     if (form.maxTeams && !/^\d+$/.test(form.maxTeams)) {
       return 'maxTeams должно быть целым числом';
     }
+    if (form.dotaLeagueId && !/^\d+$/.test(form.dotaLeagueId)) {
+      return 'Dota league ID должен быть целым числом';
+    }
     return null;
+  }
+
+  function matchDefaultsPayload() {
+    return {
+      defaultGameMode:
+        form.defaultGameMode === NONE
+          ? null
+          : (form.defaultGameMode as GameMode),
+      defaultRegion:
+        form.defaultRegion === NONE ? null : (form.defaultRegion as Region),
+      defaultCoinToss: form.defaultCoinToss,
+      defaultAutoLaunch: form.defaultAutoLaunch,
+      dotaLeagueId: form.dotaLeagueId ? Number(form.dotaLeagueId) : null,
+    };
   }
 
   async function handleSubmit() {
@@ -255,6 +307,7 @@ export default function AdminTournamentsPage() {
           registrationClosesAt: parseLocalDateTime(form.registrationClosesAt),
           startsAt: parseLocalDateTime(form.startsAt),
           endsAt: parseLocalDateTime(form.endsAt),
+          ...matchDefaultsPayload(),
         });
         toast({ title: 'Турнир создан', description: t.name });
         closeDialog();
@@ -285,6 +338,14 @@ export default function AdminTournamentsPage() {
         });
         return;
       }
+      if (form.dotaLeagueId && !/^\d+$/.test(form.dotaLeagueId)) {
+        toast({
+          title: 'Ошибка',
+          description: 'Dota league ID должен быть целым числом',
+          variant: 'destructive',
+        });
+        return;
+      }
       try {
         await updateMut.mutateAsync({
           id: dialog.tournament.id,
@@ -298,6 +359,7 @@ export default function AdminTournamentsPage() {
             registrationClosesAt: parseLocalDateTime(form.registrationClosesAt),
             startsAt: parseLocalDateTime(form.startsAt),
             endsAt: parseLocalDateTime(form.endsAt),
+            ...matchDefaultsPayload(),
           },
         });
         toast({ title: 'Турнир обновлён' });
@@ -670,6 +732,101 @@ export default function AdminTournamentsPage() {
                 />
               </div>
             </div>
+
+            <details className="rounded-md border bg-muted/30 px-3 py-2">
+              <summary className="cursor-pointer select-none text-sm font-medium">
+                Настройки матчей по умолчанию
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-gamemode">Режим игры</Label>
+                    <Select
+                      value={form.defaultGameMode}
+                      onValueChange={(v) =>
+                        setForm({ ...form, defaultGameMode: v })
+                      }
+                    >
+                      <SelectTrigger id="tn-gamemode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>—</SelectItem>
+                        {GAME_MODES.map((g) => (
+                          <SelectItem key={g} value={g}>
+                            {GAME_MODE_LABEL[g]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-region">Регион</Label>
+                    <Select
+                      value={form.defaultRegion}
+                      onValueChange={(v) =>
+                        setForm({ ...form, defaultRegion: v })
+                      }
+                    >
+                      <SelectTrigger id="tn-region">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>—</SelectItem>
+                        {REGIONS.map((r) => (
+                          <SelectItem key={r} value={r}>
+                            {REGION_LABEL[r]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-6">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={form.defaultCoinToss}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          defaultCoinToss: e.target.checked,
+                        })
+                      }
+                    />
+                    Coin toss (выбор стороны)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      checked={form.defaultAutoLaunch}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          defaultAutoLaunch: e.target.checked,
+                        })
+                      }
+                    />
+                    Auto-launch матча
+                  </label>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="tn-leagueid">Dota league ID</Label>
+                  <Input
+                    id="tn-leagueid"
+                    type="number"
+                    min={0}
+                    value={form.dotaLeagueId}
+                    onChange={(e) =>
+                      setForm({ ...form, dotaLeagueId: e.target.value })
+                    }
+                    placeholder="опционально"
+                  />
+                </div>
+              </div>
+            </details>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeDialog}>

@@ -61,7 +61,48 @@ export type TournamentDetailsDto = S['TournamentDetailsDto'];
 export type TournamentTeamDto = S['TournamentTeamDto'];
 export type BracketDto = S['BracketDto'];
 export type BracketRoundDto = S['BracketRoundDto'];
-export type MatchDto = S['MatchDto'];
+
+// TODO: replace once openapi regenerates — captain-readiness / lobby fields are
+// not yet in types.gen.ts. We augment the generated MatchDto with the new
+// fields (all nullable / optional) so pages can read them safely.
+export type GameMode =
+  | 'ALL_PICK'
+  | 'CAPTAINS_MODE'
+  | 'CAPTAINS_DRAFT'
+  | 'RANKED_AP'
+  | 'SINGLE_DRAFT'
+  | 'RANDOM_DRAFT'
+  | 'ALL_RANDOM'
+  | 'TURBO'
+  | 'ALL_PICK_RANKED';
+
+export type Region =
+  | 'AUTO'
+  | 'EUROPE'
+  | 'US_EAST'
+  | 'US_WEST'
+  | 'SE_ASIA'
+  | 'RUSSIA'
+  | 'AUSTRALIA'
+  | 'SOUTH_AMERICA'
+  | 'STOCKHOLM'
+  | 'DUBAI'
+  | 'AUSTRIA'
+  | 'PERU'
+  | 'SOUTH_AFRICA'
+  | 'CHILE'
+  | 'INDIA';
+
+export type MatchDto = S['MatchDto'] & {
+  teamAReadyAt?: string | null;
+  teamBReadyAt?: string | null;
+  lobbyId?: string | null;
+  lobbyCreatedAt?: string | null;
+  gameMode?: GameMode | null;
+  region?: Region | null;
+  coinToss?: boolean | null;
+  autoLaunch?: boolean | null;
+};
 
 // Generic paged response
 export interface PagedResponse<T> {
@@ -105,6 +146,14 @@ export interface CreateTournamentRequest {
   registrationClosesAt?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
+  // TODO: replace once openapi regenerates — defaultGameMode / defaultRegion /
+  // defaultCoinToss / defaultAutoLaunch / dotaLeagueId are added by the
+  // captain-readiness feature.
+  defaultGameMode?: GameMode | null;
+  defaultRegion?: Region | null;
+  defaultCoinToss?: boolean | null;
+  defaultAutoLaunch?: boolean | null;
+  dotaLeagueId?: number | null;
 }
 
 export interface UpdateTournamentRequest {
@@ -118,6 +167,12 @@ export interface UpdateTournamentRequest {
   registrationClosesAt?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
+  // TODO: replace once openapi regenerates.
+  defaultGameMode?: GameMode | null;
+  defaultRegion?: Region | null;
+  defaultCoinToss?: boolean | null;
+  defaultAutoLaunch?: boolean | null;
+  dotaLeagueId?: number | null;
 }
 
 // Enums (as union types)
@@ -252,6 +307,66 @@ export const PLAYER_ROLES: PlayerRole[] = [
   'CAPTAIN',
   'MODERATOR',
   'ADMIN',
+];
+
+export const GAME_MODE_LABEL: Record<GameMode, string> = {
+  ALL_PICK: 'All Pick',
+  CAPTAINS_MODE: 'Captains Mode',
+  CAPTAINS_DRAFT: 'Captains Draft',
+  RANKED_AP: 'Ranked All Pick',
+  SINGLE_DRAFT: 'Single Draft',
+  RANDOM_DRAFT: 'Random Draft',
+  ALL_RANDOM: 'All Random',
+  TURBO: 'Turbo',
+  ALL_PICK_RANKED: 'Ranked AP',
+};
+
+export const GAME_MODES: GameMode[] = [
+  'ALL_PICK',
+  'CAPTAINS_MODE',
+  'CAPTAINS_DRAFT',
+  'RANKED_AP',
+  'SINGLE_DRAFT',
+  'RANDOM_DRAFT',
+  'ALL_RANDOM',
+  'TURBO',
+  'ALL_PICK_RANKED',
+];
+
+export const REGION_LABEL: Record<Region, string> = {
+  AUTO: 'Авто',
+  EUROPE: 'Europe',
+  US_EAST: 'US East',
+  US_WEST: 'US West',
+  SE_ASIA: 'SEA',
+  RUSSIA: 'Russia',
+  AUSTRALIA: 'Australia',
+  SOUTH_AMERICA: 'S.America',
+  STOCKHOLM: 'Stockholm',
+  DUBAI: 'Dubai',
+  AUSTRIA: 'Austria',
+  PERU: 'Peru',
+  SOUTH_AFRICA: 'S.Africa',
+  CHILE: 'Chile',
+  INDIA: 'India',
+};
+
+export const REGIONS: Region[] = [
+  'AUTO',
+  'EUROPE',
+  'US_EAST',
+  'US_WEST',
+  'SE_ASIA',
+  'RUSSIA',
+  'AUSTRALIA',
+  'SOUTH_AMERICA',
+  'STOCKHOLM',
+  'DUBAI',
+  'AUSTRIA',
+  'PERU',
+  'SOUTH_AFRICA',
+  'CHILE',
+  'INDIA',
 ];
 
 export const INACTIVE_REASON_LABEL: Record<InactiveReason, string> = {
