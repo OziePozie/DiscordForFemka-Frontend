@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTeamsList } from '@/lib/queries';
+import { useMe, useTeamsList } from '@/lib/queries';
+import { useAuth } from '@/lib/auth';
 import {
   Avatar,
   AvatarFallback,
@@ -47,10 +48,14 @@ function statusVariant(s: TeamStatus) {
 
 export default function TeamsListPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const me = useMe();
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [status, setStatus] = useState<'ALL' | TeamStatus>('ALL');
   const [page, setPage] = useState(0);
+
+  const isInactive = me.data?.activity?.status === 'INACTIVE';
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -71,8 +76,19 @@ export default function TeamsListPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">Команды</h1>
-        <div className="text-sm text-muted-foreground">
-          {q.data?.totalItems ?? 0} всего
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            {q.data?.totalItems ?? 0} всего
+          </div>
+          {isAuthenticated && (
+            <Button
+              onClick={() => navigate('/teams/new')}
+              disabled={isInactive}
+              title={isInactive ? 'Профиль не активен' : undefined}
+            >
+              + Создать команду
+            </Button>
+          )}
         </div>
       </div>
 

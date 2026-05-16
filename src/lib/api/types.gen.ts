@@ -1842,6 +1842,8 @@ export interface components {
             id: string;
             /** Format: uuid */
             seasonId?: string | null;
+            /** Format: uuid */
+            winnerTeamId?: string | null;
             name: string;
             slug: string;
             format: components["schemas"]["TournamentFormat"];

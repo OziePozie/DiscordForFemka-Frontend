@@ -27,10 +27,32 @@ import {
   disbandTeam,
   transferCaptaincy,
   registerTeamForTournament,
+  createSeason,
+  updateSeason,
+  startSeason,
+  finishSeason,
+  createTournament,
+  updateTournament,
+  openTournamentRegistration,
+  closeTournamentRegistration,
+  startTournament,
+  finishTournament,
+  generateBracket,
+  createTeam,
+  uploadAttachment,
+  listLobbies,
+  createLobby,
+  acceptLobby,
+  cancelLobby,
+  listMyInvites,
+  acceptInvite,
+  declineInvite,
   type SeasonsPageParams,
   type TournamentMatchesParams,
   type TeamsPageParams,
   type AdminMmrRequestsParams,
+  type LobbiesPageParams,
+  type MyInvitesPageParams,
 } from './api/endpoints';
 import type {
   SessionDto,
@@ -38,10 +60,23 @@ import type {
   UpdateMeRequest,
   PlayerPublicDto,
   AttachmentDto,
+  AttachmentKind,
   AccountProvider,
   MmrChangeRequestAdminDto,
   TeamDto,
   TournamentTeamDto,
+  SeasonDto,
+  TournamentDto,
+  BracketDto,
+  CreateSeasonRequest,
+  UpdateSeasonRequest,
+  CreateTournamentRequest,
+  UpdateTournamentRequest,
+  CreateTeamRequest,
+  TeamInviteDto,
+  MatchDto,
+  MatchRequestDto,
+  CreateMatchRequestDto,
 } from './api/types';
 
 export const qk = {
@@ -61,6 +96,9 @@ export const qk = {
   adminMmr: ['adminMmr'] as const,
   adminMmrPage: (params: AdminMmrRequestsParams) =>
     ['adminMmr', params] as const,
+  lobbies: (params: LobbiesPageParams) => ['lobbies', params] as const,
+  myInvites: (params: MyInvitesPageParams) =>
+    ['myInvites', params] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -288,4 +326,225 @@ export function useRejectMmrRequest() {
   });
 }
 
-export type { PlayerPublicDto };
+// ──────────────── Admin Seasons (mutations) ────────────────
+
+function invalidateSeasonCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['seasons'] });
+  qc.invalidateQueries({ queryKey: ['season'] });
+  qc.invalidateQueries({ queryKey: qk.seasonCurrent });
+}
+
+export function useCreateSeason() {
+  const qc = useQueryClient();
+  return useMutation<SeasonDto, Error, CreateSeasonRequest>({
+    mutationFn: createSeason,
+    onSuccess: () => invalidateSeasonCaches(qc),
+  });
+}
+
+export function useUpdateSeason() {
+  const qc = useQueryClient();
+  return useMutation<
+    SeasonDto,
+    Error,
+    { id: string; patch: UpdateSeasonRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateSeason(id, patch),
+    onSuccess: () => invalidateSeasonCaches(qc),
+  });
+}
+
+export function useStartSeason() {
+  const qc = useQueryClient();
+  return useMutation<SeasonDto, Error, string>({
+    mutationFn: startSeason,
+    onSuccess: () => invalidateSeasonCaches(qc),
+  });
+}
+
+export function useFinishSeason() {
+  const qc = useQueryClient();
+  return useMutation<SeasonDto, Error, string>({
+    mutationFn: finishSeason,
+    onSuccess: () => invalidateSeasonCaches(qc),
+  });
+}
+
+// ──────────────── Admin Tournaments (mutations) ────────────────
+
+function invalidateTournamentCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['tournament'] });
+  qc.invalidateQueries({ queryKey: ['season'] });
+  qc.invalidateQueries({ queryKey: ['seasons'] });
+}
+
+export function useCreateTournament() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, CreateTournamentRequest>({
+    mutationFn: createTournament,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useUpdateTournament() {
+  const qc = useQueryClient();
+  return useMutation<
+    TournamentDto,
+    Error,
+    { id: string; patch: UpdateTournamentRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateTournament(id, patch),
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useOpenTournamentRegistration() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: openTournamentRegistration,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useCloseTournamentRegistration() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: closeTournamentRegistration,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useStartTournament() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: startTournament,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useFinishTournament() {
+  const qc = useQueryClient();
+  return useMutation<
+    TournamentDto,
+    Error,
+    { id: string; winnerTeamId?: string }
+  >({
+    mutationFn: ({ id, winnerTeamId }) => finishTournament(id, winnerTeamId),
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useGenerateBracket() {
+  const qc = useQueryClient();
+  return useMutation<BracketDto, Error, string>({
+    mutationFn: generateBracket,
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: qk.bracket(id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
+  });
+}
+
+// ──────────────── Team authoring ────────────────
+
+export function useCreateTeam() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, CreateTeamRequest>({
+    mutationFn: createTeam,
+    onSuccess: (team) => {
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: qk.team(team.id) });
+      qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+// ──────────────── Attachments ────────────────
+
+export function useUploadAttachment() {
+  return useMutation<
+    AttachmentDto,
+    Error,
+    { file: File; kind: AttachmentKind }
+  >({
+    mutationFn: ({ file, kind }) => uploadAttachment(file, kind),
+  });
+}
+
+// ──────────────── Lobbies (match-requests) ────────────────
+
+export function useLobbies(params: LobbiesPageParams = {}) {
+  return useQuery({
+    queryKey: qk.lobbies(params),
+    queryFn: () => listLobbies(params),
+  });
+}
+
+export function useCreateLobby() {
+  const qc = useQueryClient();
+  return useMutation<MatchRequestDto, Error, CreateMatchRequestDto>({
+    mutationFn: createLobby,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lobbies'] });
+    },
+  });
+}
+
+export function useAcceptLobby() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: acceptLobby,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lobbies'] });
+    },
+  });
+}
+
+export function useCancelLobby() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: cancelLobby,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lobbies'] });
+    },
+  });
+}
+
+// ──────────────── My invites ────────────────
+
+export function useMyInvites(
+  params: MyInvitesPageParams = {},
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: qk.myInvites(params),
+    queryFn: () => listMyInvites(params),
+    enabled,
+    retry: 0,
+  });
+}
+
+export function useAcceptInvite() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, string>({
+    mutationFn: acceptInvite,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myInvites'] });
+      qc.invalidateQueries({ queryKey: qk.me });
+      qc.invalidateQueries({ queryKey: ['teams'] });
+    },
+  });
+}
+
+export function useDeclineInvite() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: declineInvite,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myInvites'] });
+    },
+  });
+}
+
+export type { PlayerPublicDto, TeamInviteDto };

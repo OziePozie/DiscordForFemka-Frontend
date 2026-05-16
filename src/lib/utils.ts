@@ -22,3 +22,35 @@ export function timeAgo(iso: string | null | undefined): string {
   const y = Math.floor(mo / 12);
   return `${y} г назад`;
 }
+
+/**
+ * Convert a backend ISO-UTC timestamp to a value usable in
+ * <input type="datetime-local">. Returns "" for null/undefined/invalid.
+ * The output is in the user's local timezone with minute precision.
+ */
+export function formatDateTimeLocal(
+  iso: string | null | undefined,
+): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mi = pad(d.getMinutes());
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+/**
+ * Convert a <input type="datetime-local"> value (local timezone, no zone
+ * info) into an ISO-8601 UTC string for the backend. Returns null when
+ * the input is empty or unparseable.
+ */
+export function parseLocalDateTime(local: string | null | undefined): string | null {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}

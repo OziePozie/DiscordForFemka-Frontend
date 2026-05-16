@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 
 const NAV: Array<{ to: string; label: string; disabled?: boolean }> = [
   { to: '/admin/mmr', label: 'MMR-заявки' },
-  { to: '/admin/seasons', label: 'Сезоны', disabled: true },
-  { to: '/admin/tournaments', label: 'Турниры', disabled: true },
+  { to: '/admin/seasons', label: 'Сезоны' },
+  { to: '/admin/tournaments', label: 'Турниры' },
 ];
 
 export default function AdminLayout() {

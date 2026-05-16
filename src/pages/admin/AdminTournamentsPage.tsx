@@ -1,0 +1,890 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  useCreateTournament,
+  useUpdateTournament,
+  useOpenTournamentRegistration,
+  useCloseTournamentRegistration,
+  useStartTournament,
+  useFinishTournament,
+  useGenerateBracket,
+} from '@/lib/queries';
+import { getSeasonsPage, getSeasonBySlug } from '@/lib/api/endpoints';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useToast } from '@/components/ui/use-toast';
+import { ProblemDetailError } from '@/lib/api/client';
+import {
+  TOURNAMENT_FORMAT_LABEL,
+  TOURNAMENT_STATUS_LABEL,
+  type BracketDto,
+  type SeasonDto,
+  type TournamentDto,
+  type TournamentFormat,
+  type TournamentStatus,
+} from '@/lib/api/types';
+import { formatDateTimeLocal, parseLocalDateTime } from '@/lib/utils';
+
+const PAGE_SIZE = 25;
+const SLUG_RE = /^[a-z0-9-]+$/;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const FORMATS: TournamentFormat[] = [
+  'SINGLE_ELIM',
+  'DOUBLE_ELIM',
+  'ROUND_ROBIN',
+  'SWISS',
+  'SHOWMATCH',
+];
+
+type FormState = {
+  name: string;
+  slug: string;
+  seasonId: string;
+  format: TournamentFormat;
+  description: string;
+  rules: string;
+  prizePoolText: string;
+  maxTeams: string;
+  registrationOpensAt: string;
+  registrationClosesAt: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+function emptyForm(seasonId: string | null): FormState {
+  return {
+    name: '',
+    slug: '',
+    seasonId: seasonId ?? '',
+    format: 'SINGLE_ELIM',
+    description: '',
+    rules: '',
+    prizePoolText: '',
+    maxTeams: '',
+    registrationOpensAt: '',
+    registrationClosesAt: '',
+    startsAt: '',
+    endsAt: '',
+  };
+}
+
+type DialogState =
+  | { kind: 'create' }
+  | { kind: 'edit'; tournament: TournamentDto }
+  | { kind: 'confirm-bracket'; tournament: TournamentDto }
+  | { kind: 'finish'; tournament: TournamentDto }
+  | { kind: 'bracket-result'; tournament: TournamentDto; bracket: BracketDto }
+  | null;
+
+function statusVariant(s: TournamentStatus) {
+  switch (s) {
+    case 'LIVE':
+      return 'default' as const;
+    case 'REGISTRATION_OPEN':
+      return 'default' as const;
+    case 'REGISTRATION_CLOSED':
+      return 'secondary' as const;
+    case 'ANNOUNCED':
+      return 'secondary' as const;
+    case 'CANCELLED':
+      return 'destructive' as const;
+    case 'FINISHED':
+      return 'outline' as const;
+  }
+}
+
+function describeError(e: unknown): string {
+  if (e instanceof ProblemDetailError) {
+    return `${e.title}${e.detail ? `: ${e.detail}` : ''}`;
+  }
+  if (e instanceof Error) return e.message;
+  return 'Неизвестная ошибка';
+}
+
+export default function AdminTournamentsPage() {
+  const { toast } = useToast();
+
+  // Load all seasons (small set) once for the filter / create form.
+  const seasonsQ = useQuery({
+    queryKey: ['admin-tournaments-seasons'],
+    queryFn: () => getSeasonsPage({ size: 50 }),
+    staleTime: 60_000,
+  });
+
+  const seasons: SeasonDto[] = seasonsQ.data?.items ?? [];
+
+  const [seasonSlug, setSeasonSlug] = useState<string>('');
+
+  // Auto-select first season once loaded.
+  useEffect(() => {
+    if (!seasonSlug && seasons.length > 0) {
+      setSeasonSlug(seasons[0].slug);
+    }
+  }, [seasons, seasonSlug]);
+
+  const seasonDetailsQ = useQuery({
+    queryKey: ['admin-season-details', seasonSlug],
+    queryFn: () => getSeasonBySlug(seasonSlug),
+    enabled: !!seasonSlug,
+  });
+
+  const allTournaments: TournamentDto[] = seasonDetailsQ.data?.tournaments ?? [];
+
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    setPage(0);
+  }, [seasonSlug]);
+
+  const pageItems = useMemo(
+    () => allTournaments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [allTournaments, page],
+  );
+  const totalPages = Math.max(1, Math.ceil(allTournaments.length / PAGE_SIZE));
+
+  // Mutations.
+  const createMut = useCreateTournament();
+  const updateMut = useUpdateTournament();
+  const openRegMut = useOpenTournamentRegistration();
+  const closeRegMut = useCloseTournamentRegistration();
+  const startMut = useStartTournament();
+  const finishMut = useFinishTournament();
+  const bracketMut = useGenerateBracket();
+
+  const mutating =
+    createMut.isPending ||
+    updateMut.isPending ||
+    openRegMut.isPending ||
+    closeRegMut.isPending ||
+    startMut.isPending ||
+    finishMut.isPending ||
+    bracketMut.isPending;
+
+  const [dialog, setDialog] = useState<DialogState>(null);
+  const [form, setForm] = useState<FormState>(emptyForm(null));
+  const [winnerTeamId, setWinnerTeamId] = useState('');
+
+  function openCreate() {
+    const currentSeason = seasons.find((s) => s.slug === seasonSlug);
+    setForm(emptyForm(currentSeason?.id ?? null));
+    setDialog({ kind: 'create' });
+  }
+
+  function openEdit(t: TournamentDto) {
+    setForm({
+      name: t.name,
+      slug: t.slug,
+      seasonId: t.seasonId ?? '',
+      format: t.format,
+      description: t.description ?? '',
+      rules: '',
+      prizePoolText: t.prizePoolText ?? '',
+      maxTeams: t.maxTeams != null ? String(t.maxTeams) : '',
+      registrationOpensAt: formatDateTimeLocal(t.registrationOpensAt),
+      registrationClosesAt: formatDateTimeLocal(t.registrationClosesAt),
+      startsAt: formatDateTimeLocal(t.startsAt),
+      endsAt: formatDateTimeLocal(t.endsAt),
+    });
+    setDialog({ kind: 'edit', tournament: t });
+  }
+
+  function closeDialog() {
+    setDialog(null);
+    setWinnerTeamId('');
+  }
+
+  function validateCreate(): string | null {
+    if (!form.name.trim()) return 'Укажите название';
+    if (!form.slug.trim()) return 'Укажите slug';
+    if (!SLUG_RE.test(form.slug)) {
+      return 'Slug может содержать только a-z, 0-9 и дефис';
+    }
+    if (form.slug.length > 64) return 'Slug не длиннее 64 символов';
+    if (!form.seasonId) return 'Выберите сезон';
+    if (form.maxTeams && !/^\d+$/.test(form.maxTeams)) {
+      return 'maxTeams должно быть целым числом';
+    }
+    return null;
+  }
+
+  async function handleSubmit() {
+    if (!dialog) return;
+
+    if (dialog.kind === 'create') {
+      const err = validateCreate();
+      if (err) {
+        toast({ title: 'Ошибка', description: err, variant: 'destructive' });
+        return;
+      }
+      try {
+        const t = await createMut.mutateAsync({
+          name: form.name.trim(),
+          slug: form.slug.trim(),
+          seasonId: form.seasonId,
+          format: form.format,
+          description: form.description.trim() || null,
+          rules: form.rules.trim() || null,
+          prizePoolText: form.prizePoolText.trim() || null,
+          maxTeams: form.maxTeams ? Number(form.maxTeams) : null,
+          registrationOpensAt: parseLocalDateTime(form.registrationOpensAt),
+          registrationClosesAt: parseLocalDateTime(form.registrationClosesAt),
+          startsAt: parseLocalDateTime(form.startsAt),
+          endsAt: parseLocalDateTime(form.endsAt),
+        });
+        toast({ title: 'Турнир создан', description: t.name });
+        closeDialog();
+      } catch (e) {
+        toast({
+          title: 'Не удалось создать',
+          description: describeError(e),
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+
+    if (dialog.kind === 'edit') {
+      if (!form.name.trim()) {
+        toast({
+          title: 'Ошибка',
+          description: 'Название обязательно',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (form.maxTeams && !/^\d+$/.test(form.maxTeams)) {
+        toast({
+          title: 'Ошибка',
+          description: 'maxTeams должно быть целым числом',
+          variant: 'destructive',
+        });
+        return;
+      }
+      try {
+        await updateMut.mutateAsync({
+          id: dialog.tournament.id,
+          patch: {
+            name: form.name.trim(),
+            description: form.description.trim() || null,
+            rules: form.rules.trim() || null,
+            prizePoolText: form.prizePoolText.trim() || null,
+            maxTeams: form.maxTeams ? Number(form.maxTeams) : null,
+            registrationOpensAt: parseLocalDateTime(form.registrationOpensAt),
+            registrationClosesAt: parseLocalDateTime(form.registrationClosesAt),
+            startsAt: parseLocalDateTime(form.startsAt),
+            endsAt: parseLocalDateTime(form.endsAt),
+          },
+        });
+        toast({ title: 'Турнир обновлён' });
+        closeDialog();
+      } catch (e) {
+        toast({
+          title: 'Не удалось обновить',
+          description: describeError(e),
+          variant: 'destructive',
+        });
+      }
+    }
+  }
+
+  async function handleGenerateBracket() {
+    if (!dialog || dialog.kind !== 'confirm-bracket') return;
+    try {
+      const bracket = await bracketMut.mutateAsync(dialog.tournament.id);
+      setDialog({
+        kind: 'bracket-result',
+        tournament: dialog.tournament,
+        bracket,
+      });
+    } catch (e) {
+      toast({
+        title: 'Не удалось сгенерировать сетку',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleFinish() {
+    if (!dialog || dialog.kind !== 'finish') return;
+    const id = winnerTeamId.trim();
+    if (id && !UUID_RE.test(id)) {
+      toast({
+        title: 'Невалидный UUID',
+        description: 'Введите корректный UUID или оставьте пустым',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await finishMut.mutateAsync({
+        id: dialog.tournament.id,
+        winnerTeamId: id || undefined,
+      });
+      toast({ title: 'Турнир завершён' });
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось завершить',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function runTransition(
+    t: TournamentDto,
+    action: 'open' | 'close' | 'start',
+  ) {
+    try {
+      if (action === 'open') {
+        await openRegMut.mutateAsync(t.id);
+        toast({ title: 'Регистрация открыта' });
+      } else if (action === 'close') {
+        await closeRegMut.mutateAsync(t.id);
+        toast({ title: 'Регистрация закрыта' });
+      } else {
+        await startMut.mutateAsync(t.id);
+        toast({ title: 'Турнир запущен' });
+      }
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight">Турниры</h1>
+        <Button onClick={openCreate} disabled={seasons.length === 0}>
+          Новый турнир
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Label htmlFor="season-filter" className="text-sm">
+          Сезон:
+        </Label>
+        <Select
+          value={seasonSlug || undefined}
+          onValueChange={(v) => setSeasonSlug(v)}
+        >
+          <SelectTrigger id="season-filter" className="w-64">
+            <SelectValue placeholder="Выберите сезон" />
+          </SelectTrigger>
+          <SelectContent>
+            {seasons.map((s) => (
+              <SelectItem key={s.id} value={s.slug}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {(seasonsQ.isLoading || seasonDetailsQ.isLoading) && (
+        <Skeleton className="h-80 w-full" />
+      )}
+
+      {seasonDetailsQ.isError && (
+        <div className="text-sm text-destructive">
+          Не удалось загрузить турниры:{' '}
+          {seasonDetailsQ.error?.message ?? 'unknown error'}
+        </div>
+      )}
+
+      {seasonsQ.data && seasons.length === 0 && (
+        <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
+          Нет сезонов. Создайте сезон во вкладке «Сезоны».
+        </div>
+      )}
+
+      {seasonDetailsQ.data && allTournaments.length === 0 && (
+        <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
+          В этом сезоне ещё нет турниров.
+        </div>
+      )}
+
+      {pageItems.length > 0 && (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left">
+              <tr>
+                <th className="px-4 py-2 font-medium">Название</th>
+                <th className="px-4 py-2 font-medium">Slug</th>
+                <th className="px-4 py-2 font-medium">Формат</th>
+                <th className="px-4 py-2 font-medium">Статус</th>
+                <th className="px-4 py-2 font-medium">Макс. команд</th>
+                <th className="px-4 py-2 text-right font-medium">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.map((t) => (
+                <TournamentRow
+                  key={t.id}
+                  t={t}
+                  mutating={mutating}
+                  onEdit={() => openEdit(t)}
+                  onOpenReg={() => runTransition(t, 'open')}
+                  onCloseReg={() => runTransition(t, 'close')}
+                  onGenerateBracket={() =>
+                    setDialog({ kind: 'confirm-bracket', tournament: t })
+                  }
+                  onStart={() => runTransition(t, 'start')}
+                  onFinish={() => setDialog({ kind: 'finish', tournament: t })}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <Button
+            variant="outline"
+            disabled={page === 0}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+          >
+            Назад
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Страница {page + 1} из {totalPages}
+          </div>
+          <Button
+            variant="outline"
+            disabled={page + 1 >= totalPages}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Дальше
+          </Button>
+        </div>
+      )}
+
+      {/* Create / edit dialog */}
+      <Dialog
+        open={dialog?.kind === 'create' || dialog?.kind === 'edit'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {dialog?.kind === 'edit'
+                ? 'Редактировать турнир'
+                : 'Новый турнир'}
+            </DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'edit'
+                ? 'Slug, формат и сезон изменить нельзя.'
+                : 'Поля, отмеченные звёздочкой — обязательны.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="tn-name">Название *</Label>
+                <Input
+                  id="tn-name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tn-slug">Slug *</Label>
+                <Input
+                  id="tn-slug"
+                  value={form.slug}
+                  onChange={(e) =>
+                    setForm({ ...form, slug: e.target.value.toLowerCase() })
+                  }
+                  disabled={dialog?.kind === 'edit'}
+                  maxLength={64}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="tn-season">Сезон *</Label>
+                <Select
+                  value={form.seasonId || undefined}
+                  onValueChange={(v) => setForm({ ...form, seasonId: v })}
+                  disabled={dialog?.kind === 'edit'}
+                >
+                  <SelectTrigger id="tn-season">
+                    <SelectValue placeholder="Выберите сезон" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {seasons.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tn-format">Формат *</Label>
+                <Select
+                  value={form.format}
+                  onValueChange={(v) =>
+                    setForm({ ...form, format: v as TournamentFormat })
+                  }
+                  disabled={dialog?.kind === 'edit'}
+                >
+                  <SelectTrigger id="tn-format">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FORMATS.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        {TOURNAMENT_FORMAT_LABEL[f]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="tn-desc">Описание</Label>
+              <textarea
+                id="tn-desc"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="tn-rules">Правила</Label>
+              <textarea
+                id="tn-rules"
+                value={form.rules}
+                onChange={(e) => setForm({ ...form, rules: e.target.value })}
+                className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="tn-prize">Призовой фонд</Label>
+                <Input
+                  id="tn-prize"
+                  value={form.prizePoolText}
+                  onChange={(e) =>
+                    setForm({ ...form, prizePoolText: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tn-maxteams">Макс. команд</Label>
+                <Input
+                  id="tn-maxteams"
+                  type="number"
+                  min={0}
+                  value={form.maxTeams}
+                  onChange={(e) =>
+                    setForm({ ...form, maxTeams: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="tn-regopen">Регистрация откр.</Label>
+                <Input
+                  id="tn-regopen"
+                  type="datetime-local"
+                  value={form.registrationOpensAt}
+                  onChange={(e) =>
+                    setForm({ ...form, registrationOpensAt: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tn-regclose">Регистрация закр.</Label>
+                <Input
+                  id="tn-regclose"
+                  type="datetime-local"
+                  value={form.registrationClosesAt}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      registrationClosesAt: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="tn-starts">Старт</Label>
+                <Input
+                  id="tn-starts"
+                  type="datetime-local"
+                  value={form.startsAt}
+                  onChange={(e) =>
+                    setForm({ ...form, startsAt: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="tn-ends">Финиш</Label>
+                <Input
+                  id="tn-ends"
+                  type="datetime-local"
+                  value={form.endsAt}
+                  onChange={(e) =>
+                    setForm({ ...form, endsAt: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleSubmit} disabled={mutating}>
+              {mutating
+                ? 'Сохранение…'
+                : dialog?.kind === 'edit'
+                  ? 'Сохранить'
+                  : 'Создать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm bracket generation */}
+      <Dialog
+        open={dialog?.kind === 'confirm-bracket'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Сгенерировать сетку?</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'confirm-bracket'
+                ? dialog.tournament.name
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleGenerateBracket} disabled={mutating}>
+              {bracketMut.isPending ? 'Генерация…' : 'Сгенерировать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bracket result */}
+      <Dialog
+        open={dialog?.kind === 'bracket-result'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Сетка сгенерирована</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'bracket-result'
+                ? `${dialog.tournament.name}: ${dialog.bracket.rounds.reduce(
+                    (acc, r) => acc + (r.matches?.length ?? 0),
+                    0,
+                  )} матчей в ${dialog.bracket.rounds.length} раундах`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={closeDialog}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Finish dialog */}
+      <Dialog
+        open={dialog?.kind === 'finish'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Завершить турнир</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'finish' ? dialog.tournament.name : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="winner-id">
+              ID команды-победителя (опционально)
+            </Label>
+            <Input
+              id="winner-id"
+              value={winnerTeamId}
+              onChange={(e) => setWinnerTeamId(e.target.value)}
+              placeholder="UUID или пусто — взять из сетки"
+            />
+            <p className="text-xs text-muted-foreground">
+              Если оставить пустым, бекенд определит победителя по финальному
+              матчу сетки.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleFinish}
+              disabled={mutating}
+            >
+              {finishMut.isPending ? 'Применение…' : 'Завершить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+interface TournamentRowProps {
+  t: TournamentDto;
+  mutating: boolean;
+  onEdit: () => void;
+  onOpenReg: () => void;
+  onCloseReg: () => void;
+  onGenerateBracket: () => void;
+  onStart: () => void;
+  onFinish: () => void;
+}
+
+function TournamentRow({
+  t,
+  mutating,
+  onEdit,
+  onOpenReg,
+  onCloseReg,
+  onGenerateBracket,
+  onStart,
+  onFinish,
+}: TournamentRowProps) {
+  const canOpen = t.status === 'ANNOUNCED';
+  const canClose = t.status === 'REGISTRATION_OPEN';
+  const canGenerate = t.status === 'REGISTRATION_CLOSED';
+  const canStart =
+    t.status === 'REGISTRATION_CLOSED' || t.status === 'ANNOUNCED';
+  const canFinish = t.status === 'LIVE';
+
+  return (
+    <tr className="border-t align-top">
+      <td className="px-4 py-3 font-medium">{t.name}</td>
+      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+        {t.slug}
+      </td>
+      <td className="px-4 py-3">
+        <Badge variant="outline">{TOURNAMENT_FORMAT_LABEL[t.format]}</Badge>
+      </td>
+      <td className="px-4 py-3">
+        <Badge variant={statusVariant(t.status)}>
+          {TOURNAMENT_STATUS_LABEL[t.status]}
+        </Badge>
+      </td>
+      <td className="px-4 py-3 text-muted-foreground">{t.maxTeams ?? '—'}</td>
+      <td className="px-4 py-3 text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={mutating}>
+              Действия
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit}>Редактировать</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onOpenReg}
+              disabled={!canOpen}
+              title={canOpen ? undefined : 'Доступно только для ANNOUNCED'}
+            >
+              Открыть регистрацию
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onCloseReg}
+              disabled={!canClose}
+              title={
+                canClose
+                  ? undefined
+                  : 'Доступно только когда регистрация открыта'
+              }
+            >
+              Закрыть регистрацию
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onGenerateBracket}
+              disabled={!canGenerate}
+              title={
+                canGenerate
+                  ? undefined
+                  : 'Доступно после закрытия регистрации'
+              }
+            >
+              Сгенерировать сетку
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onStart}
+              disabled={!canStart}
+              title={
+                canStart ? undefined : 'Перед стартом закройте регистрацию'
+              }
+            >
+              Старт
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onFinish}
+              disabled={!canFinish}
+              title={canFinish ? undefined : 'Доступно только для LIVE'}
+            >
+              Финиш
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </td>
+    </tr>
+  );
+}

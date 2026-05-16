@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Users, Mail } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/lib/auth';
-import { useLogout } from '@/lib/queries';
+import { useLogout, useMyInvites } from '@/lib/queries';
 import { steamLoginUrl } from '@/lib/api/endpoints';
 
 export default function Header() {
@@ -27,6 +28,17 @@ export default function Header() {
   const isStaff = !!session?.roles?.some(
     (r) => r === 'MODERATOR' || r === 'ADMIN',
   );
+
+  // Pull a tiny page of incoming invites just to know whether the badge
+  // should appear. Disabled for anonymous users to avoid 401s.
+  const invitesProbe = useMyInvites(
+    { status: 'PENDING', page: 0, size: 5 },
+    { enabled: isAuthenticated },
+  );
+  const pendingInviteCount = isAuthenticated
+    ? (invitesProbe.data?.items ?? []).filter((i) => i.status === 'PENDING')
+        .length
+    : 0;
 
   function handleLogin() {
     const returnTo = location.pathname === '/' ? '/profile' : location.pathname;
@@ -57,6 +69,20 @@ export default function Header() {
             <Link to="/teams" className="hover:text-foreground">
               Команды
             </Link>
+            <Link to="/lobbies" className="hover:text-foreground">
+              Лобби
+            </Link>
+            {isAuthenticated && pendingInviteCount > 0 && (
+              <Link
+                to="/me/invites"
+                className="flex items-center gap-1.5 hover:text-foreground"
+              >
+                Приглашения
+                <Badge variant="default" className="h-5 px-1.5 text-xs">
+                  {pendingInviteCount}
+                </Badge>
+              </Link>
+            )}
             {isAuthenticated && (
               <Link to="/profile" className="hover:text-foreground">
                 Профиль
@@ -88,7 +114,7 @@ export default function Header() {
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[180px]">
+              <DropdownMenuContent align="end" className="min-w-[200px]">
                 <DropdownMenuLabel>
                   {session.nickname ?? 'Без ника'}
                 </DropdownMenuLabel>
@@ -97,6 +123,23 @@ export default function Header() {
                   <User className="mr-2 h-4 w-4" />
                   Профиль
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/teams/new')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Создать команду
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/me/invites')}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Приглашения
+                  {pendingInviteCount > 0 && (
+                    <Badge
+                      variant="default"
+                      className="ml-auto h-5 px-1.5 text-xs"
+                    >
+                      {pendingInviteCount}
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   Выйти

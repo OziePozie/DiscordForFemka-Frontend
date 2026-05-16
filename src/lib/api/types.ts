@@ -24,6 +24,14 @@ export type MmrChangeRequestAdminDto = S['MmrChangeRequestAdminDto'];
 // Teams
 export type TeamDto = S['TeamDto'];
 export type TeamMemberDto = S['TeamMemberDto'];
+export type CreateTeamRequest = S['CreateTeamRequest'];
+export type UpdateTeamRequest = S['UpdateTeamRequest'];
+export type CreateInviteRequest = S['CreateInviteRequest'];
+export type TeamInviteDto = S['TeamInviteDto'];
+
+// Match requests (KV lobbies)
+export type MatchRequestDto = S['MatchRequestDto'];
+export type CreateMatchRequestDto = S['CreateMatchRequestDto'];
 
 // Seasons / Tournaments / Matches
 export type SeasonDto = S['SeasonDto'];
@@ -43,6 +51,54 @@ export interface PagedResponse<T> {
   size?: number;
   totalItems?: number;
   totalPages?: number;
+}
+
+// ──────────────── Admin request types ────────────────
+// Defined here because they are not yet present in types.gen.ts.
+// TODO: remove after openapi.yaml exposes Create/Update Season/Tournament request schemas.
+
+export interface CreateSeasonRequest {
+  name: string;
+  slug: string;
+  description?: string | null;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface UpdateSeasonRequest {
+  name?: string | null;
+  description?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+}
+
+export interface CreateTournamentRequest {
+  name: string;
+  slug: string;
+  seasonId?: string | null;
+  format: TournamentFormat;
+  description?: string | null;
+  rules?: string | null;
+  prizePoolText?: string | null;
+  bannerAttachmentId?: string | null;
+  maxTeams?: number | null;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+}
+
+export interface UpdateTournamentRequest {
+  name?: string | null;
+  description?: string | null;
+  rules?: string | null;
+  prizePoolText?: string | null;
+  bannerAttachmentId?: string | null;
+  maxTeams?: number | null;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
 }
 
 // Enums (as union types)
@@ -129,6 +185,27 @@ export const MATCH_FORMAT_LABEL: Record<MatchFormat, string> = {
   BO1: 'BO1',
   BO3: 'BO3',
   BO5: 'BO5',
+};
+
+export const MATCH_KIND_LABEL: Record<MatchKind, string> = {
+  TOURNAMENT: 'Турнир',
+  CLAN_WAR: 'Клан-вар',
+  SHOWMATCH: 'Шоу-матч',
+};
+
+export const MATCH_REQUEST_STATUS_LABEL: Record<MatchRequestStatus, string> = {
+  OPEN: 'Открыто',
+  MATCHED: 'Принято',
+  CANCELLED: 'Отменено',
+  EXPIRED: 'Истекло',
+};
+
+export const INVITE_STATUS_LABEL: Record<InviteStatus, string> = {
+  PENDING: 'Ожидает',
+  ACCEPTED: 'Принят',
+  DECLINED: 'Отклонён',
+  CANCELLED: 'Отменён',
+  EXPIRED: 'Истёк',
 };
 
 export const TEAM_MEMBER_ROLE_LABEL: Record<TeamMemberRole, string> = {

@@ -10,8 +10,13 @@ import SeasonDetailsPage from '@/pages/SeasonDetailsPage';
 import TournamentDetailsPage from '@/pages/TournamentDetailsPage';
 import TeamsListPage from '@/pages/TeamsListPage';
 import TeamDetailsPage from '@/pages/TeamDetailsPage';
+import TeamCreatePage from '@/pages/TeamCreatePage';
+import LobbiesPage from '@/pages/LobbiesPage';
+import MyInvitesPage from '@/pages/MyInvitesPage';
 import AdminLayout from '@/pages/admin/AdminLayout';
 import AdminMmrPage from '@/pages/admin/AdminMmrPage';
+import AdminSeasonsPage from '@/pages/admin/AdminSeasonsPage';
+import AdminTournamentsPage from '@/pages/admin/AdminTournamentsPage';
 
 export default function App() {
   return (
@@ -32,7 +37,25 @@ export default function App() {
         <Route path="/seasons/:slug" element={<SeasonDetailsPage />} />
         <Route path="/tournaments/:slug" element={<TournamentDetailsPage />} />
         <Route path="/teams" element={<TeamsListPage />} />
+        <Route
+          path="/teams/new"
+          element={
+            <ProtectedRoute>
+              <TeamCreatePage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/teams/:id" element={<TeamDetailsPage />} />
+
+        <Route path="/lobbies" element={<LobbiesPage />} />
+        <Route
+          path="/me/invites"
+          element={
+            <ProtectedRoute>
+              <MyInvitesPage />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/admin"
@@ -43,6 +66,8 @@ export default function App() {
           }
         >
           <Route path="mmr" element={<AdminMmrPage />} />
+          <Route path="seasons" element={<AdminSeasonsPage />} />
+          <Route path="tournaments" element={<AdminTournamentsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

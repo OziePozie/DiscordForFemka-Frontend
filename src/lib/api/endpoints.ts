@@ -5,9 +5,11 @@ import type {
   UpdateMeRequest,
   PlayerPublicDto,
   AttachmentDto,
+  AttachmentKind,
   AccountProvider,
   SeasonDto,
   SeasonDetailsDto,
+  TournamentDto,
   TournamentDetailsDto,
   TournamentTeamDto,
   BracketDto,
@@ -16,6 +18,16 @@ import type {
   TeamPublicDto,
   MmrChangeRequestAdminDto,
   PagedResponse,
+  CreateSeasonRequest,
+  UpdateSeasonRequest,
+  CreateTournamentRequest,
+  UpdateTournamentRequest,
+  CreateTeamRequest,
+  TeamInviteDto,
+  MatchKind,
+  MatchFormat,
+  MatchRequestDto,
+  CreateMatchRequestDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -239,5 +251,209 @@ export function rejectMmrRequest(
       method: 'POST',
       body: JSON.stringify({ comment }),
     },
+  );
+}
+
+// ──────────────── Admin Seasons ────────────────
+
+export function createSeason(body: CreateSeasonRequest): Promise<SeasonDto> {
+  return api<SeasonDto>('/api/v1/admin/seasons', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateSeason(
+  id: string,
+  patch: UpdateSeasonRequest,
+): Promise<SeasonDto> {
+  return api<SeasonDto>(`/api/v1/admin/seasons/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function startSeason(id: string): Promise<SeasonDto> {
+  return api<SeasonDto>(
+    `/api/v1/admin/seasons/${encodeURIComponent(id)}/start`,
+    { method: 'POST' },
+  );
+}
+
+export function finishSeason(id: string): Promise<SeasonDto> {
+  return api<SeasonDto>(
+    `/api/v1/admin/seasons/${encodeURIComponent(id)}/finish`,
+    { method: 'POST' },
+  );
+}
+
+// ──────────────── Admin Tournaments ────────────────
+
+export function createTournament(
+  body: CreateTournamentRequest,
+): Promise<TournamentDto> {
+  return api<TournamentDto>('/api/v1/admin/tournaments', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateTournament(
+  id: string,
+  patch: UpdateTournamentRequest,
+): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    },
+  );
+}
+
+export function openTournamentRegistration(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/registration/open`,
+    { method: 'POST' },
+  );
+}
+
+export function closeTournamentRegistration(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/registration/close`,
+    { method: 'POST' },
+  );
+}
+
+export function startTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/start`,
+    { method: 'POST' },
+  );
+}
+
+export function finishTournament(
+  id: string,
+  winnerTeamId?: string,
+): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/finish`,
+    {
+      method: 'POST',
+      body: winnerTeamId
+        ? JSON.stringify({ winnerTeamId })
+        : JSON.stringify({}),
+    },
+  );
+}
+
+export function generateBracket(id: string): Promise<BracketDto> {
+  return api<BracketDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/bracket/generate`,
+    { method: 'POST' },
+  );
+}
+
+// ──────────────── Teams (authoring) ────────────────
+
+export function createTeam(body: CreateTeamRequest): Promise<TeamDto> {
+  return api<TeamDto>('/api/v1/teams', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+// ──────────────── Attachments ────────────────
+
+export function uploadAttachment(
+  file: File,
+  kind: AttachmentKind,
+): Promise<AttachmentDto> {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('kind', kind);
+  return api<AttachmentDto>('/api/v1/attachments', {
+    method: 'POST',
+    body: fd,
+  });
+}
+
+// ──────────────── Match-requests (KV lobbies) ────────────────
+
+export interface LobbiesPageParams {
+  kind?: MatchKind;
+  format?: MatchFormat;
+  region?: string;
+  mmrMin?: number;
+  mmrMax?: number;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function listLobbies(
+  params: LobbiesPageParams = {},
+): Promise<PagedResponse<MatchRequestDto>> {
+  return api<PagedResponse<MatchRequestDto>>(
+    `/api/v1/match-requests${buildQuery(params)}`,
+  );
+}
+
+export function createLobby(
+  body: CreateMatchRequestDto,
+): Promise<MatchRequestDto> {
+  return api<MatchRequestDto>('/api/v1/match-requests', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function acceptLobby(id: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/match-requests/${encodeURIComponent(id)}/accept`,
+    { method: 'POST' },
+  );
+}
+
+export function cancelLobby(id: string): Promise<void> {
+  return api<void>(`/api/v1/match-requests/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ──────────────── My incoming invites ────────────────
+
+export interface MyInvitesPageParams {
+  status?: 'PENDING' | 'ALL';
+  page?: number;
+  size?: number;
+}
+
+export function listMyInvites(
+  params: MyInvitesPageParams = {},
+): Promise<PagedResponse<TeamInviteDto>> {
+  // Backend currently exposes only page/size on /me/invites. We keep `status`
+  // as a hint for client-side filtering — see useMyInvites.
+  const query: Record<string, number | undefined> = {
+    page: params.page,
+    size: params.size,
+  };
+  return api<PagedResponse<TeamInviteDto>>(
+    `/api/v1/me/invites${buildQuery(query)}`,
+  );
+}
+
+export function acceptInvite(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/me/invites/${encodeURIComponent(id)}/accept`,
+    { method: 'POST' },
+  );
+}
+
+export function declineInvite(id: string): Promise<void> {
+  return api<void>(
+    `/api/v1/me/invites/${encodeURIComponent(id)}/decline`,
+    { method: 'POST' },
   );
 }
