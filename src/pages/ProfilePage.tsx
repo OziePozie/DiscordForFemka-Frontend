@@ -4,6 +4,9 @@ import {
   useUpdateMe,
   useUploadAvatar,
   useUnlinkProvider,
+  useRefreshMyMmr,
+  useCreateMyMmrChangeRequest,
+  useUploadAttachment,
 } from '@/lib/queries';
 import {
   Avatar,
@@ -34,22 +37,46 @@ import { ProblemDetailError } from '@/lib/api/client';
 import { discordLinkUrl, twitchLinkUrl } from '@/lib/api/endpoints';
 import {
   MMR_SOURCE_LABEL,
+  MMR_CHANGE_REASON_LABEL,
   PLAYER_POSITIONS,
   POSITION_LABEL,
   type PlayerPosition,
   type UpdateMeRequest,
+  type MmrChangeReason,
 } from '@/lib/api/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { timeAgo } from '@/lib/utils';
+
+const MMR_REASONS: MmrChangeReason[] = ['CALIBRATION', 'ROLE_CHANGE', 'INACTIVE_RETURN', 'OTHER'];
 
 export default function ProfilePage() {
   const me = useMe();
   const updateMe = useUpdateMe();
   const uploadAvatar = useUploadAvatar();
   const unlink = useUnlinkProvider();
+  const refreshMmr = useRefreshMyMmr();
+  const createMmrRequest = useCreateMyMmrChangeRequest();
+  const uploadAttachment = useUploadAttachment();
   const { toast } = useToast();
 
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<UpdateMeRequest>({});
+
+  // MMR change request dialog
+  const [mmrDialogOpen, setMmrDialogOpen] = useState(false);
+  const [mmrForm, setMmrForm] = useState<{
+    requestedMmr: string;
+    reason: MmrChangeReason;
+    screenshot: File | null;
+    comment: string;
+  }>({ requestedMmr: '', reason: 'CALIBRATION', screenshot: null, comment: '' });
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -105,6 +132,56 @@ export default function ProfilePage() {
         : [...current, pos];
       return { ...f, secondaryRoles: next };
     });
+  }
+
+  async function handleRefreshMmr() {
+    try {
+      await refreshMmr.mutateAsync();
+      toast({ title: 'MMR обновлён' });
+    } catch (e) {
+      const err = e instanceof ProblemDetailError ? e : null;
+      const msg =
+        err?.code === 'PLATFORM_RATE_LIMITED'
+          ? 'Слишком часто — попробуйте через минуту'
+          : err?.code === 'PLATFORM_NOT_FOUND'
+            ? 'Steam-профиль закрыт или MMR недоступен'
+            : err?.detail ?? 'Не удалось обновить MMR';
+      toast({ title: 'Ошибка', description: msg, variant: 'destructive' });
+    }
+  }
+
+  async function handleSubmitMmrRequest() {
+    const mmrNum = Number.parseInt(mmrForm.requestedMmr, 10);
+    if (!Number.isFinite(mmrNum) || mmrNum < 0 || mmrNum > 15000) {
+      toast({ title: 'Укажите MMR от 0 до 15000', variant: 'destructive' });
+      return;
+    }
+    if (!mmrForm.screenshot) {
+      toast({ title: 'Прикрепите скриншот', variant: 'destructive' });
+      return;
+    }
+    try {
+      const att = await uploadAttachment.mutateAsync({
+        file: mmrForm.screenshot,
+        kind: 'MMR_SCREENSHOT',
+      });
+      await createMmrRequest.mutateAsync({
+        requestedMmr: mmrNum,
+        reason: mmrForm.reason,
+        screenshotId: att.id,
+        comment: mmrForm.comment.trim() || undefined,
+      });
+      toast({ title: 'Заявка отправлена', description: 'Ожидайте решения модератора.' });
+      setMmrDialogOpen(false);
+      setMmrForm({ requestedMmr: '', reason: 'CALIBRATION', screenshot: null, comment: '' });
+    } catch (e) {
+      const err = e instanceof ProblemDetailError ? e : null;
+      const msg =
+        err?.code === 'PLATFORM_CONFLICT'
+          ? 'У вас уже есть необработанная заявка'
+          : err?.detail ?? 'Не удалось отправить заявку';
+      toast({ title: 'Ошибка', description: msg, variant: 'destructive' });
+    }
   }
 
   async function handleSave() {
@@ -318,30 +395,110 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-3xl font-bold">{data.mmr.mmr}</span>
-            <Badge variant="outline">{MMR_SOURCE_LABEL[data.mmr.source]}</Badge>
-            <span className="text-sm text-muted-foreground">
-              обновлён {timeAgo(data.mmr.fetchedAt)}
-            </span>
+            {data.mmr ? (
+              <>
+                <span className="text-3xl font-bold">{data.mmr.mmr}</span>
+                <Badge variant="outline">{MMR_SOURCE_LABEL[data.mmr.source]}</Badge>
+                <span className="text-sm text-muted-foreground">
+                  обновлён {timeAgo(data.mmr.fetchedAt)}
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                MMR ещё не загружен. Нажмите «Обновить через OpenDota» или подайте заявку на подтверждение.
+              </span>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              disabled
-              title="Будет в следующей итерации"
+              onClick={handleRefreshMmr}
+              disabled={refreshMmr.isPending}
             >
-              Обновить через OpenDota
+              {refreshMmr.isPending ? 'Обновление…' : 'Обновить через OpenDota'}
             </Button>
             <Button
               variant="outline"
-              disabled
-              title="Будет в следующей итерации"
+              onClick={() => setMmrDialogOpen(true)}
             >
               Заявка на изменение
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={mmrDialogOpen} onOpenChange={setMmrDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Заявка на изменение MMR</DialogTitle>
+            <DialogDescription>
+              Укажите ваш MMR и приложите скриншот из клиента Dota 2. Модератор
+              рассмотрит заявку вручную.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="mmr-value">MMR</Label>
+              <Input
+                id="mmr-value"
+                type="number"
+                min={0}
+                max={15000}
+                value={mmrForm.requestedMmr}
+                onChange={(e) => setMmrForm((f) => ({ ...f, requestedMmr: e.target.value }))}
+                placeholder="например, 5800"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mmr-reason">Причина</Label>
+              <Select
+                value={mmrForm.reason}
+                onValueChange={(v) => setMmrForm((f) => ({ ...f, reason: v as MmrChangeReason }))}
+              >
+                <SelectTrigger id="mmr-reason">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MMR_REASONS.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {MMR_CHANGE_REASON_LABEL[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mmr-screenshot">Скриншот</Label>
+              <Input
+                id="mmr-screenshot"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setMmrForm((f) => ({ ...f, screenshot: e.target.files?.[0] ?? null }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mmr-comment">Комментарий (опционально)</Label>
+              <Input
+                id="mmr-comment"
+                value={mmrForm.comment}
+                onChange={(e) => setMmrForm((f) => ({ ...f, comment: e.target.value }))}
+                maxLength={1000}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMmrDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleSubmitMmrRequest}
+              disabled={uploadAttachment.isPending || createMmrRequest.isPending}
+            >
+              {uploadAttachment.isPending || createMmrRequest.isPending ? 'Отправка…' : 'Отправить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Привязанные аккаунты */}
       <Card>

@@ -328,7 +328,9 @@ export default function AdminPlayersPage() {
                       {String(p.steamId)}
                     </div>
                   </td>
-                  <td className="px-4 py-3 font-mono">{p.mmr.mmr}</td>
+                  <td className="px-4 py-3 font-mono">
+                    {p.mmr?.mmr ?? <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {p.roles.length === 0 ? (

@@ -23,6 +23,8 @@ import {
   getTeamById,
   getAdminMmrRequestsPage,
   approveMmrRequest,
+  refreshMyMmr,
+  createMyMmrChangeRequest,
   rejectMmrRequest,
   disbandTeam,
   transferCaptaincy,
@@ -71,6 +73,9 @@ import type {
   AttachmentKind,
   AccountProvider,
   MmrChangeRequestAdminDto,
+  MmrChangeRequestDto,
+  CreateMmrChangeRequest,
+  PlayerMmrDto,
   TeamDto,
   TournamentTeamDto,
   SeasonDto,
@@ -251,9 +256,14 @@ export function useBracket(id: string | undefined) {
 
 export function useRegisterTournament() {
   const qc = useQueryClient();
-  return useMutation<TournamentTeamDto, Error, string>({
-    mutationFn: registerTeamForTournament,
-    onSuccess: (_data, tournamentId) => {
+  return useMutation<
+    TournamentTeamDto,
+    Error,
+    { tournamentId: string; teamId: string }
+  >({
+    mutationFn: ({ tournamentId, teamId }) =>
+      registerTeamForTournament(tournamentId, teamId),
+    onSuccess: (_data, { tournamentId }) => {
       qc.invalidateQueries({ queryKey: ['tournament'] });
       qc.invalidateQueries({ queryKey: ['tournament', tournamentId, 'teams'] });
     },
@@ -338,6 +348,28 @@ export function useRejectMmrRequest() {
     mutationFn: ({ id, comment }) => rejectMmrRequest(id, comment),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminMmr });
+    },
+  });
+}
+
+// ──────────────── MMR (self) ────────────────
+
+export function useRefreshMyMmr() {
+  const qc = useQueryClient();
+  return useMutation<PlayerMmrDto, Error, void>({
+    mutationFn: () => refreshMyMmr(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+export function useCreateMyMmrChangeRequest() {
+  const qc = useQueryClient();
+  return useMutation<MmrChangeRequestDto, Error, CreateMmrChangeRequest>({
+    mutationFn: (body) => createMyMmrChangeRequest(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.me });
     },
   });
 }

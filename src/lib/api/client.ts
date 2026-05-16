@@ -17,15 +17,35 @@ export class ProblemDetailError extends Error {
   }
 }
 
+function readCookie(name: string): string | undefined {
+  const m = document.cookie.match(
+    new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()[\]\\/+^]/g, '\\$&') + '=([^;]*)'),
+  );
+  return m ? decodeURIComponent(m[1]) : undefined;
+}
+
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const hasBody = init?.body !== undefined && init.body !== null;
   const isFormData = hasBody && init!.body instanceof FormData;
+  const method = (init?.method ?? 'GET').toUpperCase();
+
+  // Spring Security CSRF: CookieCsrfTokenRepository.withHttpOnlyFalse() puts the
+  // token into a JS-readable cookie. For state-changing methods we echo it back
+  // via X-XSRF-TOKEN so CsrfFilter accepts the request.
+  const csrfHeaders: Record<string, string> = {};
+  if (UNSAFE_METHODS.has(method)) {
+    const token = readCookie('XSRF-TOKEN');
+    if (token) csrfHeaders['X-XSRF-TOKEN'] = token;
+  }
 
   const res = await fetch(path, {
     credentials: 'include',
     headers: {
       Accept: 'application/json',
       ...(hasBody && !isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...csrfHeaders,
       ...(init?.headers || {}),
     },
     ...init,

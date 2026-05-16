@@ -1664,8 +1664,8 @@ export interface components {
             profile: components["schemas"]["PlayerPublicDto"];
             /** Format: int64 */
             steamId: number;
-            mmr: components["schemas"]["PlayerMmrDto"];
-            activity: components["schemas"]["PlayerActivityDto"];
+            mmr?: components["schemas"]["PlayerMmrDto"] | null;
+            activity?: components["schemas"]["PlayerActivityDto"] | null;
             links: components["schemas"]["AccountLinkDto"][];
             teams: components["schemas"]["TeamMembershipDto"][];
             roles: components["schemas"]["PlayerRole"][];

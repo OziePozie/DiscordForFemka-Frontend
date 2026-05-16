@@ -17,6 +17,9 @@ import type {
   TeamDto,
   TeamPublicDto,
   MmrChangeRequestAdminDto,
+  MmrChangeRequestDto,
+  CreateMmrChangeRequest,
+  PlayerMmrDto,
   PagedResponse,
   CreateSeasonRequest,
   UpdateSeasonRequest,
@@ -169,9 +172,10 @@ export function getTournamentBracket(tournamentId: string): Promise<BracketDto> 
 
 export function registerTeamForTournament(
   tournamentId: string,
+  teamId: string,
 ): Promise<TournamentTeamDto> {
   return api<TournamentTeamDto>(
-    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/registrations`,
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/registrations?teamId=${encodeURIComponent(teamId)}`,
     { method: 'POST' },
   );
 }
@@ -215,6 +219,21 @@ export function transferCaptaincy(
       body: JSON.stringify({ newCaptainPlayerId }),
     },
   );
+}
+
+// ──────────────── MMR (self) ────────────────
+
+export function refreshMyMmr(): Promise<PlayerMmrDto> {
+  return api<PlayerMmrDto>('/api/v1/me/mmr/refresh', { method: 'POST' });
+}
+
+export function createMyMmrChangeRequest(
+  body: CreateMmrChangeRequest,
+): Promise<MmrChangeRequestDto> {
+  return api<MmrChangeRequestDto>('/api/v1/me/mmr/requests', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 // ──────────────── MMR Admin ────────────────

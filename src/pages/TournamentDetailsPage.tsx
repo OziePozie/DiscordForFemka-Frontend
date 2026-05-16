@@ -144,9 +144,10 @@ function Header({
   const register = useRegisterTournament();
   const { toast } = useToast();
 
-  const userIsCaptainOfActive = !!me.data?.teams.find(
+  const captainTeam = me.data?.teams.find(
     (t) => t.role === 'CAPTAIN' && t.teamStatus === 'ACTIVE',
   );
+  const userIsCaptainOfActive = !!captainTeam;
 
   const canRegBtn =
     isAuthenticated &&
@@ -166,8 +167,12 @@ function Header({
             : '';
 
   async function handleRegister() {
+    if (!captainTeam) return;
     try {
-      await register.mutateAsync(tournament.id);
+      await register.mutateAsync({
+        tournamentId: tournament.id,
+        teamId: captainTeam.teamId,
+      });
       toast({ title: 'Команда зарегистрирована' });
     } catch (e) {
       const msg =
