@@ -28,6 +28,11 @@ import {
   rejectMmrRequest,
   disbandTeam,
   transferCaptaincy,
+  listTeamInvites,
+  createTeamInvite,
+  cancelTeamInvite,
+  leaveTeamMember,
+  getPlayersPage,
   registerTeamForTournament,
   createSeason,
   updateSeason,
@@ -63,6 +68,7 @@ import {
   type MyInvitesPageParams,
   type AdminPlayersPageParams,
   type AdminAuditPageParams,
+  type PlayersPageParams,
 } from './api/endpoints';
 import type {
   SessionDto,
@@ -87,6 +93,7 @@ import type {
   UpdateTournamentRequest,
   CreateTeamRequest,
   TeamInviteDto,
+  CreateInviteRequest,
   MatchDto,
   MatchRequestDto,
   CreateMatchRequestDto,
@@ -120,6 +127,8 @@ export const qk = {
     ['adminPlayers', params] as const,
   adminAudit: (params: AdminAuditPageParams) =>
     ['adminAudit', params] as const,
+  teamInvites: (teamId: string) => ['team', teamId, 'invites'] as const,
+  playersPage: (params: PlayersPageParams) => ['players', params] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -312,6 +321,62 @@ export function useTransferCaptaincy() {
       qc.invalidateQueries({ queryKey: qk.team(team.id) });
       qc.invalidateQueries({ queryKey: ['teams'] });
     },
+  });
+}
+
+// ──────────────── Team invites (captain side) ────────────────
+
+export function useTeamInvites(teamId: string | undefined) {
+  return useQuery({
+    queryKey: teamId ? qk.teamInvites(teamId) : ['team', 'none', 'invites'],
+    queryFn: () => listTeamInvites(teamId!),
+    enabled: Boolean(teamId),
+  });
+}
+
+export function useCreateTeamInvite() {
+  const qc = useQueryClient();
+  return useMutation<
+    TeamInviteDto,
+    Error,
+    { teamId: string; body: CreateInviteRequest }
+  >({
+    mutationFn: ({ teamId, body }) => createTeamInvite(teamId, body),
+    onSuccess: (_inv, { teamId }) => {
+      qc.invalidateQueries({ queryKey: qk.teamInvites(teamId) });
+    },
+  });
+}
+
+export function useCancelTeamInvite() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { teamId: string; inviteId: string }>({
+    mutationFn: ({ teamId, inviteId }) => cancelTeamInvite(teamId, inviteId),
+    onSuccess: (_v, { teamId }) => {
+      qc.invalidateQueries({ queryKey: qk.teamInvites(teamId) });
+    },
+  });
+}
+
+export function useLeaveTeamMember() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, { teamId: string; playerId: string }>({
+    mutationFn: ({ teamId, playerId }) => leaveTeamMember(teamId, playerId),
+    onSuccess: (team) => {
+      qc.invalidateQueries({ queryKey: qk.team(team.id) });
+      qc.invalidateQueries({ queryKey: ['teams'] });
+      qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+// ──────────────── Players (search) ────────────────
+
+export function usePlayersSearch(params: PlayersPageParams) {
+  return useQuery({
+    queryKey: qk.playersPage(params),
+    queryFn: () => getPlayersPage(params),
+    enabled: Boolean(params.q && params.q.length >= 2),
   });
 }
 

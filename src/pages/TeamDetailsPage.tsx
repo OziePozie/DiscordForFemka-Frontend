@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+  useCancelTeamInvite,
+  useCreateTeamInvite,
   useDisbandTeam,
+  useLeaveTeamMember,
   useMe,
+  usePlayersSearch,
   useTeam,
+  useTeamInvites,
   useTransferCaptaincy,
 } from '@/lib/queries';
 import {
@@ -36,16 +41,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import {
   INACTIVE_REASON_LABEL,
+  INVITE_STATUS_LABEL,
   POSITION_LABEL,
   TEAM_MEMBER_ROLE_LABEL,
   TEAM_STATUS_LABEL,
+  type PlayerPosition,
+  type TeamMemberRole,
   type TeamStatus,
 } from '@/lib/api/types';
 import { timeAgo } from '@/lib/utils';
+
+const TEAM_ROLES: TeamMemberRole[] = ['CAPTAIN', 'MAIN', 'SUB'];
+const POSITIONS: PlayerPosition[] = ['POS_1', 'POS_2', 'POS_3', 'POS_4', 'POS_5'];
 
 function statusVariant(s: TeamStatus) {
   switch (s) {
@@ -65,11 +78,23 @@ export default function TeamDetailsPage() {
   const me = useMe();
   const disband = useDisbandTeam();
   const transfer = useTransferCaptaincy();
+  const leaveMember = useLeaveTeamMember();
+  const invites = useTeamInvites(id);
+  const createInvite = useCreateTeamInvite();
+  const cancelInvite = useCancelTeamInvite();
   const { toast } = useToast();
 
   const [disbandOpen, setDisbandOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [newCaptain, setNewCaptain] = useState<string>('');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState('');
+  const [invitePicked, setInvitePicked] = useState<{ id: string; nickname: string } | null>(null);
+  const [inviteRole, setInviteRole] = useState<TeamMemberRole>('MAIN');
+  const [invitePosition, setInvitePosition] = useState<PlayerPosition | ''>('');
+  const [leaveOpen, setLeaveOpen] = useState<{ playerId: string; nickname: string; self: boolean } | null>(null);
+
+  const playersQ = usePlayersSearch({ q: inviteSearch, size: 8 });
 
   if (q.isLoading) {
     return (
@@ -90,11 +115,63 @@ export default function TeamDetailsPage() {
   const team = q.data;
   const myId = me.data?.profile.id;
   const isCaptain = !!myId && team.captain.id === myId;
+  const isMember = !!myId && team.members.some((m) => m.player.id === myId);
+  const isMemberNonCaptain = isMember && !isCaptain;
   const initials = (team.tag ?? team.name ?? '?').slice(0, 2).toUpperCase();
 
   const transferCandidates = team.members.filter(
     (m) => m.player.id !== team.captain.id,
   );
+
+  function describeError(e: unknown): string {
+    if (e instanceof ProblemDetailError) {
+      return `${e.title}${e.detail ? `: ${e.detail}` : ''}`;
+    }
+    return e instanceof Error ? e.message : 'Неизвестная ошибка';
+  }
+
+  async function handleInvite() {
+    if (!id || !invitePicked) return;
+    try {
+      await createInvite.mutateAsync({
+        teamId: id,
+        body: {
+          inviteePlayerId: invitePicked.id,
+          proposedRole: inviteRole,
+          ...(invitePosition ? { position: invitePosition } : {}),
+        },
+      });
+      toast({ title: 'Приглашение отправлено', description: invitePicked.nickname });
+      setInviteOpen(false);
+      setInviteSearch('');
+      setInvitePicked(null);
+      setInvitePosition('');
+    } catch (e) {
+      toast({ title: 'Ошибка', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handleCancelInvite(inviteId: string) {
+    if (!id) return;
+    try {
+      await cancelInvite.mutateAsync({ teamId: id, inviteId });
+      toast({ title: 'Приглашение отменено' });
+    } catch (e) {
+      toast({ title: 'Ошибка', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handleLeave() {
+    if (!id || !leaveOpen) return;
+    try {
+      await leaveMember.mutateAsync({ teamId: id, playerId: leaveOpen.playerId });
+      toast({ title: leaveOpen.self ? 'Вы покинули команду' : 'Игрок удалён из команды' });
+      setLeaveOpen(null);
+      if (leaveOpen.self) navigate('/teams');
+    } catch (e) {
+      toast({ title: 'Ошибка', description: describeError(e), variant: 'destructive' });
+    }
+  }
 
   async function handleDisband() {
     if (!id) return;
@@ -175,6 +252,9 @@ export default function TeamDetailsPage() {
             </div>
             {isCaptain && team.status !== 'DISBANDED' && (
               <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setInviteOpen(true)}>
+                  Пригласить игрока
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => setTransferOpen(true)}
@@ -194,6 +274,20 @@ export default function TeamDetailsPage() {
                   Дисбэнд
                 </Button>
               </div>
+            )}
+            {isMemberNonCaptain && team.status !== 'DISBANDED' && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setLeaveOpen({
+                    playerId: myId!,
+                    nickname: me.data?.profile.nickname ?? 'Без ника',
+                    self: true,
+                  })
+                }
+              >
+                Покинуть команду
+              </Button>
             )}
           </div>
         </CardHeader>
@@ -237,37 +331,143 @@ export default function TeamDetailsPage() {
                   <th className="px-4 py-2 font-medium">Роль</th>
                   <th className="px-4 py-2 font-medium">Позиция</th>
                   <th className="px-4 py-2 font-medium">Присоединился</th>
+                  {isCaptain && team.status !== 'DISBANDED' && (
+                    <th className="px-4 py-2 text-right font-medium">Действия</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {team.members.map((m) => (
-                  <tr key={m.player.id} className="border-t">
-                    <td className="px-4 py-2">
-                      <Link
-                        to={`/players/${m.player.id}`}
-                        className="hover:underline"
-                      >
-                        {m.player.nickname ?? 'Без ника'}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2">
-                      <Badge variant="outline">
-                        {TEAM_MEMBER_ROLE_LABEL[m.role]}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground">
-                      {m.position ? POSITION_LABEL[m.position] : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground">
-                      {timeAgo(m.joinedAt)}
-                    </td>
-                  </tr>
-                ))}
+                {team.members.map((m) => {
+                  const isMe = m.player.id === myId;
+                  const isMemberCaptain = m.player.id === team.captain.id;
+                  return (
+                    <tr key={m.player.id} className="border-t">
+                      <td className="px-4 py-2">
+                        <Link
+                          to={`/players/${m.player.id}`}
+                          className="hover:underline"
+                        >
+                          {m.player.nickname ?? 'Без ника'}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2">
+                        <Badge variant="outline">
+                          {TEAM_MEMBER_ROLE_LABEL[m.role]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {m.position ? POSITION_LABEL[m.position] : '—'}
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {timeAgo(m.joinedAt)}
+                      </td>
+                      {isCaptain && team.status !== 'DISBANDED' && (
+                        <td className="px-4 py-2 text-right">
+                          {!isMemberCaptain ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() =>
+                                setLeaveOpen({
+                                  playerId: m.player.id,
+                                  nickname: m.player.nickname ?? 'Без ника',
+                                  self: isMe,
+                                })
+                              }
+                              disabled={leaveMember.isPending}
+                            >
+                              Удалить
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              капитан
+                            </span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
+
+      {isCaptain && team.status !== 'DISBANDED' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Приглашения</CardTitle>
+            <CardDescription>
+              {invites.data && invites.data.length > 0
+                ? `${invites.data.filter((i) => i.status === 'PENDING').length} ожидают ответа`
+                : 'Нет активных приглашений'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {invites.isLoading && <Skeleton className="h-16 w-full" />}
+            {invites.data && invites.data.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-left">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">Игрок</th>
+                      <th className="px-4 py-2 font-medium">Роль</th>
+                      <th className="px-4 py-2 font-medium">Статус</th>
+                      <th className="px-4 py-2 font-medium">Истекает</th>
+                      <th className="px-4 py-2 text-right font-medium">Действия</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invites.data.map((inv) => (
+                      <tr key={inv.id} className="border-t">
+                        <td className="px-4 py-2">
+                          <Link
+                            to={`/players/${inv.invitee.id}`}
+                            className="hover:underline"
+                          >
+                            {inv.invitee.nickname ?? 'Без ника'}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Badge variant="outline">
+                            {TEAM_MEMBER_ROLE_LABEL[inv.proposedRole]}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Badge
+                            variant={inv.status === 'PENDING' ? 'default' : 'secondary'}
+                          >
+                            {INVITE_STATUS_LABEL[inv.status]}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-2 text-muted-foreground">
+                          {timeAgo(inv.expiresAt)}
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {inv.status === 'PENDING' ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleCancelInvite(inv.id)}
+                              disabled={cancelInvite.isPending}
+                            >
+                              Отменить
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Disband confirm */}
       <Dialog open={disbandOpen} onOpenChange={setDisbandOpen}>
@@ -288,6 +488,182 @@ export default function TeamDetailsPage() {
               disabled={disband.isPending}
             >
               {disband.isPending ? 'Удаляем…' : 'Расформировать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite dialog */}
+      <Dialog
+        open={inviteOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setInviteOpen(false);
+            setInviteSearch('');
+            setInvitePicked(null);
+            setInvitePosition('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Пригласить игрока</DialogTitle>
+            <DialogDescription>
+              Найдите игрока по никнейму и отправьте приглашение в состав.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="inv-q">Никнейм</Label>
+              <Input
+                id="inv-q"
+                value={inviteSearch}
+                onChange={(e) => {
+                  setInviteSearch(e.target.value);
+                  setInvitePicked(null);
+                }}
+                placeholder="минимум 2 символа"
+                autoFocus
+              />
+              {inviteSearch.length >= 2 && !invitePicked && (
+                <div className="max-h-48 overflow-y-auto rounded border">
+                  {playersQ.isLoading && (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                      поиск…
+                    </div>
+                  )}
+                  {playersQ.data?.items
+                    ?.filter(
+                      (p) =>
+                        p.id !== team.captain.id &&
+                        !team.members.some((m) => m.player.id === p.id),
+                    )
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() =>
+                          setInvitePicked({
+                            id: p.id,
+                            nickname: p.nickname ?? 'Без ника',
+                          })
+                        }
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                      >
+                        <span>{p.nickname ?? 'Без ника'}</span>
+                        {p.mmr && (
+                          <span className="text-xs text-muted-foreground">
+                            {p.mmr.mmr} MMR
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  {playersQ.data &&
+                    playersQ.data.items?.filter(
+                      (p) =>
+                        p.id !== team.captain.id &&
+                        !team.members.some((m) => m.player.id === p.id),
+                    ).length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                        Никого не нашли (или все уже в команде).
+                      </div>
+                    )}
+                </div>
+              )}
+              {invitePicked && (
+                <div className="rounded border bg-muted/50 px-3 py-2 text-sm">
+                  Выбран: <strong>{invitePicked.nickname}</strong>
+                  <button
+                    type="button"
+                    onClick={() => setInvitePicked(null)}
+                    className="ml-2 text-xs text-muted-foreground hover:underline"
+                  >
+                    сбросить
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Роль в команде</Label>
+              <Select
+                value={inviteRole}
+                onValueChange={(v) => setInviteRole(v as TeamMemberRole)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAM_ROLES.filter((r) => r !== 'CAPTAIN').map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {TEAM_MEMBER_ROLE_LABEL[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Позиция (опционально)</Label>
+              <Select
+                value={invitePosition || 'none'}
+                onValueChange={(v) =>
+                  setInvitePosition(v === 'none' ? '' : (v as PlayerPosition))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Не указана</SelectItem>
+                  {POSITIONS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {POSITION_LABEL[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setInviteOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleInvite}
+              disabled={!invitePicked || createInvite.isPending}
+            >
+              {createInvite.isPending ? 'Отправка…' : 'Отправить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave/kick confirm */}
+      <Dialog open={!!leaveOpen} onOpenChange={(open) => !open && setLeaveOpen(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {leaveOpen?.self ? 'Покинуть команду?' : 'Удалить из команды?'}
+            </DialogTitle>
+            <DialogDescription>
+              {leaveOpen?.self
+                ? 'Вы выйдете из состава команды. Это действие можно отменить через новый инвайт от капитана.'
+                : `Игрок ${leaveOpen?.nickname ?? ''} будет удалён из состава.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setLeaveOpen(null)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLeave}
+              disabled={leaveMember.isPending}
+            >
+              {leaveMember.isPending
+                ? 'Применение…'
+                : leaveOpen?.self
+                  ? 'Покинуть'
+                  : 'Удалить'}
             </Button>
           </DialogFooter>
         </DialogContent>

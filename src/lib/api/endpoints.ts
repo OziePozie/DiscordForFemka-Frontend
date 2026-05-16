@@ -27,6 +27,7 @@ import type {
   UpdateTournamentRequest,
   CreateTeamRequest,
   TeamInviteDto,
+  CreateInviteRequest,
   MatchKind,
   MatchFormat,
   MatchRequestDto,
@@ -66,6 +67,23 @@ export function uploadAvatar(file: File): Promise<AttachmentDto> {
 
 export function getPlayer(id: string): Promise<PlayerPublicDto> {
   return api<PlayerPublicDto>(`/api/v1/players/${encodeURIComponent(id)}`);
+}
+
+export interface PlayersPageParams {
+  q?: string;
+  country?: string;
+  role?: string;
+  activity?: 'active' | 'inactive' | 'all';
+  page?: number;
+  size?: number;
+}
+
+export function getPlayersPage(
+  params: PlayersPageParams = {},
+): Promise<PagedResponse<PlayerPublicDto>> {
+  return api<PagedResponse<PlayerPublicDto>>(
+    `/api/v1/players${buildQuery(params)}`,
+  );
 }
 
 export function logout(): Promise<void> {
@@ -204,6 +222,42 @@ export function getTeamById(id: string): Promise<TeamDto> {
 export function disbandTeam(id: string): Promise<TeamDto> {
   return api<TeamDto>(
     `/api/v1/teams/${encodeURIComponent(id)}/disband`,
+    { method: 'POST' },
+  );
+}
+
+export function listTeamInvites(teamId: string): Promise<TeamInviteDto[]> {
+  return api<TeamInviteDto[]>(
+    `/api/v1/teams/${encodeURIComponent(teamId)}/invites`,
+  );
+}
+
+export function createTeamInvite(
+  teamId: string,
+  body: CreateInviteRequest,
+): Promise<TeamInviteDto> {
+  return api<TeamInviteDto>(
+    `/api/v1/teams/${encodeURIComponent(teamId)}/invites`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function cancelTeamInvite(teamId: string, inviteId: string): Promise<void> {
+  return api<void>(
+    `/api/v1/teams/${encodeURIComponent(teamId)}/invites/${encodeURIComponent(inviteId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+export function leaveTeamMember(
+  teamId: string,
+  playerId: string,
+): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(playerId)}/leave`,
     { method: 'POST' },
   );
 }
