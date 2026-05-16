@@ -9,6 +9,8 @@ const NAV: Array<{ to: string; label: string; disabled?: boolean }> = [
   { to: '/admin/mmr', label: 'MMR-заявки' },
   { to: '/admin/seasons', label: 'Сезоны' },
   { to: '/admin/tournaments', label: 'Турниры' },
+  { to: '/admin/players', label: 'Игроки' },
+  { to: '/admin/audit', label: 'Журнал' },
 ];
 
 export default function AdminLayout() {

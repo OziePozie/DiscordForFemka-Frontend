@@ -13,10 +13,13 @@ import TeamDetailsPage from '@/pages/TeamDetailsPage';
 import TeamCreatePage from '@/pages/TeamCreatePage';
 import LobbiesPage from '@/pages/LobbiesPage';
 import MyInvitesPage from '@/pages/MyInvitesPage';
+import MatchDetailsPage from '@/pages/MatchDetailsPage';
 import AdminLayout from '@/pages/admin/AdminLayout';
 import AdminMmrPage from '@/pages/admin/AdminMmrPage';
 import AdminSeasonsPage from '@/pages/admin/AdminSeasonsPage';
 import AdminTournamentsPage from '@/pages/admin/AdminTournamentsPage';
+import AdminPlayersPage from '@/pages/admin/AdminPlayersPage';
+import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 
 export default function App() {
   return (
@@ -48,6 +51,7 @@ export default function App() {
         <Route path="/teams/:id" element={<TeamDetailsPage />} />
 
         <Route path="/lobbies" element={<LobbiesPage />} />
+        <Route path="/matches/:id" element={<MatchDetailsPage />} />
         <Route
           path="/me/invites"
           element={
@@ -68,6 +72,8 @@ export default function App() {
           <Route path="mmr" element={<AdminMmrPage />} />
           <Route path="seasons" element={<AdminSeasonsPage />} />
           <Route path="tournaments" element={<AdminTournamentsPage />} />
+          <Route path="players" element={<AdminPlayersPage />} />
+          <Route path="audit" element={<AdminAuditPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

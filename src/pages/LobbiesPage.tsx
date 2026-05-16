@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   useAcceptLobby,
   useCancelLobby,
@@ -83,6 +83,7 @@ export default function LobbiesPage() {
   const { isAuthenticated } = useAuth();
   const me = useMe();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [kind, setKind] = useState<'ALL' | MatchKind>('ALL');
   const [format, setFormat] = useState<'ALL' | MatchFormat>('ALL');
@@ -126,8 +127,8 @@ export default function LobbiesPage() {
   async function handleAccept(id: string) {
     try {
       const match = await acceptLobby.mutateAsync(id);
-      // TODO: navigate to /matches/:id page when it exists
-      toast({ title: `Создан матч ${match.id}` });
+      toast({ title: 'Матч создан' });
+      navigate(`/matches/${match.id}`);
     } catch (e) {
       toast({
         title: 'Не удалось принять лобби',

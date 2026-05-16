@@ -28,6 +28,11 @@ import type {
   MatchFormat,
   MatchRequestDto,
   CreateMatchRequestDto,
+  PlayerAdminDto,
+  AdminUpdatePlayerRequest,
+  AuditLogDto,
+  ActivityStatus,
+  PlayerRole,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -455,5 +460,83 @@ export function declineInvite(id: string): Promise<void> {
   return api<void>(
     `/api/v1/me/invites/${encodeURIComponent(id)}/decline`,
     { method: 'POST' },
+  );
+}
+
+// ──────────────── Matches (public) ────────────────
+
+export function getMatch(id: string): Promise<MatchDto> {
+  return api<MatchDto>(`/api/v1/matches/${encodeURIComponent(id)}`);
+}
+
+// ──────────────── Admin Players ────────────────
+
+export interface AdminPlayersPageParams {
+  q?: string;
+  banned?: boolean;
+  activity?: ActivityStatus;
+  role?: PlayerRole;
+  page?: number;
+  size?: number;
+}
+
+export function getAdminPlayersPage(
+  params: AdminPlayersPageParams = {},
+): Promise<PagedResponse<PlayerAdminDto>> {
+  return api<PagedResponse<PlayerAdminDto>>(
+    `/api/v1/admin/players${buildQuery(params)}`,
+  );
+}
+
+export function updateAdminPlayer(
+  id: string,
+  patch: AdminUpdatePlayerRequest,
+): Promise<PlayerAdminDto> {
+  return api<PlayerAdminDto>(
+    `/api/v1/admin/players/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    },
+  );
+}
+
+export function banAdminPlayer(
+  id: string,
+  reason: string,
+): Promise<PlayerAdminDto> {
+  return api<PlayerAdminDto>(
+    `/api/v1/admin/players/${encodeURIComponent(id)}/ban`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    },
+  );
+}
+
+export function unbanAdminPlayer(id: string): Promise<PlayerAdminDto> {
+  return api<PlayerAdminDto>(
+    `/api/v1/admin/players/${encodeURIComponent(id)}/unban`,
+    { method: 'POST' },
+  );
+}
+
+// ──────────────── Admin Audit ────────────────
+
+export interface AdminAuditPageParams {
+  action?: string;
+  targetType?: string;
+  actorId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function getAdminAuditPage(
+  params: AdminAuditPageParams = {},
+): Promise<PagedResponse<AuditLogDto>> {
+  return api<PagedResponse<AuditLogDto>>(
+    `/api/v1/admin/audit${buildQuery(params)}`,
   );
 }

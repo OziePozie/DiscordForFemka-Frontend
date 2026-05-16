@@ -33,6 +33,25 @@ export type TeamInviteDto = S['TeamInviteDto'];
 export type MatchRequestDto = S['MatchRequestDto'];
 export type CreateMatchRequestDto = S['CreateMatchRequestDto'];
 
+// Admin: players
+export type PlayerAdminDto = S['PlayerAdminDto'];
+export type AdminUpdatePlayerRequest = S['AdminUpdatePlayerRequest'];
+
+// Admin: audit log
+// TODO: replace with types.gen.ts once openapi.yaml is regenerated to expose AuditLogDto.
+// Shape mirrors docs/contracts/04-dto.md: actor is a PlayerPublicDto, payload is a free-form
+// JSON map. We allow `actorId` as a fallback for backends that send only the id.
+export interface AuditLogDto {
+  id: string;
+  actor?: PlayerPublicDto | null;
+  actorId?: string | null;
+  action: string;
+  targetType: string;
+  targetId?: string | null;
+  payload?: Record<string, unknown> | null;
+  at: string;
+}
+
 // Seasons / Tournaments / Matches
 export type SeasonDto = S['SeasonDto'];
 export type SeasonDetailsDto = S['SeasonDetailsDto'];
@@ -220,6 +239,20 @@ export const MMR_CHANGE_REASON_LABEL: Record<MmrChangeReason, string> = {
   INACTIVE_RETURN: 'Возврат после паузы',
   OTHER: 'Другое',
 };
+
+export const PLAYER_ROLE_LABEL: Record<PlayerRole, string> = {
+  PLAYER: 'Игрок',
+  CAPTAIN: 'Капитан',
+  MODERATOR: 'Модератор',
+  ADMIN: 'Админ',
+};
+
+export const PLAYER_ROLES: PlayerRole[] = [
+  'PLAYER',
+  'CAPTAIN',
+  'MODERATOR',
+  'ADMIN',
+];
 
 export const INACTIVE_REASON_LABEL: Record<InactiveReason, string> = {
   MMR_STALE: 'Устаревший MMR',

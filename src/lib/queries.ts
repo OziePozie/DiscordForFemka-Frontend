@@ -47,12 +47,20 @@ import {
   listMyInvites,
   acceptInvite,
   declineInvite,
+  getMatch,
+  getAdminPlayersPage,
+  updateAdminPlayer,
+  banAdminPlayer,
+  unbanAdminPlayer,
+  getAdminAuditPage,
   type SeasonsPageParams,
   type TournamentMatchesParams,
   type TeamsPageParams,
   type AdminMmrRequestsParams,
   type LobbiesPageParams,
   type MyInvitesPageParams,
+  type AdminPlayersPageParams,
+  type AdminAuditPageParams,
 } from './api/endpoints';
 import type {
   SessionDto,
@@ -77,6 +85,8 @@ import type {
   MatchDto,
   MatchRequestDto,
   CreateMatchRequestDto,
+  PlayerAdminDto,
+  AdminUpdatePlayerRequest,
 } from './api/types';
 
 export const qk = {
@@ -99,6 +109,12 @@ export const qk = {
   lobbies: (params: LobbiesPageParams) => ['lobbies', params] as const,
   myInvites: (params: MyInvitesPageParams) =>
     ['myInvites', params] as const,
+  match: (id: string) => ['match', id] as const,
+  adminPlayers: ['adminPlayers'] as const,
+  adminPlayersPage: (params: AdminPlayersPageParams) =>
+    ['adminPlayers', params] as const,
+  adminAudit: (params: AdminAuditPageParams) =>
+    ['adminAudit', params] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -544,6 +560,68 @@ export function useDeclineInvite() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['myInvites'] });
     },
+  });
+}
+
+// ──────────────── Match (public) ────────────────
+
+export function useMatch(id: string | undefined) {
+  return useQuery({
+    queryKey: id ? qk.match(id) : ['match', 'none'],
+    queryFn: () => getMatch(id!),
+    enabled: Boolean(id),
+  });
+}
+
+// ──────────────── Admin players ────────────────
+
+export function useAdminPlayers(params: AdminPlayersPageParams = {}) {
+  return useQuery({
+    queryKey: qk.adminPlayersPage(params),
+    queryFn: () => getAdminPlayersPage(params),
+  });
+}
+
+export function useUpdateAdminPlayer() {
+  const qc = useQueryClient();
+  return useMutation<
+    PlayerAdminDto,
+    Error,
+    { id: string; patch: AdminUpdatePlayerRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateAdminPlayer(id, patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminPlayers });
+    },
+  });
+}
+
+export function useBanAdminPlayer() {
+  const qc = useQueryClient();
+  return useMutation<PlayerAdminDto, Error, { id: string; reason: string }>({
+    mutationFn: ({ id, reason }) => banAdminPlayer(id, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminPlayers });
+    },
+  });
+}
+
+export function useUnbanAdminPlayer() {
+  const qc = useQueryClient();
+  return useMutation<PlayerAdminDto, Error, string>({
+    mutationFn: unbanAdminPlayer,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminPlayers });
+    },
+  });
+}
+
+// ──────────────── Admin audit ────────────────
+
+export function useAdminAudit(params: AdminAuditPageParams = {}) {
+  return useQuery({
+    queryKey: qk.adminAudit(params),
+    queryFn: () => getAdminAuditPage(params),
   });
 }
 
