@@ -24,6 +24,10 @@ export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const isStaff = !!session?.roles?.some(
+    (r) => r === 'MODERATOR' || r === 'ADMIN',
+  );
+
   function handleLogin() {
     const returnTo = location.pathname === '/' ? '/profile' : location.pathname;
     window.location.href = steamLoginUrl(returnTo);
@@ -47,9 +51,22 @@ export default function Header() {
             <Link to="/" className="hover:text-foreground">
               Главная
             </Link>
-            <Link to="/profile" className="hover:text-foreground">
-              Профиль
+            <Link to="/seasons" className="hover:text-foreground">
+              Сезоны
             </Link>
+            <Link to="/teams" className="hover:text-foreground">
+              Команды
+            </Link>
+            {isAuthenticated && (
+              <Link to="/profile" className="hover:text-foreground">
+                Профиль
+              </Link>
+            )}
+            {isStaff && (
+              <Link to="/admin/mmr" className="hover:text-foreground">
+                Админка
+              </Link>
+            )}
           </nav>
         </div>
 

@@ -19,6 +19,31 @@ export type FieldErrorDto = S['FieldError'];
 export type MyMmrDto = S['MyMmrDto'];
 export type CreateMmrChangeRequest = S['CreateMmrChangeRequest'];
 export type MmrChangeRequestDto = S['MmrChangeRequestDto'];
+export type MmrChangeRequestAdminDto = S['MmrChangeRequestAdminDto'];
+
+// Teams
+export type TeamDto = S['TeamDto'];
+export type TeamMemberDto = S['TeamMemberDto'];
+
+// Seasons / Tournaments / Matches
+export type SeasonDto = S['SeasonDto'];
+export type SeasonDetailsDto = S['SeasonDetailsDto'];
+export type HighlightDto = S['HighlightDto'];
+export type TournamentDto = S['TournamentDto'];
+export type TournamentDetailsDto = S['TournamentDetailsDto'];
+export type TournamentTeamDto = S['TournamentTeamDto'];
+export type BracketDto = S['BracketDto'];
+export type BracketRoundDto = S['BracketRoundDto'];
+export type MatchDto = S['MatchDto'];
+
+// Generic paged response
+export interface PagedResponse<T> {
+  items?: T[];
+  page?: number;
+  size?: number;
+  totalItems?: number;
+  totalPages?: number;
+}
 
 // Enums (as union types)
 export type PlayerRole = S['PlayerRole'];
@@ -62,4 +87,71 @@ export const MMR_SOURCE_LABEL: Record<MmrSource, string> = {
   AUTO_ESTIMATE: 'OpenDota',
   MANUAL_CONFIRMED: 'Подтверждено модератором',
   LEADERBOARD: 'Leaderboard',
+};
+
+export const SEASON_STATUS_LABEL: Record<SeasonStatus, string> = {
+  PLANNED: 'Запланирован',
+  ACTIVE: 'Идёт',
+  FINISHED: 'Завершён',
+};
+
+export const TOURNAMENT_STATUS_LABEL: Record<TournamentStatus, string> = {
+  ANNOUNCED: 'Анонс',
+  REGISTRATION_OPEN: 'Регистрация открыта',
+  REGISTRATION_CLOSED: 'Регистрация закрыта',
+  LIVE: 'Идёт',
+  FINISHED: 'Завершён',
+  CANCELLED: 'Отменён',
+};
+
+export const TOURNAMENT_FORMAT_LABEL: Record<TournamentFormat, string> = {
+  SINGLE_ELIM: 'Single Elim',
+  DOUBLE_ELIM: 'Double Elim',
+  ROUND_ROBIN: 'Round Robin',
+  SWISS: 'Swiss',
+  SHOWMATCH: 'Showmatch',
+};
+
+export const TEAM_STATUS_LABEL: Record<TeamStatus, string> = {
+  ACTIVE: 'Активна',
+  INACTIVE: 'Неактивна',
+  DISBANDED: 'Расформирована',
+};
+
+export const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
+  SCHEDULED: 'Запланирован',
+  LIVE: 'Идёт',
+  FINISHED: 'Завершён',
+  CANCELLED: 'Отменён',
+};
+
+export const MATCH_FORMAT_LABEL: Record<MatchFormat, string> = {
+  BO1: 'BO1',
+  BO3: 'BO3',
+  BO5: 'BO5',
+};
+
+export const TEAM_MEMBER_ROLE_LABEL: Record<TeamMemberRole, string> = {
+  CAPTAIN: 'Капитан',
+  MAIN: 'Основа',
+  SUB: 'Запасной',
+};
+
+export const MMR_CHANGE_REASON_LABEL: Record<MmrChangeReason, string> = {
+  CALIBRATION: 'Калибровка',
+  ROLE_CHANGE: 'Смена роли',
+  INACTIVE_RETURN: 'Возврат после паузы',
+  OTHER: 'Другое',
+};
+
+export const INACTIVE_REASON_LABEL: Record<InactiveReason, string> = {
+  MMR_STALE: 'Устаревший MMR',
+  MISSING_FIELDS: 'Не заполнен профиль',
+  UNCONFIRMED_5600_PLUS: '5600+ не подтверждён',
+  BANNED: 'Бан',
+  NEVER_FETCHED: 'MMR не загружен',
+  INCOMPLETE_ROSTER: 'Неполный состав',
+  INACTIVE_PLAYERS: 'Неактивные игроки',
+  UNCONFIRMED_CAPTAIN: 'Капитан не подтверждён',
+  DISBANDED: 'Расформирована',
 };
