@@ -112,6 +112,13 @@ export type MatchDto = S['MatchDto'] & {
   tournamentSlug?: string | null;
 };
 
+// Match live snapshot + final result
+export type MatchLiveSnapshotDto = S['MatchLiveSnapshotDto'];
+export type TeamLiveDto = S['TeamLiveDto'];
+export type PlayerLiveDto = S['PlayerLiveDto'];
+export type MatchResultDto = S['MatchResultDto'];
+export type MatchPlayerStatDto = S['MatchPlayerStatDto'];
+
 // TODO: regenerate openapi — admin match update payload (Stage 9).
 export interface UpdateMatchRequest {
   gameMode?: GameMode | null;

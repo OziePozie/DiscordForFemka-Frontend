@@ -41,6 +41,8 @@ import type {
   SeasonChampionDto,
   PlayerHistoryDto,
   TeamHistoryDto,
+  MatchLiveSnapshotDto,
+  MatchResultDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -544,6 +546,24 @@ export function declineInvite(id: string): Promise<void> {
 
 export function getMatch(id: string): Promise<MatchDto> {
   return api<MatchDto>(`/api/v1/matches/${encodeURIComponent(id)}`);
+}
+
+export async function getMatchLive(
+  id: string,
+): Promise<MatchLiveSnapshotDto | null> {
+  // Backend returns 204 No Content when no fresh snapshot is available.
+  // The shared `api<T>` helper maps 204 -> undefined; we coerce to `null`
+  // for the caller (same pattern as `getSession`).
+  const data = await api<MatchLiveSnapshotDto | null>(
+    `/api/v1/matches/${encodeURIComponent(id)}/live`,
+  );
+  return data ?? null;
+}
+
+export function getMatchResult(id: string): Promise<MatchResultDto> {
+  return api<MatchResultDto>(
+    `/api/v1/matches/${encodeURIComponent(id)}/result`,
+  );
 }
 
 export function markMatchReady(matchId: string): Promise<MatchDto> {
