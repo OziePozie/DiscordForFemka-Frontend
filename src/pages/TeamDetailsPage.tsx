@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   useCancelTeamInvite,
@@ -118,12 +118,26 @@ export default function TeamDetailsPage() {
   const [newCaptain, setNewCaptain] = useState<string>('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteSearch, setInviteSearch] = useState('');
+  const [inviteSearchDebounced, setInviteSearchDebounced] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const inviteInputRef = useRef<HTMLInputElement | null>(null);
   const [invitePicked, setInvitePicked] = useState<{ id: string; nickname: string } | null>(null);
   const [inviteRole, setInviteRole] = useState<TeamMemberRole>('MAIN');
   const [invitePosition, setInvitePosition] = useState<PlayerPosition | ''>('');
   const [leaveOpen, setLeaveOpen] = useState<{ playerId: string; nickname: string; self: boolean } | null>(null);
 
-  const playersQ = usePlayersSearch({ q: inviteSearch, size: 8 });
+  const playersQ = usePlayersSearch({ q: inviteSearchDebounced, size: 8 });
+
+  // Debounce 250ms — avoid firing /api/v1/players on every keystroke.
+  // Clear debounced value below threshold so the query auto-disables.
+  useEffect(() => {
+    if (inviteSearch.length < 3) {
+      setInviteSearchDebounced('');
+      return;
+    }
+    const t = window.setTimeout(() => setInviteSearchDebounced(inviteSearch), 250);
+    return () => window.clearTimeout(t);
+  }, [inviteSearch]);
   const historyQ = useTeamHistory(id);
 
   if (q.isLoading) {
@@ -621,67 +635,114 @@ export default function TeamDetailsPage() {
           <div className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="inv-q">Никнейм</Label>
-              <Input
-                id="inv-q"
-                value={inviteSearch}
-                onChange={(e) => {
-                  setInviteSearch(e.target.value);
-                  setInvitePicked(null);
-                }}
-                placeholder="минимум 2 символа"
-                autoFocus
-              />
-              {inviteSearch.length >= 2 && !invitePicked && (
-                <div className="max-h-48 overflow-y-auto rounded border">
-                  {playersQ.isLoading && (
-                    <div className="px-3 py-2 text-sm text-muted-foreground">
-                      поиск…
-                    </div>
-                  )}
-                  {playersQ.data?.items
-                    ?.filter(
-                      (p) =>
-                        p.id !== team.captain.id &&
-                        !team.members.some((m) => m.player.id === p.id),
-                    )
-                    .map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() =>
-                          setInvitePicked({
-                            id: p.id,
-                            nickname: p.nickname ?? 'Без ника',
-                          })
+              {(() => {
+                const filtered = (playersQ.data?.items ?? []).filter(
+                  (p) =>
+                    p.id !== team.captain.id &&
+                    !team.members.some((m) => m.player.id === p.id),
+                );
+                const dropdownOpen =
+                  inviteSearch.length >= 3 && !invitePicked;
+                function pick(idx: number) {
+                  const p = filtered[idx];
+                  if (!p) return;
+                  setInvitePicked({ id: p.id, nickname: p.nickname ?? 'Без ника' });
+                  setHighlightedIndex(0);
+                }
+                return (
+                  <div className="relative">
+                    <Input
+                      id="inv-q"
+                      ref={inviteInputRef}
+                      value={inviteSearch}
+                      onChange={(e) => {
+                        setInviteSearch(e.target.value);
+                        setInvitePicked(null);
+                        setHighlightedIndex(0);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!dropdownOpen || filtered.length === 0) return;
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setHighlightedIndex((i) => Math.min(i + 1, filtered.length - 1));
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setHighlightedIndex((i) => Math.max(i - 1, 0));
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          pick(highlightedIndex);
+                        } else if (e.key === 'Escape') {
+                          (e.target as HTMLInputElement).blur();
                         }
-                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-muted"
+                      }}
+                      placeholder="введите минимум 3 символа"
+                      autoComplete="off"
+                      autoFocus
+                    />
+                    {dropdownOpen && (
+                      <div
+                        className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg"
+                        role="listbox"
                       >
-                        <span>{p.nickname ?? 'Без ника'}</span>
-                        {p.mmr && (
-                          <span className="text-xs text-muted-foreground">
-                            {p.mmr.mmr} MMR
-                          </span>
+                        {playersQ.isLoading && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                            поиск…
+                          </div>
                         )}
-                      </button>
-                    ))}
-                  {playersQ.data &&
-                    playersQ.data.items?.filter(
-                      (p) =>
-                        p.id !== team.captain.id &&
-                        !team.members.some((m) => m.player.id === p.id),
-                    ).length === 0 && (
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
-                        Никого не нашли (или все уже в команде).
+                        {!playersQ.isLoading && filtered.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                            Никого не нашли (или все уже в команде).
+                          </div>
+                        )}
+                        {filtered.map((p, idx) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            role="option"
+                            aria-selected={idx === highlightedIndex}
+                            onMouseEnter={() => setHighlightedIndex(idx)}
+                            onClick={() => pick(idx)}
+                            className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition-colors ${
+                              idx === highlightedIndex ? 'bg-muted' : 'hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="truncate font-medium">
+                                {p.nickname ?? 'Без ника'}
+                              </span>
+                              {p.country && (
+                                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+                                  {p.country}
+                                </span>
+                              )}
+                            </div>
+                            {p.mmr && (
+                              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                {p.mmr.mmr} MMR
+                              </span>
+                            )}
+                          </button>
+                        ))}
                       </div>
                     )}
-                </div>
+                  </div>
+                );
+              })()}
+              {inviteSearch.length > 0 && inviteSearch.length < 3 && !invitePicked && (
+                <p className="text-xs text-muted-foreground">
+                  Введите минимум 3 символа.
+                </p>
               )}
               {invitePicked && (
                 <div className="rounded border bg-muted/50 px-3 py-2 text-sm">
                   Выбран: <strong>{invitePicked.nickname}</strong>
                   <button
                     type="button"
-                    onClick={() => setInvitePicked(null)}
+                    onClick={() => {
+                      setInvitePicked(null);
+                      setInviteSearch('');
+                      inviteInputRef.current?.focus();
+                    }}
                     className="ml-2 text-xs text-muted-foreground hover:underline"
                   >
                     сбросить
