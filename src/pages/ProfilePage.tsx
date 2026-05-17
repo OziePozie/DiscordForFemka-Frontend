@@ -479,7 +479,7 @@ export default function ProfilePage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="mmr-screenshot">Скриншот</Label>
+              <Label htmlFor="mmr-screenshot">Скриншот(Формат только JPEG)</Label>
               <Input
                 id="mmr-screenshot"
                 type="file"
