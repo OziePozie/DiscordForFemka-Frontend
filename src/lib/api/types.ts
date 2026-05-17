@@ -98,6 +98,10 @@ export type MatchDto = S['MatchDto'] & {
   teamBReadyAt?: string | null;
   lobbyId?: string | null;
   lobbyCreatedAt?: string | null;
+  lobbyCreateStartedAt?: string | null;
+  lobbyCreateFailedAt?: string | null;
+  lobbyCreateFailedReason?: string | null;
+  lobbyCreateAttempts?: number;
   gameMode?: GameMode | null;
   region?: Region | null;
   coinToss?: boolean | null;

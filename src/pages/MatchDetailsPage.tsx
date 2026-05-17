@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 import {
   useMatch,
   useMarkMatchReady,
@@ -307,14 +308,126 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
   );
 }
 
+interface LobbyPendingCardProps {
+  match: MatchDto;
+  isAdmin: boolean;
+}
+
+function LobbyPendingCard({ match, isAdmin }: LobbyPendingCardProps) {
+  const { toast } = useToast();
+  const recreate = useRecreateLobby();
+  const startedAt = match.lobbyCreateStartedAt
+    ? new Date(match.lobbyCreateStartedAt).getTime()
+    : null;
+  const deadline = startedAt != null ? startedAt + 5 * 60 * 1000 : null;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const remainingMs = deadline != null ? deadline - now : 0;
+  let timerLabel = 'Завершение…';
+  if (deadline != null && remainingMs > 0) {
+    const totalSec = Math.floor(remainingMs / 1000);
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    timerLabel = `Истекает через ${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  const attempts = match.lobbyCreateAttempts ?? 0;
+
+  async function handleRetry() {
+    try {
+      await recreate.mutateAsync(match.id);
+      toast({ title: 'Запрошен повтор создания лобби' });
+    } catch (e) {
+      toast({
+        title: 'Не удалось запросить повтор',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Loader2
+            className="h-10 w-10 animate-spin text-muted-foreground"
+            aria-hidden
+          />
+          <div className="text-2xl font-semibold">Создаётся лобби…</div>
+          {attempts > 0 && (
+            <div className="text-sm text-muted-foreground">
+              Попытка {attempts} из ~10
+            </div>
+          )}
+          <div className="text-sm text-muted-foreground">{timerLabel}</div>
+          {isAdmin && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRetry}
+              disabled={recreate.isPending}
+              className="mt-2"
+            >
+              {recreate.isPending ? 'Запрос…' : 'Запросить повтор'}
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface LobbyFailedBannerProps {
+  match: MatchDto;
+}
+
+function LobbyFailedBanner({ match }: LobbyFailedBannerProps) {
+  return (
+    <Card className="border-destructive">
+      <CardHeader>
+        <CardTitle className="text-lg text-destructive">
+          Не удалось создать лобби
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        <p>{match.lobbyCreateFailedReason ?? 'Неизвестная ошибка'}</p>
+        <p className="text-muted-foreground">
+          Готовность обеих команд сброшена. Подтвердите снова, чтобы попробовать
+          ещё раз.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function MatchDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { session } = useAuth();
   const me = useMe();
   const { toast } = useToast();
-  const q = useMatch(id);
+  const [pollMs, setPollMs] = useState<number | undefined>(undefined);
+  // Poll every 5s while we're waiting for the bot to create a lobby. Polling
+  // auto-stops once a new state arrives (lobbyId set or failure recorded).
+  const q = useMatch(id, pollMs);
   const markReady = useMarkMatchReady();
   const markUnready = useMarkMatchUnready();
+
+  const cur = q.data;
+  const isLobbyPending =
+    !!cur &&
+    !cur.lobbyId &&
+    !!cur.lobbyCreateStartedAt &&
+    !cur.lobbyCreateFailedAt &&
+    cur.status === 'SCHEDULED';
+  useEffect(() => {
+    setPollMs(isLobbyPending ? 5000 : undefined);
+  }, [isLobbyPending]);
 
   if (q.isLoading) {
     return (
@@ -369,8 +482,18 @@ export default function MatchDetailsPage() {
     }
   }
 
-  const showReadiness = m.status === 'SCHEDULED' && !m.lobbyId;
   const showLobby = !!m.lobbyId;
+  const showPending =
+    m.status === 'SCHEDULED' &&
+    !m.lobbyId &&
+    !!m.lobbyCreateStartedAt &&
+    !m.lobbyCreateFailedAt;
+  const showFailed =
+    m.status === 'SCHEDULED' && !m.lobbyId && !!m.lobbyCreateFailedAt;
+  // Hide readiness card while the «creating lobby…» card is showing — captains
+  // can't toggle ready during that window anyway, and the buttons are
+  // visually replaced by the pending card.
+  const showReadiness = m.status === 'SCHEDULED' && !m.lobbyId && !showPending;
 
   return (
     <div className="space-y-6">
@@ -411,6 +534,10 @@ export default function MatchDetailsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {showPending && <LobbyPendingCard match={m} isAdmin={isAdmin} />}
+
+      {showFailed && <LobbyFailedBanner match={m} />}
 
       {showReadiness && (
         <Card>

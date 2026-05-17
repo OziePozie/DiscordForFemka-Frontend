@@ -665,11 +665,12 @@ export function useDeclineInvite() {
 
 // ──────────────── Match (public) ────────────────
 
-export function useMatch(id: string | undefined) {
+export function useMatch(id: string | undefined, pollMs?: number) {
   return useQuery({
     queryKey: id ? qk.match(id) : ['match', 'none'],
     queryFn: () => getMatch(id!),
     enabled: Boolean(id),
+    refetchInterval: pollMs ?? false,
   });
 }
 
