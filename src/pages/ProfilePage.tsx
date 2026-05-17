@@ -36,10 +36,13 @@ import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import { discordLinkUrl, twitchLinkUrl } from '@/lib/api/endpoints';
 import {
+  COUNTRIES,
+  COUNTRY_LABEL,
   MMR_SOURCE_LABEL,
   MMR_CHANGE_REASON_LABEL,
   PLAYER_POSITIONS,
   POSITION_LABEL,
+  type CountryCode,
   type PlayerPosition,
   type UpdateMeRequest,
   type MmrChangeReason,
@@ -308,15 +311,23 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="country">Страна (2 буквы)</Label>
-              <Input
-                id="country"
+              <Label htmlFor="country">Страна</Label>
+              <Select
                 value={form.country ?? ''}
-                onChange={(e) => update('country', e.target.value.toUpperCase())}
+                onValueChange={(v) => update('country', v as CountryCode)}
                 disabled={!editing}
-                maxLength={2}
-                placeholder="RU"
-              />
+              >
+                <SelectTrigger id="country">
+                  <SelectValue placeholder="Не указана" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {COUNTRY_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

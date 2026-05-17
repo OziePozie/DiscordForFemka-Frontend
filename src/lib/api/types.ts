@@ -182,6 +182,19 @@ export interface TeamHistoryDto {
   tournaments: TeamTournamentEntry[];
 }
 
+// Allowed countries — должны совпадать с platform.countries.allowed на бэке.
+// При расширении списка обнови оба места.
+export type CountryCode = 'RU' | 'BY' | 'UA' | 'KZ';
+
+export const COUNTRIES: CountryCode[] = ['RU', 'BY', 'UA', 'KZ'];
+
+export const COUNTRY_LABEL: Record<CountryCode, string> = {
+  RU: 'Россия',
+  BY: 'Беларусь',
+  UA: 'Украина',
+  KZ: 'Казахстан',
+};
+
 // Generic paged response
 export interface PagedResponse<T> {
   items?: T[];
