@@ -55,6 +55,8 @@ import {
   acceptInvite,
   declineInvite,
   getMatch,
+  getMatchLive,
+  getMatchResult,
   markMatchReady,
   markMatchUnready,
   recreateLobby,
@@ -102,6 +104,8 @@ import type {
   TeamInviteDto,
   CreateInviteRequest,
   MatchDto,
+  MatchLiveSnapshotDto,
+  MatchResultDto,
   MatchRequestDto,
   CreateMatchRequestDto,
   PlayerAdminDto,
@@ -683,6 +687,31 @@ export function useMatch(id: string | undefined, pollMs?: number) {
     queryFn: () => getMatch(id!),
     enabled: Boolean(id),
     refetchInterval: pollMs ?? false,
+  });
+}
+
+export function useMatchLive(
+  id: string | undefined,
+  enabled: boolean,
+): UseQueryResult<MatchLiveSnapshotDto | null> {
+  return useQuery({
+    queryKey: ['match-live', id],
+    enabled: !!id && enabled,
+    queryFn: () => getMatchLive(id!),
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useMatchResult(
+  id: string | undefined,
+  enabled: boolean,
+): UseQueryResult<MatchResultDto> {
+  return useQuery({
+    queryKey: ['match-result', id],
+    enabled: !!id && enabled,
+    queryFn: () => getMatchResult(id!),
+    staleTime: Infinity,
   });
 }
 
