@@ -302,6 +302,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/players/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Полная "карьерная" история игрока (Этап 9, архив)
+         * @description Турниры (отсортированы по startsAt DESC), команды (включая прошлые) и
+         *     таймлайн MMR (V0 — только текущая запись; полная история — в бэклоге).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerHistoryDto"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/mmr": {
         parameters: {
             query?: never;
@@ -436,6 +479,185 @@ export interface paths {
                 };
                 400: components["responses"]["Validation"];
                 409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Админский поиск игроков. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Substring on nickname (case-insensitive). */
+                    q?: string;
+                    banned?: boolean;
+                    activity?: "active" | "inactive" | "all";
+                    role?: components["schemas"]["PlayerRole"];
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                    /** @description field[,asc|desc]; default createdAt,desc */
+                    sort?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["PlayerAdminDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/players/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Редактирование полей игрока (роли, бан, override MMR). */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminUpdatePlayerRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerAdminDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/players/{id}/ban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Забанить игрока. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        reason?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerAdminDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/players/{id}/unban": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Снять бан с игрока. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerAdminDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
             };
         };
         delete?: never;
@@ -812,6 +1034,45 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/teams/{id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** История турниров команды (Этап 9, архив) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamHistoryDto"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teams/{id}/disband": {
         parameters: {
             query?: never;
@@ -967,6 +1228,8 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
+                    /** @description Filter by invite status. ALL or omitted returns every status. */
+                    status?: "PENDING" | "ACCEPTED" | "DECLINED" | "CANCELLED" | "EXPIRED" | "ALL";
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                 };
@@ -1182,6 +1445,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/seasons/{slug}/champions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Чемпионы сезона (Этап 9, архив)
+         * @description Все турниры сезона со статусом FINISHED и не-null winnerTeamId,
+         *     отсортированы по endsAt DESC.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SeasonChampionDto"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tournaments/{slug}": {
         parameters: {
             query?: never;
@@ -1375,6 +1681,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tournaments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Админский листинг турниров с фильтрами и пагинацией. */
+        get: {
+            parameters: {
+                query?: {
+                    seasonId?: string;
+                    status?: components["schemas"]["TournamentStatus"];
+                    /** @description Фильтр по подстроке имени (case-insensitive). */
+                    q?: string;
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                    /** @description field[,asc|desc]; default createdAt,desc */
+                    sort?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["TournamentDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/matches/{id}": {
         parameters: {
             query?: never;
@@ -1406,6 +1760,251 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{id}/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Captain marks their team ready.
+         * @description Match must be SCHEDULED and have no lobby yet. Caller must be the captain
+         *     of `teamA` or `teamB`. Idempotent — re-marking ready is a no-op. When both
+         *     sides are ready, a Dota lobby is created automatically (status → LIVE).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{id}/unready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Captain clears their team's ready flag.
+         * @description Captain-only. Clears the readiness timestamp on the caller's side. Idempotent.
+         *     Errors with `PLATFORM_CONFLICT` if the lobby has already been created.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{id}/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Realtime snapshot of a LIVE match (Dota2API realtime mirror).
+         * @description Returns the most recent fresh snapshot from Dota2API's `/api/lobby/{id}/realtime`.
+         *     Backend polls upstream every ~15s and caches in memory with a 60-second freshness
+         *     TTL. Frontend should poll this endpoint while `match.status === 'LIVE'`
+         *     (e.g. every 15s) and stop when status flips to FINISHED.
+         *     Returns 204 when no fresh snapshot exists (lobby not loaded, dota2api down,
+         *     or match not LIVE).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description snapshot */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchLiveSnapshotDto"];
+                    };
+                };
+                /** @description no fresh snapshot */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{id}/result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Final per-player statistics for a FINISHED match.
+         * @description Available once the result poll scheduler has saved per-player stats from
+         *     Steam. Returns 404 for matches that are not FINISHED or were finished
+         *     manually by an admin without Steam data (rare).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description result with split radiant/dire rosters */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchResultDto"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/lobby/recreate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force-create (or recreate) the Dota lobby for a match.
+         * @description ADMIN-only. Bypasses the "both captains ready" gate. Useful when automatic
+         *     creation failed, or settings/rosters changed. Returns `502 PLATFORM_LOBBY_CREATE_FAILED`
+         *     if the external dota2api rejected the request.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Lobby creation failed upstream */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ErrorDto"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -1582,6 +2181,10 @@ export interface components {
         MatchRequestStatus: "OPEN" | "MATCHED" | "CANCELLED" | "EXPIRED";
         /** @enum {string} */
         AccountProvider: "DISCORD" | "TWITCH";
+        /** @enum {string} */
+        GameMode: "ALL_PICK" | "CAPTAINS_MODE" | "CAPTAINS_DRAFT" | "RANKED_AP" | "SINGLE_DRAFT" | "RANDOM_DRAFT" | "ALL_RANDOM" | "TURBO" | "ALL_PICK_RANKED";
+        /** @enum {string} */
+        Region: "AUTO" | "EUROPE" | "US_EAST" | "US_WEST" | "SE_ASIA" | "RUSSIA" | "AUSTRALIA" | "SOUTH_AMERICA" | "STOCKHOLM" | "DUBAI" | "AUSTRIA" | "PERU" | "SOUTH_AFRICA" | "CHILE" | "INDIA";
         SessionDto: {
             /** Format: uuid */
             playerId: string;
@@ -1837,6 +2440,71 @@ export interface components {
             tournaments: components["schemas"]["TournamentDto"][];
             highlights: components["schemas"]["HighlightDto"][];
         };
+        SeasonChampionDto: {
+            /** Format: uuid */
+            tournamentId: string;
+            tournamentName: string;
+            tournamentSlug: string;
+            format: components["schemas"]["TournamentFormat"];
+            /** Format: date-time */
+            endsAt?: string | null;
+            winnerTeam?: components["schemas"]["TeamPublicDto"];
+        };
+        PlayerHistoryDto: {
+            tournaments: components["schemas"]["PlayerTournamentEntry"][];
+            teams: components["schemas"]["PlayerTeamEntry"][];
+            mmrTimeline: components["schemas"]["MmrHistoryEntry"][];
+        };
+        PlayerTournamentEntry: {
+            /** Format: uuid */
+            tournamentId: string;
+            tournamentSlug: string;
+            tournamentName: string;
+            status: components["schemas"]["TournamentStatus"];
+            /** Format: date-time */
+            startsAt?: string | null;
+            /** Format: date-time */
+            endsAt?: string | null;
+            /** Format: uuid */
+            teamId: string;
+            teamName?: string | null;
+            teamTag?: string | null;
+            wasWinner: boolean;
+        };
+        PlayerTeamEntry: {
+            /** Format: uuid */
+            teamId: string;
+            teamName: string;
+            teamTag: string;
+            role: components["schemas"]["TeamMemberRole"];
+            /** Format: date-time */
+            joinedAt: string;
+            /** Format: date-time */
+            leftAt?: string | null;
+        };
+        /** @description Snapshot of player MMR. V0 returns at most one entry (the current row). */
+        MmrHistoryEntry: {
+            mmr?: number | null;
+            source: components["schemas"]["MmrSource"];
+            /** Format: date-time */
+            fetchedAt: string;
+            /** Format: date-time */
+            confirmedAt?: string | null;
+        };
+        TeamHistoryDto: {
+            tournaments: components["schemas"]["TeamTournamentEntry"][];
+        };
+        TeamTournamentEntry: {
+            /** Format: uuid */
+            tournamentId: string;
+            tournamentSlug: string;
+            tournamentName: string;
+            status: components["schemas"]["TournamentStatus"];
+            /** Format: date-time */
+            endsAt?: string | null;
+            seed?: number | null;
+            wasWinner: boolean;
+        };
         TournamentDto: {
             /** Format: uuid */
             id: string;
@@ -1860,6 +2528,60 @@ export interface components {
             startsAt?: string | null;
             /** Format: date-time */
             endsAt?: string | null;
+            defaultGameMode?: components["schemas"]["GameMode"];
+            defaultRegion?: components["schemas"]["Region"];
+            defaultCoinToss: boolean;
+            defaultAutoLaunch: boolean;
+            dotaLeagueId?: number | null;
+        };
+        CreateTournamentRequest: {
+            name: string;
+            slug: string;
+            /** Format: uuid */
+            seasonId?: string;
+            format: components["schemas"]["TournamentFormat"];
+            description?: string;
+            rules?: string;
+            prizePoolText?: string;
+            /** Format: uuid */
+            bannerAttachmentId?: string;
+            maxTeams?: number;
+            /** Format: date-time */
+            registrationOpensAt?: string;
+            /** Format: date-time */
+            registrationClosesAt?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            defaultGameMode?: components["schemas"]["GameMode"];
+            defaultRegion?: components["schemas"]["Region"];
+            defaultCoinToss?: boolean;
+            defaultAutoLaunch?: boolean;
+            dotaLeagueId?: number;
+        };
+        /** @description PATCH-семантика — поля со значением `null` или отсутствующие не меняются. */
+        UpdateTournamentRequest: {
+            name?: string;
+            description?: string;
+            rules?: string;
+            prizePoolText?: string;
+            /** Format: uuid */
+            bannerAttachmentId?: string;
+            maxTeams?: number;
+            /** Format: date-time */
+            registrationOpensAt?: string;
+            /** Format: date-time */
+            registrationClosesAt?: string;
+            /** Format: date-time */
+            startsAt?: string;
+            /** Format: date-time */
+            endsAt?: string;
+            defaultGameMode?: components["schemas"]["GameMode"];
+            defaultRegion?: components["schemas"]["Region"];
+            defaultCoinToss?: boolean;
+            defaultAutoLaunch?: boolean;
+            dotaLeagueId?: number;
         };
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];
@@ -1889,6 +2611,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             tournamentId?: string | null;
+            tournamentSlug?: string | null;
             kind: components["schemas"]["MatchKind"];
             teamA: components["schemas"]["TeamPublicDto"];
             teamB: components["schemas"]["TeamPublicDto"];
@@ -1903,6 +2626,125 @@ export interface components {
             notes?: string | null;
             /** Format: date-time */
             finishedAt?: string | null;
+            /** Format: date-time */
+            teamAReadyAt?: string | null;
+            /** Format: date-time */
+            teamBReadyAt?: string | null;
+            lobbyId?: string | null;
+            /** Format: date-time */
+            lobbyCreatedAt?: string | null;
+            /** Format: date-time */
+            lobbyCreateStartedAt?: string | null;
+            /** Format: date-time */
+            lobbyCreateFailedAt?: string | null;
+            lobbyCreateFailedReason?: string | null;
+            /** @default 0 */
+            lobbyCreateAttempts: number;
+            gameMode: components["schemas"]["GameMode"];
+            region: components["schemas"]["Region"];
+            coinToss: boolean;
+            autoLaunch: boolean;
+        };
+        MatchLiveSnapshotDto: {
+            /** @description Seconds since game clock started (may be negative during pick phase) */
+            gameTime: number;
+            /**
+             * Format: int64
+             * @description Unix timestamp of game start
+             */
+            startTimestamp: number;
+            /** @description Dota internal game state enum (e.g. 5 = playing) */
+            gameState: number;
+            radiant: components["schemas"]["TeamLiveDto"];
+            dire: components["schemas"]["TeamLiveDto"];
+            /**
+             * Format: date-time
+             * @description When the backend last polled Dota2API for this snapshot
+             */
+            fetchedAt: string;
+        };
+        TeamLiveDto: {
+            score: number;
+            netWorth: number;
+            players: components["schemas"]["PlayerLiveDto"][];
+        };
+        PlayerLiveDto: {
+            /** Format: int64 */
+            steamAccountId: number;
+            /** Format: uuid */
+            playerId?: string | null;
+            name: string;
+            heroId: number;
+            level: number;
+            kills: number;
+            deaths: number;
+            assists: number;
+            lastHits: number;
+            denies: number;
+            gold: number;
+            netWorth: number;
+            items: number[];
+            abilities: number[];
+        };
+        MatchResultDto: {
+            /** Format: int64 */
+            dotaMatchId: number;
+            durationSec: number;
+            radiantScore: number;
+            direScore: number;
+            /** Format: uuid */
+            winnerTeamId?: string | null;
+            /** Format: date-time */
+            resultFetchedAt: string;
+            radiant: components["schemas"]["MatchPlayerStatDto"][];
+            dire: components["schemas"]["MatchPlayerStatDto"][];
+        };
+        MatchPlayerStatDto: {
+            /** Format: int64 */
+            steamAccountId: number;
+            /** Format: uuid */
+            playerId?: string | null;
+            playerName?: string | null;
+            heroId: number;
+            kills: number;
+            deaths: number;
+            assists: number;
+            lastHits: number;
+            denies: number;
+            gpm: number;
+            xpm: number;
+            level: number;
+            heroDamage: number;
+            towerDamage: number;
+            heroHealing: number;
+            netWorth: number;
+            gold: number;
+            leaverStatus: number;
+            items: number[];
+            abilities?: number[] | null;
+            isWin: boolean;
+        };
+        /**
+         * @description Admin PATCH payload for a match. All fields nullable — only non-null
+         *     fields are applied. `gameMode`/`region`/`coinToss`/`autoLaunch` set per-match
+         *     overrides; `teamAReady`/`teamBReady` are admin-only readiness toggles
+         *     (they do not auto-trigger lobby creation — use `/lobby/recreate`).
+         */
+        UpdateMatchRequest: {
+            /** Format: date-time */
+            scheduledAt?: string;
+            scoreA?: number;
+            scoreB?: number;
+            /** Format: uuid */
+            winnerTeamId?: string;
+            status?: components["schemas"]["MatchStatus"];
+            notes?: string;
+            gameMode?: components["schemas"]["GameMode"];
+            region?: components["schemas"]["Region"];
+            coinToss?: boolean;
+            autoLaunch?: boolean;
+            teamAReady?: boolean;
+            teamBReady?: boolean;
         };
         CreateMatchRequestDto: {
             kind: components["schemas"]["MatchKind"];
