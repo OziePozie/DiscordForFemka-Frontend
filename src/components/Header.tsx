@@ -69,6 +69,9 @@ export default function Header() {
             <Link to="/teams" className="hover:text-foreground">
               Команды
             </Link>
+            <Link to="/archive" className="hover:text-foreground">
+              Архив
+            </Link>
             <Link to="/lobbies" className="hover:text-foreground">
               Лобби
             </Link>

@@ -63,6 +63,9 @@ import {
   banAdminPlayer,
   unbanAdminPlayer,
   getAdminAuditPage,
+  getSeasonChampions,
+  getPlayerHistory,
+  getTeamHistory,
   type SeasonsPageParams,
   type TournamentMatchesParams,
   type TeamsPageParams,
@@ -102,6 +105,9 @@ import type {
   CreateMatchRequestDto,
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
+  SeasonChampionDto,
+  PlayerHistoryDto,
+  TeamHistoryDto,
 } from './api/types';
 
 export const qk = {
@@ -132,6 +138,10 @@ export const qk = {
     ['adminAudit', params] as const,
   teamInvites: (teamId: string) => ['team', teamId, 'invites'] as const,
   playersPage: (params: PlayersPageParams) => ['players', params] as const,
+  seasonChampions: (slug: string) =>
+    ['season', slug, 'champions'] as const,
+  playerHistory: (id: string) => ['player', id, 'history'] as const,
+  teamHistory: (id: string) => ['team', id, 'history'] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -756,6 +766,32 @@ export function useAdminAudit(params: AdminAuditPageParams = {}) {
   return useQuery({
     queryKey: qk.adminAudit(params),
     queryFn: () => getAdminAuditPage(params),
+  });
+}
+
+// ──────────────── Archive / History (Stage 9) ────────────────
+
+export function useSeasonChampions(slug: string | undefined) {
+  return useQuery<SeasonChampionDto[]>({
+    queryKey: slug ? qk.seasonChampions(slug) : ['season', 'none', 'champions'],
+    queryFn: () => getSeasonChampions(slug!),
+    enabled: Boolean(slug),
+  });
+}
+
+export function usePlayerHistory(id: string | undefined) {
+  return useQuery<PlayerHistoryDto>({
+    queryKey: id ? qk.playerHistory(id) : ['player', 'none', 'history'],
+    queryFn: () => getPlayerHistory(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useTeamHistory(id: string | undefined) {
+  return useQuery<TeamHistoryDto>({
+    queryKey: id ? qk.teamHistory(id) : ['team', 'none', 'history'],
+    queryFn: () => getTeamHistory(id!),
+    enabled: Boolean(id),
   });
 }
 

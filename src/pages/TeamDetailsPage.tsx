@@ -8,6 +8,7 @@ import {
   useMe,
   usePlayersSearch,
   useTeam,
+  useTeamHistory,
   useTeamInvites,
   useTransferCaptaincy,
 } from '@/lib/queries';
@@ -51,14 +52,42 @@ import {
   POSITION_LABEL,
   TEAM_MEMBER_ROLE_LABEL,
   TEAM_STATUS_LABEL,
+  TOURNAMENT_STATUS_LABEL,
   type PlayerPosition,
   type TeamMemberRole,
   type TeamStatus,
+  type TournamentStatus,
 } from '@/lib/api/types';
 import { timeAgo } from '@/lib/utils';
 
 const TEAM_ROLES: TeamMemberRole[] = ['CAPTAIN', 'MAIN', 'SUB'];
 const POSITIONS: PlayerPosition[] = ['POS_1', 'POS_2', 'POS_3', 'POS_4', 'POS_5'];
+
+function fmtDate(iso?: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function tournamentStatusVariant(s: TournamentStatus) {
+  switch (s) {
+    case 'LIVE':
+    case 'REGISTRATION_OPEN':
+      return 'default' as const;
+    case 'REGISTRATION_CLOSED':
+    case 'ANNOUNCED':
+      return 'secondary' as const;
+    case 'CANCELLED':
+      return 'destructive' as const;
+    case 'FINISHED':
+      return 'outline' as const;
+  }
+}
 
 function statusVariant(s: TeamStatus) {
   switch (s) {
@@ -95,6 +124,7 @@ export default function TeamDetailsPage() {
   const [leaveOpen, setLeaveOpen] = useState<{ playerId: string; nickname: string; self: boolean } | null>(null);
 
   const playersQ = usePlayersSearch({ q: inviteSearch, size: 8 });
+  const historyQ = useTeamHistory(id);
 
   if (q.isLoading) {
     return (
@@ -468,6 +498,82 @@ export default function TeamDetailsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Tournaments history */}
+      <Card>
+        <CardHeader>
+          <CardTitle>История турниров</CardTitle>
+          <CardDescription>
+            {historyQ.isLoading
+              ? 'Загрузка…'
+              : `${historyQ.data?.tournaments.length ?? 0} участий`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {historyQ.isLoading && <Skeleton className="h-24 w-full" />}
+          {historyQ.isError && (
+            <div className="text-sm text-destructive">
+              Не удалось загрузить историю турниров.
+            </div>
+          )}
+          {historyQ.data && historyQ.data.tournaments.length === 0 && (
+            <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+              Команда ещё не участвовала в турнирах.
+            </div>
+          )}
+          {historyQ.data && historyQ.data.tournaments.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Турнир</th>
+                    <th className="px-4 py-2 font-medium">Статус</th>
+                    <th className="px-4 py-2 font-medium">Сид</th>
+                    <th className="px-4 py-2 font-medium">Завершён</th>
+                    <th className="px-4 py-2 text-center font-medium">
+                      Победа
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyQ.data.tournaments.map((t) => (
+                    <tr key={t.tournamentId} className="border-t">
+                      <td className="px-4 py-2">
+                        <Link
+                          to={`/tournaments/${t.tournamentSlug}`}
+                          className="hover:underline"
+                        >
+                          {t.tournamentName}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2">
+                        <Badge variant={tournamentStatusVariant(t.status)}>
+                          {TOURNAMENT_STATUS_LABEL[t.status]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">
+                        {t.seed ?? '—'}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {fmtDate(t.endsAt)}
+                      </td>
+                      <td className="px-4 py-2 text-center">
+                        {t.wasWinner ? (
+                          <span aria-label="чемпион" title="Чемпион">
+                            🏆
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Disband confirm */}
       <Dialog open={disbandOpen} onOpenChange={setDisbandOpen}>

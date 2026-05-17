@@ -37,6 +37,9 @@ import type {
   AuditLogDto,
   ActivityStatus,
   PlayerRole,
+  SeasonChampionDto,
+  PlayerHistoryDto,
+  TeamHistoryDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -634,5 +637,25 @@ export function getAdminAuditPage(
 ): Promise<PagedResponse<AuditLogDto>> {
   return api<PagedResponse<AuditLogDto>>(
     `/api/v1/admin/audit${buildQuery(params)}`,
+  );
+}
+
+// ──────────────── Archive / History (Stage 9) ────────────────
+
+export function getSeasonChampions(slug: string): Promise<SeasonChampionDto[]> {
+  return api<SeasonChampionDto[]>(
+    `/api/v1/seasons/${encodeURIComponent(slug)}/champions`,
+  );
+}
+
+export function getPlayerHistory(id: string): Promise<PlayerHistoryDto> {
+  return api<PlayerHistoryDto>(
+    `/api/v1/players/${encodeURIComponent(id)}/history`,
+  );
+}
+
+export function getTeamHistory(id: string): Promise<TeamHistoryDto> {
+  return api<TeamHistoryDto>(
+    `/api/v1/teams/${encodeURIComponent(id)}/history`,
   );
 }

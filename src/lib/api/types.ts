@@ -109,6 +109,65 @@ export type MatchDto = S['MatchDto'] & {
   autoLaunch?: boolean | null;
 };
 
+// TODO: regenerate openapi — archive DTOs (Stage 9).
+export interface SeasonChampionDto {
+  tournamentId: string;
+  tournamentName: string;
+  tournamentSlug: string;
+  format: TournamentFormat;
+  endsAt: string | null;
+  winnerTeam: TeamPublicDto;
+}
+
+export interface PlayerTournamentEntry {
+  tournamentId: string;
+  tournamentSlug: string;
+  tournamentName: string;
+  status: TournamentStatus;
+  startsAt: string | null;
+  endsAt: string | null;
+  teamId: string;
+  teamName: string;
+  teamTag: string;
+  wasWinner: boolean;
+}
+
+export interface PlayerTeamEntry {
+  teamId: string;
+  teamName: string;
+  teamTag: string;
+  role: TeamMemberRole;
+  joinedAt: string;
+  leftAt: string | null;
+}
+
+export interface MmrHistoryEntry {
+  mmr: number | null;
+  source: MmrSource;
+  fetchedAt: string;
+  confirmedAt: string | null;
+}
+
+export interface PlayerHistoryDto {
+  tournaments: PlayerTournamentEntry[];
+  teams: PlayerTeamEntry[];
+  mmrTimeline: MmrHistoryEntry[];
+}
+
+export interface TeamTournamentEntry {
+  tournamentId: string;
+  tournamentSlug: string;
+  tournamentName: string;
+  status: TournamentStatus;
+  endsAt: string | null;
+  seed: number | null;
+  wasWinner: boolean;
+}
+
+export interface TeamHistoryDto {
+  tournaments: TeamTournamentEntry[];
+}
+
 // Generic paged response
 export interface PagedResponse<T> {
   items?: T[];
