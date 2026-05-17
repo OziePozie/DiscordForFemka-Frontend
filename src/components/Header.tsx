@@ -57,7 +57,7 @@ export default function Header() {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
         <div className="flex items-center gap-8">
           <Link to="/" className="text-base font-semibold tracking-tight">
-            PASS 6969
+            PLAY STAGE
           </Link>
           <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
             <Link to="/" className="hover:text-foreground">
