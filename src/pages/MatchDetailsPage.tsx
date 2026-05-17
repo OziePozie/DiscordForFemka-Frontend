@@ -271,9 +271,18 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
         {match.tournamentId && (
           <div className="text-sm text-muted-foreground">
             Турнир:{' '}
-            <span className="font-mono text-foreground">
-              {match.tournamentId}
-            </span>
+            {match.tournamentSlug ? (
+              <Link
+                to={`/tournaments/${match.tournamentSlug}`}
+                className="text-foreground hover:underline"
+              >
+                {match.tournamentSlug}
+              </Link>
+            ) : (
+              <span className="font-mono text-foreground">
+                {match.tournamentId}
+              </span>
+            )}
           </div>
         )}
 
@@ -504,11 +513,21 @@ export default function MatchDetailsPage() {
         <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
         <Badge variant="secondary">{MATCH_KIND_LABEL[m.kind]}</Badge>
         {m.tournamentId && (
-          // TODO: resolve tournament slug from tournamentId once backend exposes
-          // it on MatchDto; until then show a plain label without a link.
-          <Badge variant="outline" title={m.tournamentId}>
-            Турнир
-          </Badge>
+          m.tournamentSlug ? (
+            <Link to={`/tournaments/${m.tournamentSlug}`}>
+              <Badge
+                variant="outline"
+                className="cursor-pointer hover:bg-accent"
+                title={m.tournamentId}
+              >
+                Турнир
+              </Badge>
+            </Link>
+          ) : (
+            <Badge variant="outline" title={m.tournamentId}>
+              Турнир
+            </Badge>
+          )
         )}
       </div>
 

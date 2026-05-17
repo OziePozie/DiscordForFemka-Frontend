@@ -428,7 +428,10 @@ function MatchRow({ m }: { m: MatchDto }) {
   const aWin = finished && m.winnerTeamId === m.teamA.id;
   const bWin = finished && m.winnerTeamId === m.teamB.id;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm">
+    <Link
+      to={`/matches/${m.id}`}
+      className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm transition-colors hover:bg-muted/50"
+    >
       <div className="flex items-center gap-3">
         <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
         <span className={aWin ? 'font-semibold text-green-700' : ''}>
@@ -450,7 +453,7 @@ function MatchRow({ m }: { m: MatchDto }) {
           {fmtDateTime(m.scheduledAt)}
         </span>
       </div>
-    </div>
+    </Link>
   );
 }
 

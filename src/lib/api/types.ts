@@ -94,6 +94,7 @@ export type Region =
   | 'INDIA';
 
 export type MatchDto = S['MatchDto'] & {
+  tournamentSlug?: string | null;
   teamAReadyAt?: string | null;
   teamBReadyAt?: string | null;
   lobbyId?: string | null;
