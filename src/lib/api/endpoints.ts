@@ -37,6 +37,7 @@ import type {
   AuditLogDto,
   ActivityStatus,
   PlayerRole,
+  UpdateMatchRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
   TeamHistoryDto,
@@ -565,6 +566,19 @@ export function recreateLobby(matchId: string): Promise<MatchDto> {
   return api<MatchDto>(
     `/api/v1/admin/matches/${encodeURIComponent(matchId)}/lobby/recreate`,
     { method: 'POST' },
+  );
+}
+
+export function updateAdminMatch(
+  id: string,
+  patch: UpdateMatchRequest,
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    },
   );
 }
 

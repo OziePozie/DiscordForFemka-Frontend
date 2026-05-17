@@ -94,20 +94,34 @@ export type Region =
   | 'INDIA';
 
 export type MatchDto = S['MatchDto'] & {
-  tournamentSlug?: string | null;
   teamAReadyAt?: string | null;
   teamBReadyAt?: string | null;
   lobbyId?: string | null;
   lobbyCreatedAt?: string | null;
-  lobbyCreateStartedAt?: string | null;
-  lobbyCreateFailedAt?: string | null;
-  lobbyCreateFailedReason?: string | null;
-  lobbyCreateAttempts?: number;
   gameMode?: GameMode | null;
   region?: Region | null;
   coinToss?: boolean | null;
   autoLaunch?: boolean | null;
+  // TODO: regenerate openapi — async lobby create retry fields.
+  lobbyCreateStartedAt?: string | null;
+  lobbyCreateFailedAt?: string | null;
+  lobbyCreateFailedReason?: string | null;
+  lobbyCreateAttempts?: number | null;
+  // TODO: regenerate openapi — backend exposes tournament slug on MatchDto for
+  // building clickable tournament badges.
+  tournamentSlug?: string | null;
 };
+
+// TODO: regenerate openapi — admin match update payload (Stage 9).
+export interface UpdateMatchRequest {
+  gameMode?: GameMode | null;
+  region?: Region | null;
+  coinToss?: boolean | null;
+  autoLaunch?: boolean | null;
+  // Null clears the corresponding ready timestamp.
+  teamAReadyAt?: string | null;
+  teamBReadyAt?: string | null;
+}
 
 // TODO: regenerate openapi — archive DTOs (Stage 9).
 export interface SeasonChampionDto {

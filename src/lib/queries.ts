@@ -63,6 +63,7 @@ import {
   banAdminPlayer,
   unbanAdminPlayer,
   getAdminAuditPage,
+  updateAdminMatch,
   getSeasonChampions,
   getPlayerHistory,
   getTeamHistory,
@@ -105,6 +106,7 @@ import type {
   CreateMatchRequestDto,
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
+  UpdateMatchRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
   TeamHistoryDto,
@@ -766,6 +768,24 @@ export function useAdminAudit(params: AdminAuditPageParams = {}) {
   return useQuery({
     queryKey: qk.adminAudit(params),
     queryFn: () => getAdminAuditPage(params),
+  });
+}
+
+// ──────────────── Admin match update ────────────────
+
+export function useUpdateAdminMatch() {
+  const qc = useQueryClient();
+  return useMutation<
+    MatchDto,
+    Error,
+    { id: string; patch: UpdateMatchRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateAdminMatch(id, patch),
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
   });
 }
 
