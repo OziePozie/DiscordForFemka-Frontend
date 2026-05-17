@@ -8,6 +8,9 @@ import {
   useRecreateLobby,
   useMe,
 } from '@/lib/queries';
+import { useMatchLive, useMatchResult } from '@/lib/queries';
+import { LiveStatsCard } from '@/components/match/LiveStatsCard';
+import { ResultStatsCard } from '@/components/match/ResultStatsCard';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -434,9 +437,16 @@ export default function MatchDetailsPage() {
     !!cur.lobbyCreateStartedAt &&
     !cur.lobbyCreateFailedAt &&
     cur.status === 'SCHEDULED';
+  const isLive = !!cur && cur.status === 'LIVE';
   useEffect(() => {
-    setPollMs(isLobbyPending ? 5000 : undefined);
-  }, [isLobbyPending]);
+    // Poll while waiting for the bot OR while the match is live — catches the
+    // LIVE → FINISHED transition triggered by the auto-finish scheduler.
+    setPollMs(isLobbyPending || isLive ? 5000 : undefined);
+  }, [isLobbyPending, isLive]);
+
+  const live = useMatchLive(id, q.data?.status === 'LIVE' && !!q.data?.lobbyId);
+  const result = useMatchResult(id, q.data?.status === 'FINISHED');
+  const meId = me.data?.profile.id;
 
   if (q.isLoading) {
     return (
@@ -553,6 +563,14 @@ export default function MatchDetailsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {m.status === 'LIVE' && m.lobbyId && (
+        <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
+      )}
+
+      {m.status === 'FINISHED' && result.data && (
+        <ResultStatsCard match={m} result={result.data} meId={meId} />
+      )}
 
       {showPending && <LobbyPendingCard match={m} isAdmin={isAdmin} />}
 
