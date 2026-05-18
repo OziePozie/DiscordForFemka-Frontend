@@ -125,6 +125,7 @@ export default function AdminSeasonsPage() {
   function closeDialog() {
     setDialog(null);
     setForm(EMPTY_FORM);
+    setUploading(false);
   }
 
   async function handleBannerChange(e: ChangeEvent<HTMLInputElement>) {
