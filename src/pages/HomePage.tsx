@@ -41,6 +41,13 @@ export default function HomePage() {
           </div>
         ) : season ? (
           <>
+            {season.bannerUrl && (
+              <img
+                src={season.bannerUrl}
+                alt=""
+                className="mx-auto max-h-72 w-full max-w-5xl rounded-lg object-cover"
+              />
+            )}
             <div className="flex justify-center">
               <Badge variant="secondary">
                 {SEASON_STATUS_LABEL[season.status]}
