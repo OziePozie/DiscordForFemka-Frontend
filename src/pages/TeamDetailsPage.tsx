@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   useCancelTeamInvite,
@@ -11,6 +11,8 @@ import {
   useTeamHistory,
   useTeamInvites,
   useTransferCaptaincy,
+  useUpdateTeam,
+  useUploadAttachment,
 } from '@/lib/queries';
 import {
   Avatar,
@@ -111,6 +113,8 @@ export default function TeamDetailsPage() {
   const invites = useTeamInvites(id);
   const createInvite = useCreateTeamInvite();
   const cancelInvite = useCancelTeamInvite();
+  const updateTeam = useUpdateTeam();
+  const uploadAttachment = useUploadAttachment();
   const { toast } = useToast();
 
   const [disbandOpen, setDisbandOpen] = useState(false);
@@ -125,6 +129,10 @@ export default function TeamDetailsPage() {
   const [inviteRole, setInviteRole] = useState<TeamMemberRole>('MAIN');
   const [invitePosition, setInvitePosition] = useState<PlayerPosition | ''>('');
   const [leaveOpen, setLeaveOpen] = useState<{ playerId: string; nickname: string; self: boolean } | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
+  const editFileRef = useRef<HTMLInputElement | null>(null);
 
   const playersQ = usePlayersSearch({ q: inviteSearchDebounced, size: 8 });
 
@@ -261,6 +269,51 @@ export default function TeamDetailsPage() {
     }
   }
 
+  function openEdit() {
+    if (!q.data) return;
+    setEditName(q.data.name);
+    setEditLogoFile(null);
+    setEditOpen(true);
+  }
+
+  function handleEditLogoPick(ev: ChangeEvent<HTMLInputElement>) {
+    const f = ev.target.files?.[0] ?? null;
+    setEditLogoFile(f);
+  }
+
+  async function handleEditSave() {
+    if (!id || !q.data) return;
+    const trimmed = editName.trim();
+    if (!trimmed) return;
+
+    const body: { name?: string; logoAttachmentId?: string } = {};
+    if (trimmed !== q.data.name) body.name = trimmed;
+
+    try {
+      if (editLogoFile) {
+        const att = await uploadAttachment.mutateAsync({
+          file: editLogoFile,
+          kind: 'TEAM_LOGO',
+        });
+        body.logoAttachmentId = att.id;
+      }
+      if (Object.keys(body).length === 0) {
+        setEditOpen(false);
+        return;
+      }
+      await updateTeam.mutateAsync({ id, body });
+      toast({ title: 'Команда обновлена' });
+      setEditOpen(false);
+      setEditLogoFile(null);
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -298,6 +351,9 @@ export default function TeamDetailsPage() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={() => setInviteOpen(true)}>
                   Пригласить игрока
+                </Button>
+                <Button variant="outline" onClick={openEdit}>
+                  Редактировать
                 </Button>
                 <Button
                   variant="outline"
@@ -869,6 +925,85 @@ export default function TeamDetailsPage() {
               disabled={!newCaptain || transfer.isPending}
             >
               {transfer.isPending ? 'Передаём…' : 'Передать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit team */}
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditOpen(false);
+            setEditLogoFile(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Редактировать команду</DialogTitle>
+            <DialogDescription>
+              Измените название или загрузите новый логотип. Если файл не
+              выбран, логотип не изменится.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Название</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={64}
+                placeholder="Например, Femka eSports"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Текущий логотип</Label>
+              <div className="flex items-center gap-3">
+                <Avatar className="h-12 w-12">
+                  {team.logoUrl && <AvatarImage src={team.logoUrl} alt="" />}
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+                <span className="text-xs text-muted-foreground">
+                  {team.logoUrl ? 'Загружен' : 'Не загружен'}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-logo">Новый логотип (опционально)</Label>
+              <Input
+                id="edit-logo"
+                ref={editFileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleEditLogoPick}
+              />
+              {editLogoFile && (
+                <p className="text-xs text-muted-foreground">
+                  Файл: {editLogoFile.name} (
+                  {Math.round(editLogoFile.size / 1024)} KB)
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleEditSave}
+              disabled={
+                updateTeam.isPending ||
+                uploadAttachment.isPending ||
+                editName.trim().length === 0 ||
+                (editName.trim() === team.name && !editLogoFile)
+              }
+            >
+              {updateTeam.isPending || uploadAttachment.isPending
+                ? 'Сохраняем…'
+                : 'Сохранить'}
             </Button>
           </DialogFooter>
         </DialogContent>
