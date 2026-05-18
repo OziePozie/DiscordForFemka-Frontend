@@ -2158,7 +2158,7 @@ export interface components {
         /** @enum {string} */
         InactiveReason: "MMR_STALE" | "MISSING_FIELDS" | "UNCONFIRMED_5600_PLUS" | "BANNED" | "NEVER_FETCHED" | "INCOMPLETE_ROSTER" | "INACTIVE_PLAYERS" | "UNCONFIRMED_CAPTAIN" | "DISBANDED";
         /** @enum {string} */
-        AttachmentKind: "MMR_SCREENSHOT" | "TEAM_LOGO" | "PLAYER_AVATAR" | "TOURNAMENT_BANNER";
+        AttachmentKind: "MMR_SCREENSHOT" | "TEAM_LOGO" | "PLAYER_AVATAR" | "TOURNAMENT_BANNER" | "SEASON_BANNER";
         /** @enum {string} */
         TeamMemberRole: "CAPTAIN" | "MAIN" | "SUB";
         /** @enum {string} */
@@ -2429,6 +2429,7 @@ export interface components {
             startsAt: string;
             /** Format: date-time */
             endsAt: string;
+            bannerUrl?: string | null;
         };
         HighlightDto: {
             kind?: string;
