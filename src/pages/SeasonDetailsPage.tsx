@@ -90,6 +90,13 @@ export default function SeasonDetailsPage() {
   return (
     <div className="space-y-8">
       <header className="space-y-3">
+        {season.bannerUrl && (
+          <img
+            src={season.bannerUrl}
+            alt=""
+            className="max-h-64 w-full rounded-lg object-cover"
+          />
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-bold tracking-tight">{season.name}</h1>
           <Badge variant={seasonVariant(season.status)}>
