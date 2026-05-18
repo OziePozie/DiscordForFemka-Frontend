@@ -5,8 +5,9 @@ type S = components['schemas'];
 // DTOs
 export type SessionDto = S['SessionDto'];
 export type MeDto = S['MeDto'];
-export type UpdateMeRequest = S['UpdateMeRequest'];
-export type PlayerPublicDto = S['PlayerPublicDto'];
+// TODO: regenerate openapi — gender added to UpdateMeRequest / PlayerPublicDto.
+export type UpdateMeRequest = S['UpdateMeRequest'] & { gender?: GenderType | null };
+export type PlayerPublicDto = S['PlayerPublicDto'] & { gender?: GenderType | null };
 export type PlayerMmrPublicDto = S['PlayerMmrPublicDto'];
 export type PlayerMmrDto = S['PlayerMmrDto'];
 export type PlayerActivityDto = S['PlayerActivityDto'];
@@ -200,6 +201,16 @@ export const COUNTRY_LABEL: Record<CountryCode, string> = {
   BY: 'Беларусь',
   UA: 'Украина',
   KZ: 'Казахстан',
+};
+
+// TODO: regenerate openapi — GenderType present in PlayerPublicDto/UpdateMeRequest.
+export type GenderType = 'MALE' | 'FEMALE';
+
+export const GENDERS: GenderType[] = ['MALE', 'FEMALE'];
+
+export const GENDER_LABEL: Record<GenderType, string> = {
+  MALE: 'Мужской',
+  FEMALE: 'Женский',
 };
 
 // Generic paged response

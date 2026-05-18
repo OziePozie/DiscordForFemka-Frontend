@@ -38,11 +38,14 @@ import { discordLinkUrl, twitchLinkUrl } from '@/lib/api/endpoints';
 import {
   COUNTRIES,
   COUNTRY_LABEL,
+  GENDERS,
+  GENDER_LABEL,
   MMR_SOURCE_LABEL,
   MMR_CHANGE_REASON_LABEL,
   PLAYER_POSITIONS,
   POSITION_LABEL,
   type CountryCode,
+  type GenderType,
   type PlayerPosition,
   type UpdateMeRequest,
   type MmrChangeReason,
@@ -87,6 +90,7 @@ export default function ProfilePage() {
       setForm({
         nickname: me.data.profile.nickname ?? '',
         country: me.data.profile.country ?? '',
+        gender: me.data.profile.gender ?? undefined,
         primaryRole: me.data.profile.primaryRole ?? undefined,
         secondaryRoles: me.data.profile.secondaryRoles ?? [],
         dotabuffUrl: me.data.profile.dotabuffUrl ?? '',
@@ -324,6 +328,26 @@ export default function ProfilePage() {
                   {COUNTRIES.map((c) => (
                     <SelectItem key={c} value={c}>
                       {COUNTRY_LABEL[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gender">Пол</Label>
+              <Select
+                value={form.gender ?? undefined}
+                onValueChange={(v) => update('gender', v as GenderType)}
+                disabled={!editing}
+              >
+                <SelectTrigger id="gender">
+                  <SelectValue placeholder="Не указан" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GENDERS.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {GENDER_LABEL[g]}
                     </SelectItem>
                   ))}
                 </SelectContent>
