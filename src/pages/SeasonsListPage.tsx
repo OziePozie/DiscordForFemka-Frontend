@@ -77,7 +77,7 @@ export default function SeasonsListPage() {
                 <img
                   src={s.bannerUrl}
                   alt=""
-                  className="aspect-[16/6] w-full object-cover"
+                  className="aspect-[16/6] w-full rounded-t-lg object-cover"
                 />
               )}
               <CardHeader>
