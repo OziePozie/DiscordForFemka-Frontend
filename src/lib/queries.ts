@@ -46,6 +46,7 @@ import {
   finishTournament,
   generateBracket,
   createTeam,
+  updateTeam,
   uploadAttachment,
   listLobbies,
   createLobby,
@@ -99,6 +100,7 @@ import type {
   CreateTournamentRequest,
   UpdateTournamentRequest,
   CreateTeamRequest,
+  UpdateTeamRequest,
   TeamInviteDto,
   CreateInviteRequest,
   MatchDto,
@@ -583,6 +585,21 @@ export function useCreateTeam() {
       qc.invalidateQueries({ queryKey: ['teams'] });
       qc.invalidateQueries({ queryKey: qk.team(team.id) });
       qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+export function useUpdateTeam() {
+  const qc = useQueryClient();
+  return useMutation<
+    TeamDto,
+    Error,
+    { id: string; body: UpdateTeamRequest }
+  >({
+    mutationFn: ({ id, body }) => updateTeam(id, body),
+    onSuccess: (team) => {
+      qc.invalidateQueries({ queryKey: qk.team(team.id) });
+      qc.invalidateQueries({ queryKey: ['teams'] });
     },
   });
 }
