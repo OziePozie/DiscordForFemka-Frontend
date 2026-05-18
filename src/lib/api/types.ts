@@ -221,6 +221,7 @@ export interface CreateSeasonRequest {
   description?: string | null;
   startsAt: string;
   endsAt: string;
+  bannerAttachmentId?: string | null;
 }
 
 export interface UpdateSeasonRequest {
@@ -228,6 +229,7 @@ export interface UpdateSeasonRequest {
   description?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
+  bannerAttachmentId?: string | null;
 }
 
 export interface CreateTournamentRequest {
