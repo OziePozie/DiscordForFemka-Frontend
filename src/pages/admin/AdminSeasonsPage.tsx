@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import {
   useSeasonsList,
   useCreateSeason,
@@ -27,6 +27,7 @@ import {
   type SeasonStatus,
 } from '@/lib/api/types';
 import { formatDateTimeLocal, parseLocalDateTime } from '@/lib/utils';
+import { uploadAttachment } from '@/lib/api/endpoints';
 
 const PAGE_SIZE = 25;
 const SLUG_RE = /^[a-z0-9-]+$/;
@@ -37,6 +38,9 @@ type FormState = {
   description: string;
   startsAt: string; // datetime-local
   endsAt: string;
+  bannerAttachmentId: string | null;
+  bannerPreviewUrl: string | null;
+  bannerDirty: boolean;
 };
 
 const EMPTY_FORM: FormState = {
@@ -45,6 +49,9 @@ const EMPTY_FORM: FormState = {
   description: '',
   startsAt: '',
   endsAt: '',
+  bannerAttachmentId: null,
+  bannerPreviewUrl: null,
+  bannerDirty: false,
 };
 
 type DialogState =
@@ -94,6 +101,7 @@ export default function AdminSeasonsPage() {
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [uploading, setUploading] = useState(false);
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -107,6 +115,9 @@ export default function AdminSeasonsPage() {
       description: season.description ?? '',
       startsAt: formatDateTimeLocal(season.startsAt),
       endsAt: formatDateTimeLocal(season.endsAt),
+      bannerAttachmentId: null,
+      bannerPreviewUrl: season.bannerUrl ?? null,
+      bannerDirty: false,
     });
     setDialog({ kind: 'edit', season });
   }
@@ -114,6 +125,31 @@ export default function AdminSeasonsPage() {
   function closeDialog() {
     setDialog(null);
     setForm(EMPTY_FORM);
+  }
+
+  async function handleBannerChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const att = await uploadAttachment(file, 'SEASON_BANNER');
+      setForm((prev) => ({
+        ...prev,
+        bannerAttachmentId: att.id,
+        bannerPreviewUrl: att.url,
+        bannerDirty: true,
+      }));
+    } catch (err) {
+      toast({
+        title: 'Не удалось загрузить баннер',
+        description: describeError(err),
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      // reset input so selecting the same file again re-fires onChange
+      e.target.value = '';
+    }
   }
 
   function validateForm(includeSlug: boolean): string | null {
@@ -150,6 +186,7 @@ export default function AdminSeasonsPage() {
           description: form.description.trim() || null,
           startsAt: parseLocalDateTime(form.startsAt)!,
           endsAt: parseLocalDateTime(form.endsAt)!,
+          bannerAttachmentId: form.bannerAttachmentId,
         });
         toast({ title: 'Сезон создан' });
         closeDialog();
@@ -177,6 +214,7 @@ export default function AdminSeasonsPage() {
             description: form.description.trim() || null,
             startsAt: parseLocalDateTime(form.startsAt),
             endsAt: parseLocalDateTime(form.endsAt),
+            bannerAttachmentId: form.bannerDirty ? form.bannerAttachmentId : null,
           },
         });
         toast({ title: 'Сезон обновлён' });
@@ -216,7 +254,8 @@ export default function AdminSeasonsPage() {
     createMut.isPending ||
     updateMut.isPending ||
     startMut.isPending ||
-    finishMut.isPending;
+    finishMut.isPending ||
+    uploading;
 
   return (
     <div className="space-y-6">
@@ -396,6 +435,29 @@ export default function AdminSeasonsPage() {
                 className="min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
+            <div className="space-y-1">
+              <Label htmlFor="season-banner">Баннер</Label>
+              {form.bannerPreviewUrl && (
+                <img
+                  src={form.bannerPreviewUrl}
+                  alt=""
+                  className="max-h-32 w-full rounded-md object-cover"
+                />
+              )}
+              <Input
+                id="season-banner"
+                type="file"
+                accept="image/*"
+                onChange={handleBannerChange}
+                disabled={uploading}
+              />
+              {uploading && (
+                <p className="text-xs text-muted-foreground">Загрузка…</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Опционально. PNG/JPEG/WebP. Снять баннер через интерфейс нельзя — загрузите новый.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="season-starts">Старт</Label>
@@ -426,11 +488,13 @@ export default function AdminSeasonsPage() {
               Отмена
             </Button>
             <Button onClick={handleSubmit} disabled={mutating}>
-              {mutating
-                ? 'Сохранение…'
-                : dialog?.kind === 'edit'
-                  ? 'Сохранить'
-                  : 'Создать'}
+              {uploading
+                ? 'Загрузка баннера…'
+                : mutating
+                  ? 'Сохранение…'
+                  : dialog?.kind === 'edit'
+                    ? 'Сохранить'
+                    : 'Создать'}
             </Button>
           </DialogFooter>
         </DialogContent>
