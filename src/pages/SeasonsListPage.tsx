@@ -72,7 +72,14 @@ export default function SeasonsListPage() {
       {q.data && (q.data.items?.length ?? 0) > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {q.data.items!.map((s) => (
-            <Card key={s.id} className="flex flex-col">
+            <Card key={s.id} className="flex flex-col overflow-hidden">
+              {s.bannerUrl && (
+                <img
+                  src={s.bannerUrl}
+                  alt=""
+                  className="aspect-[16/6] w-full object-cover"
+                />
+              )}
               <CardHeader>
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-lg">{s.name}</CardTitle>
