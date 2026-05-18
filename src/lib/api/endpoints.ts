@@ -26,6 +26,7 @@ import type {
   CreateTournamentRequest,
   UpdateTournamentRequest,
   CreateTeamRequest,
+  UpdateTeamRequest,
   TeamInviteDto,
   CreateInviteRequest,
   MatchKind,
@@ -443,6 +444,16 @@ export function generateBracket(id: string): Promise<BracketDto> {
 export function createTeam(body: CreateTeamRequest): Promise<TeamDto> {
   return api<TeamDto>('/api/v1/teams', {
     method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateTeam(
+  id: string,
+  body: UpdateTeamRequest,
+): Promise<TeamDto> {
+  return api<TeamDto>(`/api/v1/teams/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
     body: JSON.stringify(body),
   });
 }
