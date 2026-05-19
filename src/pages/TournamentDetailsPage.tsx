@@ -476,11 +476,55 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
       </div>
     );
 
+  const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
+  const lbRounds = bracket.rounds.filter((r) => r.section === 'LB');
+  const gfRounds = bracket.rounds.filter((r) => r.section === 'GF');
+  const isDoubleElim = bracket.format === 'DOUBLE_ELIM';
+
+  if (!isDoubleElim) {
+    return <RoundColumns rounds={wbRounds} />;
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
+      <div className="space-y-6">
+        <section>
+          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
+            Верхняя сетка
+          </h3>
+          <RoundColumns rounds={wbRounds} />
+        </section>
+        {lbRounds.length > 0 && (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
+              Нижняя сетка
+            </h3>
+            <RoundColumns rounds={lbRounds} />
+          </section>
+        )}
+      </div>
+      {gfRounds.length > 0 && (
+        <section className="lg:w-72">
+          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
+            Grand Final
+          </h3>
+          <RoundColumns rounds={gfRounds} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+type BracketRound = NonNullable<
+  ReturnType<typeof useBracket>['data']
+>['rounds'][number];
+
+function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
   return (
     <div className="flex gap-4 overflow-x-auto pb-2">
-      {bracket.rounds.map((round) => (
+      {rounds.map((round) => (
         <div
-          key={round.roundIndex}
+          key={`${round.section}-${round.roundIndex}`}
           className="flex w-72 shrink-0 flex-col gap-2"
         >
           <div className="text-sm font-medium">{round.title}</div>
