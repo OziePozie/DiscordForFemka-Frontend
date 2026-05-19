@@ -2176,6 +2176,8 @@ export interface components {
         /** @enum {string} */
         MatchFormat: "BO1" | "BO3" | "BO5";
         /** @enum {string} */
+        BracketSection: "WB" | "LB" | "GF";
+        /** @enum {string} */
         MatchStatus: "SCHEDULED" | "LIVE" | "FINISHED" | "CANCELLED";
         /** @enum {string} */
         MatchRequestStatus: "OPEN" | "MATCHED" | "CANCELLED" | "EXPIRED";
@@ -2220,6 +2222,7 @@ export interface components {
             nickname?: string | null;
             avatarUrl?: string | null;
             country?: string | null;
+            gender?: components["schemas"]["GenderType"] | null;
             primaryRole?: components["schemas"]["PlayerPosition"] | null;
             secondaryRoles?: components["schemas"]["PlayerPosition"][];
             mmr?: components["schemas"]["PlayerMmrPublicDto"] | null;
@@ -2232,6 +2235,8 @@ export interface components {
             /** Format: date-time */
             createdAt?: string;
         };
+        /** @enum {string} */
+        GenderType: "MALE" | "FEMALE";
         PlayerMmrDto: {
             mmr: number;
             source: components["schemas"]["MmrSource"];
@@ -2276,6 +2281,7 @@ export interface components {
         UpdateMeRequest: {
             nickname?: string;
             country?: string;
+            gender?: components["schemas"]["GenderType"];
             primaryRole?: components["schemas"]["PlayerPosition"];
             secondaryRoles?: components["schemas"]["PlayerPosition"][];
             dotabuffUrl?: string;
@@ -2534,6 +2540,8 @@ export interface components {
             defaultCoinToss: boolean;
             defaultAutoLaunch: boolean;
             dotaLeagueId?: number | null;
+            matchFormatDefault?: components["schemas"]["MatchFormat"];
+            grandFinalFormat?: components["schemas"]["MatchFormat"];
         };
         CreateTournamentRequest: {
             name: string;
@@ -2560,6 +2568,8 @@ export interface components {
             defaultCoinToss?: boolean;
             defaultAutoLaunch?: boolean;
             dotaLeagueId?: number;
+            matchFormatDefault?: components["schemas"]["MatchFormat"];
+            grandFinalFormat?: components["schemas"]["MatchFormat"];
         };
         /** @description PATCH-семантика — поля со значением `null` или отсутствующие не меняются. */
         UpdateTournamentRequest: {
@@ -2583,6 +2593,8 @@ export interface components {
             defaultCoinToss?: boolean;
             defaultAutoLaunch?: boolean;
             dotaLeagueId?: number;
+            matchFormatDefault?: components["schemas"]["MatchFormat"];
+            grandFinalFormat?: components["schemas"]["MatchFormat"];
         };
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];
@@ -2603,6 +2615,7 @@ export interface components {
             rounds: components["schemas"]["BracketRoundDto"][];
         };
         BracketRoundDto: {
+            section: components["schemas"]["BracketSection"];
             roundIndex: number;
             title: string;
             matches: components["schemas"]["MatchDto"][];
@@ -2645,6 +2658,9 @@ export interface components {
             region: components["schemas"]["Region"];
             coinToss: boolean;
             autoLaunch: boolean;
+            bracketSection?: components["schemas"]["BracketSection"];
+            roundIndex?: number | null;
+            matchIndex?: number | null;
         };
         MatchLiveSnapshotDto: {
             /** @description Seconds since game clock started (may be negative during pick phase) */
