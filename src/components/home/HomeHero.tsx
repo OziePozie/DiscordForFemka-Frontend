@@ -4,7 +4,7 @@ import HeroBlob from './HeroBlob';
 import type { SeasonDto } from '@/lib/api/types';
 
 interface HomeHeroProps {
-  season: SeasonDto | undefined;
+  season?: SeasonDto;
   seasonLoading: boolean;
 }
 
