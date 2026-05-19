@@ -1,0 +1,44 @@
+import { useNavigate } from 'react-router-dom';
+import type { TournamentDto } from '@/lib/api/types';
+import { TOURNAMENT_STATUS_LABEL } from '@/lib/api/types';
+
+interface TournamentCardProps {
+  tournament: TournamentDto;
+}
+
+/**
+ * Карточка реального турнира. Шаблон тот же, что у плейсхолдера, но контент
+ * берётся из TournamentDto. Описание: если есть t.description — обрезаем
+ * по первой строке; иначе показываем статус (TOURNAMENT_STATUS_LABEL).
+ */
+export default function TournamentCard({ tournament }: TournamentCardProps) {
+  const navigate = useNavigate();
+
+  const description =
+    tournament.description?.trim() ||
+    TOURNAMENT_STATUS_LABEL[tournament.status];
+
+  return (
+    <div className="group flex min-h-[230px] flex-col items-center justify-center rounded-[32px] border border-purple-100 bg-white/60 p-8 text-center backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]">
+      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 text-3xl text-white shadow-lg shadow-purple-300/40">
+        ✦
+      </div>
+
+      <h3 className="line-clamp-2 text-2xl font-bold text-[#141938]">
+        {tournament.name}
+      </h3>
+
+      <p className="mt-4 line-clamp-3 max-w-[260px] leading-relaxed text-[#6a7191]">
+        {description}
+      </p>
+
+      <button
+        aria-label={`К турниру «${tournament.name}»`}
+        className="mt-6 rounded-2xl border border-purple-200 bg-white/70 px-5 py-3 text-sm font-semibold text-purple-700 transition-all duration-300 hover:bg-purple-600 hover:text-white"
+        onClick={() => navigate(`/tournaments/${tournament.slug}`)}
+      >
+        К турниру
+      </button>
+    </div>
+  );
+}
