@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { TeamNameLink } from '@/components/TeamNameLink';
 import { usePlayer, usePlayerHistory } from '@/lib/queries';
 import {
   Avatar,
@@ -192,15 +193,11 @@ export default function PlayerPublicPage() {
                         </Link>
                       </td>
                       <td className="px-4 py-2">
-                        <Link
-                          to={`/teams/${t.teamId}`}
-                          className="hover:underline"
-                        >
-                          {t.teamName}{' '}
-                          <span className="text-muted-foreground">
-                            [{t.teamTag}]
-                          </span>
-                        </Link>
+                        <TeamNameLink
+                          teamId={t.teamId}
+                          name={t.teamName}
+                          tag={t.teamTag}
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <Badge variant={tournamentStatusVariant(t.status)}>
@@ -257,15 +254,12 @@ export default function PlayerPublicPage() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <Link
-                        to={`/teams/${te.teamId}`}
-                        className="font-medium hover:underline"
-                      >
-                        {te.teamName}{' '}
-                        <span className="text-sm text-muted-foreground">
-                          [{te.teamTag}]
-                        </span>
-                      </Link>
+                      <TeamNameLink
+                        teamId={te.teamId}
+                        name={te.teamName}
+                        tag={te.teamTag}
+                        className="font-medium"
+                      />
                       <Badge variant="outline">
                         {TEAM_MEMBER_ROLE_LABEL[te.role]}
                       </Badge>
