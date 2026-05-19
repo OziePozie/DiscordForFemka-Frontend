@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
+import { TeamNameLink } from '@/components/TeamNameLink';
 import {
   useBracket,
   useMe,
@@ -338,21 +340,18 @@ function TeamsTab({ tournamentId }: { tournamentId: string }) {
                 {tt.seed ?? '—'}
               </td>
               <td className="px-4 py-2">
-                <Link
-                  to={`/teams/${tt.team.id}`}
-                  className="font-medium hover:underline"
-                >
-                  {tt.team.name}
-                </Link>{' '}
-                <span className="text-muted-foreground">[{tt.team.tag}]</span>
+                <TeamNameLink
+                  teamId={tt.team.id}
+                  name={tt.team.name}
+                  tag={tt.team.tag}
+                  className="font-medium"
+                />
               </td>
               <td className="px-4 py-2">
-                <Link
-                  to={`/players/${tt.team.captain.id}`}
-                  className="hover:underline"
-                >
-                  {tt.team.captain.nickname ?? 'Без ника'}
-                </Link>
+                <PlayerNameLink
+                  playerId={tt.team.captain.id}
+                  nickname={tt.team.captain.nickname ?? 'Без ника'}
+                />
               </td>
               <td className="px-4 py-2">
                 {tt.withdrawn ? (
