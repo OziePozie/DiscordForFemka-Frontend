@@ -12,9 +12,6 @@ export default function HeroBlob() {
       aria-hidden="true"
       className="relative flex h-[620px] items-center justify-center"
     >
-      <div className="absolute inset-0 rounded-full border border-purple-200/50" />
-      <div className="absolute inset-12 rounded-full border border-purple-100/40" />
-
       <img
         src="/hero-blob.png"
         alt=""
