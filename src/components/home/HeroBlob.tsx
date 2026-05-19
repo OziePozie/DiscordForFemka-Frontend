@@ -18,13 +18,14 @@ export default function HeroBlob() {
         className="relative max-h-[600px] w-auto select-none drop-shadow-[0_30px_80px_rgba(170,120,255,0.35)]"
         draggable={false}
         style={{
-          // Плавно гасим правый край PNG широкой fade-зоной (55% → 100%),
-          // чтобы переход к caption "Организуй. Соревнуйся. Сияй."
-          // не воспринимался как граница.
+          // PNG имеет небольшую не-прозрачную «подложку» вокруг S, которая
+          // была видна как прямоугольная граница на лавандовом фоне.
+          // Радиальная маска гасит все 4 края разом: центр (где S) виден
+          // полностью, а от ~55% радиуса плавный fade в прозрачность.
           WebkitMaskImage:
-            'linear-gradient(to right, black 0%, black 55%, transparent 100%)',
+            'radial-gradient(ellipse 80% 95% at 45% 50%, black 50%, transparent 90%)',
           maskImage:
-            'linear-gradient(to right, black 0%, black 55%, transparent 100%)',
+            'radial-gradient(ellipse 80% 95% at 45% 50%, black 50%, transparent 90%)',
         }}
       />
     </div>
