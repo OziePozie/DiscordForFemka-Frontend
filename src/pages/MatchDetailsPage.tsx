@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { TeamNameLink } from '@/components/TeamNameLink';
 import { Loader2 } from 'lucide-react';
 import {
   useMatch,
@@ -93,14 +94,13 @@ function TeamBlock({
         align === 'right' ? 'items-end text-right' : 'items-start text-left'
       }`}
     >
-      <Link
-        to={`/teams/${team.id}`}
-        className={`truncate text-xl font-semibold hover:underline ${
+      <TeamNameLink
+        teamId={team.id}
+        name={team.name}
+        className={`truncate text-xl font-semibold ${
           highlight ? 'text-green-700' : ''
         }`}
-      >
-        {team.name}
-      </Link>
+      />
       <div className="text-sm text-muted-foreground">[{team.tag}]</div>
       {team.avgMmr != null && (
         <div className="text-xs text-muted-foreground">
@@ -139,13 +139,12 @@ function ReadinessSide({
         align === 'right' ? 'items-end text-right' : 'items-start text-left'
       }`}
     >
-      <Link
-        to={`/teams/${team.id}`}
-        className="truncate text-base font-semibold hover:underline"
-      >
-        {team.name}{' '}
-        <span className="text-sm text-muted-foreground">[{team.tag}]</span>
-      </Link>
+      <TeamNameLink
+        teamId={team.id}
+        name={team.name}
+        tag={team.tag}
+        className="truncate text-base font-semibold"
+      />
       {isReady ? (
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5 text-base font-semibold text-green-700">
