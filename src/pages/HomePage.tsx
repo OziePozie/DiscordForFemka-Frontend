@@ -1,164 +1,41 @@
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth';
-import { steamLoginUrl } from '@/lib/api/endpoints';
 import { useCurrentSeason, useSeason } from '@/lib/queries';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { SEASON_STATUS_LABEL } from '@/lib/api/types';
+import BackgroundDecor from '@/components/home/BackgroundDecor';
+import HomeHero from '@/components/home/HomeHero';
+import ActiveTournaments from '@/components/home/ActiveTournaments';
+import FeaturesRow from '@/components/home/FeaturesRow';
 
+/**
+ * Главная страница v2 — Y2K/iridescent landing. Тонкий orchestrator:
+ * только data fetching и композиция секций.
+ *
+ * Layout даёт max-w-7xl + px-6 + py-8; мы компенсируем -mx-6 -my-8,
+ * чтобы фоновый цвет и декор лились до края экрана.
+ * min-h-[calc(100vh-3.5rem)] вычитает высоту Header'a (h-14 = 3.5rem),
+ * чтобы страница точно занимала viewport без вертикального гэпа.
+ */
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
   const currentSeason = useCurrentSeason();
-  // Pull season details to know tournaments list (only when we know slug).
   const seasonDetails = useSeason(currentSeason.data?.slug);
 
-  const season = currentSeason.data;
+  const season = currentSeason.data ?? undefined;
   const tournaments = seasonDetails.data?.tournaments ?? [];
-  const tournamentsCount = tournaments.length;
-  const featured =
-    tournaments.find(
-      (t) => t.status === 'LIVE' || t.status === 'REGISTRATION_OPEN',
-    ) ??
-    tournaments.find((t) => t.status === 'ANNOUNCED') ??
-    tournaments[0];
 
   return (
-    <div className="space-y-12">
-      <section className="space-y-6 py-12 text-center">
-        {currentSeason.isLoading ? (
-          <div className="mx-auto max-w-xl space-y-3">
-            <Skeleton className="mx-auto h-10 w-2/3" />
-            <Skeleton className="mx-auto h-5 w-1/2" />
-          </div>
-        ) : season ? (
-          <>
-            {season.bannerUrl && (
-              <img
-                src={season.bannerUrl}
-                alt=""
-                className="mx-auto max-h-72 w-full max-w-5xl rounded-lg object-cover"
-              />
-            )}
-            <div className="flex justify-center">
-              <Badge variant="secondary">
-                {SEASON_STATUS_LABEL[season.status]}
-              </Badge>
-            </div>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              {season.name}
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              {tournamentsCount} турниров
-              {season.description ? ` · ${season.description}` : ''}
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              <Button size="lg" onClick={() => navigate(`/seasons/${season.slug}`)}>
-                Открыть сезон
-              </Button>
-              {!isAuthenticated && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => {
-                    window.location.href = steamLoginUrl('/profile');
-                  }}
-                >
-                  Войти через Steam
-                </Button>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Турнирная экосистема
-            </h1>
-            <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
-              Регистрация, MMR, команды, сезоны — в одном месте.
-            </p>
-            <div className="flex justify-center">
-              {isAuthenticated ? (
-                <Button size="lg" onClick={() => navigate('/profile')}>
-                  Открыть профиль
-                </Button>
-              ) : (
-                <Button
-                  size="lg"
-                  onClick={() => {
-                    window.location.href = steamLoginUrl('/profile');
-                  }}
-                >
-                  Войти через Steam
-                </Button>
-              )}
-            </div>
-          </>
-        )}
-      </section>
+    <div className="relative -mx-6 -my-8 min-h-[calc(100vh-3.5rem)] overflow-hidden bg-[#f5f3ff] font-sans text-[#10142d]">
+      <BackgroundDecor />
 
-      <section className="grid gap-6 sm:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Команды</CardTitle>
-            <CardDescription>
-              Реестр команд, состав, переходы.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate('/teams')}
-            >
-              К командам
-            </Button>
-          </CardContent>
-        </Card>
+      <HomeHero
+        season={season}
+        seasonLoading={currentSeason.isLoading}
+      />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Текущий турнир</CardTitle>
-            <CardDescription>
-              {featured ? featured.name : 'Нет активных турниров.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={!featured}
-              onClick={() => featured && navigate(`/tournaments/${featured.slug}`)}
-            >
-              К турниру
-            </Button>
-          </CardContent>
-        </Card>
+      <ActiveTournaments
+        tournaments={tournaments}
+        loading={seasonDetails.isLoading}
+        seasonSlug={season?.slug}
+      />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Архив сезонов</CardTitle>
-            <CardDescription>История прошлых сезонов.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate('/seasons')}
-            >
-              К сезонам
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
+      <FeaturesRow />
     </div>
   );
 }
