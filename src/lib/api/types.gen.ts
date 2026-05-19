@@ -2215,6 +2215,8 @@ export interface components {
             source: components["schemas"]["MmrSource"];
             rankTier?: number | null;
             leaderboardRank?: number | null;
+            /** Format: date-time */
+            fetchedAt?: string | null;
         };
         PlayerPublicDto: {
             /** Format: uuid */
@@ -2232,6 +2234,7 @@ export interface components {
             twitchLogin?: string | null;
             dotabuffUrl?: string | null;
             stratzUrl?: string | null;
+            teams?: components["schemas"]["TeamMembershipDto"][];
             /** Format: date-time */
             createdAt?: string;
         };

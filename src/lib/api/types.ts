@@ -4,10 +4,8 @@ type S = components['schemas'];
 
 // DTOs
 export type SessionDto = S['SessionDto'];
-// TODO: regenerate openapi — gender added to UpdateMeRequest / PlayerPublicDto.
-// MeDto.profile is augmented so consumers see the gender field on me.profile.
-export type PlayerPublicDto = S['PlayerPublicDto'] & { gender?: GenderType | null };
-export type UpdateMeRequest = S['UpdateMeRequest'] & { gender?: GenderType | null };
+export type PlayerPublicDto = S['PlayerPublicDto'];
+export type UpdateMeRequest = S['UpdateMeRequest'];
 export type MeDto = Omit<S['MeDto'], 'profile'> & { profile: PlayerPublicDto };
 export type PlayerMmrPublicDto = S['PlayerMmrPublicDto'];
 export type PlayerMmrDto = S['PlayerMmrDto'];
@@ -204,7 +202,6 @@ export const COUNTRY_LABEL: Record<CountryCode, string> = {
   KZ: 'Казахстан',
 };
 
-// TODO: regenerate openapi — GenderType present in PlayerPublicDto/UpdateMeRequest.
 export type GenderType = 'MALE' | 'FEMALE';
 
 export const GENDERS: GenderType[] = ['MALE', 'FEMALE'];
