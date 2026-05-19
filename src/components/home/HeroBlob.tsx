@@ -18,12 +18,13 @@ export default function HeroBlob() {
         className="relative max-h-[600px] w-auto select-none drop-shadow-[0_30px_80px_rgba(170,120,255,0.35)]"
         draggable={false}
         style={{
-          // Плавно гасим правый край PNG, чтобы не было видимой границы,
-          // которая раньше пересекала caption "Организуй. Соревнуйся. Сияй."
+          // Плавно гасим правый край PNG широкой fade-зоной (55% → 100%),
+          // чтобы переход к caption "Организуй. Соревнуйся. Сияй."
+          // не воспринимался как граница.
           WebkitMaskImage:
-            'linear-gradient(to right, black 0%, black 78%, transparent 100%)',
+            'linear-gradient(to right, black 0%, black 55%, transparent 100%)',
           maskImage:
-            'linear-gradient(to right, black 0%, black 78%, transparent 100%)',
+            'linear-gradient(to right, black 0%, black 55%, transparent 100%)',
         }}
       />
     </div>
