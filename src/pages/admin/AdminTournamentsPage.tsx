@@ -221,17 +221,6 @@ export default function AdminTournamentsPage() {
   }
 
   function openEdit(t: TournamentDto) {
-    // TODO: drop the `extra` cast once openapi regenerates with the new
-    // tournament defaults — they are not yet in TournamentDto.
-    const extra = t as TournamentDto & {
-      defaultGameMode?: GameMode | null;
-      defaultRegion?: Region | null;
-      defaultCoinToss?: boolean | null;
-      defaultAutoLaunch?: boolean | null;
-      dotaLeagueId?: number | null;
-      matchFormatDefault?: 'BO1' | 'BO3' | 'BO5' | null;
-      grandFinalFormat?: 'BO1' | 'BO3' | 'BO5' | null;
-    };
     setForm({
       name: t.name,
       slug: t.slug,
@@ -245,14 +234,14 @@ export default function AdminTournamentsPage() {
       registrationClosesAt: formatDateTimeLocal(t.registrationClosesAt),
       startsAt: formatDateTimeLocal(t.startsAt),
       endsAt: formatDateTimeLocal(t.endsAt),
-      defaultGameMode: extra.defaultGameMode ?? NONE,
-      defaultRegion: extra.defaultRegion ?? NONE,
-      defaultCoinToss: extra.defaultCoinToss ?? true,
-      defaultAutoLaunch: extra.defaultAutoLaunch ?? false,
+      defaultGameMode: t.defaultGameMode ?? NONE,
+      defaultRegion: t.defaultRegion ?? NONE,
+      defaultCoinToss: t.defaultCoinToss ?? true,
+      defaultAutoLaunch: t.defaultAutoLaunch ?? false,
       dotaLeagueId:
-        extra.dotaLeagueId != null ? String(extra.dotaLeagueId) : '',
-      matchFormatDefault: extra.matchFormatDefault ?? 'BO1',
-      grandFinalFormat: extra.grandFinalFormat ?? 'BO3',
+        t.dotaLeagueId != null ? String(t.dotaLeagueId) : '',
+      matchFormatDefault: t.matchFormatDefault ?? 'BO1',
+      grandFinalFormat: t.grandFinalFormat ?? 'BO3',
     });
     setDialog({ kind: 'edit', tournament: t });
   }

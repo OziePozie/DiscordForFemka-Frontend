@@ -479,7 +479,7 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
   const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
   const lbRounds = bracket.rounds.filter((r) => r.section === 'LB');
   const gfRounds = bracket.rounds.filter((r) => r.section === 'GF');
-  const isDoubleElim = lbRounds.length > 0 || gfRounds.length > 0;
+  const isDoubleElim = bracket.format === 'DOUBLE_ELIM';
 
   if (!isDoubleElim) {
     return <RoundColumns rounds={wbRounds} />;
