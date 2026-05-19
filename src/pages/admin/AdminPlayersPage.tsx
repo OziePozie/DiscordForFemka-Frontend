@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
 import {
   useAdminPlayers,
   useBanAdminPlayer,
@@ -318,12 +318,11 @@ export default function AdminPlayersPage() {
               {query.data.items!.map((p) => (
                 <tr key={p.profile.id} className="border-t align-top">
                   <td className="px-4 py-3">
-                    <Link
-                      to={`/players/${p.profile.id}`}
-                      className="font-medium hover:underline"
-                    >
-                      {p.profile.nickname ?? 'Без ника'}
-                    </Link>
+                    <PlayerNameLink
+                      playerId={p.profile.id}
+                      nickname={p.profile.nickname ?? 'Без ника'}
+                      className="font-medium"
+                    />
                     <div className="font-mono text-xs text-muted-foreground">
                       {String(p.steamId)}
                     </div>

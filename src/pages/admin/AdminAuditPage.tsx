@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { useAdminAudit } from '@/lib/queries';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,17 +42,20 @@ function payloadPreview(payload: AuditLogDto['payload']): string {
   }
 }
 
-function actorLabel(log: AuditLogDto): { id?: string; label: string } {
+function actorLabel(
+  log: AuditLogDto,
+): { id?: string; label: string; hasProfile: boolean } {
   if (log.actor) {
     return {
       id: log.actor.id,
       label: log.actor.nickname ?? log.actor.id,
+      hasProfile: true,
     };
   }
   if (log.actorId) {
-    return { id: log.actorId, label: log.actorId };
+    return { id: log.actorId, label: log.actorId, hasProfile: false };
   }
-  return { label: 'system' };
+  return { label: 'system', hasProfile: false };
 }
 
 export default function AdminAuditPage() {
@@ -210,15 +213,17 @@ export default function AdminAuditPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-2">
-                      {actor.id ? (
-                        <Link
-                          to={`/players/${actor.id}`}
-                          className="hover:underline"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {actor.label}
-                        </Link>
+                    <td
+                      className="px-4 py-2"
+                      onClick={(e) => {
+                        if (actor.hasProfile) e.stopPropagation();
+                      }}
+                    >
+                      {actor.hasProfile && actor.id ? (
+                        <PlayerNameLink
+                          playerId={actor.id}
+                          nickname={actor.label}
+                        />
                       ) : (
                         <span className="text-muted-foreground">
                           {actor.label}

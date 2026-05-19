@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
 import {
   useAdminMmrRequests,
   useApproveMmrRequest,
@@ -147,12 +147,10 @@ export default function AdminMmrPage() {
               {q.data.items!.map((it) => (
                 <tr key={it.id} className="border-t align-top">
                   <td className="px-4 py-3">
-                    <Link
-                      to={`/players/${it.player.id}`}
-                      className="hover:underline"
-                    >
-                      {it.player.nickname ?? 'Без ника'}
-                    </Link>
+                    <PlayerNameLink
+                      playerId={it.player.id}
+                      nickname={it.player.nickname ?? 'Без ника'}
+                    />
                   </td>
                   <td className="px-4 py-3 font-mono">
                     {it.currentMmr} → <strong>{it.requestedMmr}</strong>
