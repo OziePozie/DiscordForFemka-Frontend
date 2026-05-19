@@ -214,6 +214,18 @@ export const GENDER_LABEL: Record<GenderType, string> = {
   FEMALE: 'Женский',
 };
 
+// TODO: regenerate openapi — tournament eligibility rules (per-tournament 1:1).
+// Mirror of platform.tournament.dto.TournamentEligibilityDto on backend.
+// All rule fields nullable: null = "do not check this rule".
+export interface TournamentEligibilityDto {
+  expectedTeamSize?: number | null;
+  minMaleCount?: number | null;
+  minFemaleCount?: number | null;
+  maxPlayerMmr?: number | null;
+  maxTeamAvgMmr?: number | null;
+  updatedAt?: string | null; // response-only
+}
+
 // Generic paged response
 export interface PagedResponse<T> {
   items?: T[];
