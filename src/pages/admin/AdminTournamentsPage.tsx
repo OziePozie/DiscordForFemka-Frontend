@@ -8,6 +8,8 @@ import {
   useStartTournament,
   useFinishTournament,
   useGenerateBracket,
+  useTournamentEligibility,
+  useUpdateTournamentEligibility,
 } from '@/lib/queries';
 import { getSeasonsPage, getSeasonBySlug } from '@/lib/api/endpoints';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +52,7 @@ import {
   type Region,
   type SeasonDto,
   type TournamentDto,
+  type TournamentEligibilityDto,
   type TournamentFormat,
   type TournamentStatus,
 } from '@/lib/api/types';
@@ -117,6 +120,7 @@ function emptyForm(seasonId: string | null): FormState {
 type DialogState =
   | { kind: 'create' }
   | { kind: 'edit'; tournament: TournamentDto }
+  | { kind: 'eligibility'; tournament: TournamentDto }
   | { kind: 'confirm-bracket'; tournament: TournamentDto }
   | { kind: 'finish'; tournament: TournamentDto }
   | { kind: 'bracket-result'; tournament: TournamentDto; bracket: BracketDto }
@@ -516,6 +520,9 @@ export default function AdminTournamentsPage() {
                   t={t}
                   mutating={mutating}
                   onEdit={() => openEdit(t)}
+                  onEligibility={() =>
+                    setDialog({ kind: 'eligibility', tournament: t })
+                  }
                   onOpenReg={() => runTransition(t, 'open')}
                   onCloseReg={() => runTransition(t, 'close')}
                   onGenerateBracket={() =>
@@ -938,7 +945,230 @@ export default function AdminTournamentsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Eligibility rules dialog. Mounted only while open so the GET fires
+          exactly once per open. */}
+      {dialog?.kind === 'eligibility' && (
+        <EligibilityDialog
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
     </div>
+  );
+}
+
+interface EligibilityDialogProps {
+  tournament: TournamentDto;
+  onClose: () => void;
+}
+
+type EligibilityFormState = {
+  expectedTeamSize: string;
+  minMaleCount: string;
+  minFemaleCount: string;
+  maxPlayerMmr: string;
+  maxTeamAvgMmr: string;
+};
+
+function emptyEligibilityForm(): EligibilityFormState {
+  return {
+    expectedTeamSize: '',
+    minMaleCount: '',
+    minFemaleCount: '',
+    maxPlayerMmr: '',
+    maxTeamAvgMmr: '',
+  };
+}
+
+function eligibilityToForm(e: TournamentEligibilityDto): EligibilityFormState {
+  const s = (n: number | null | undefined) => (n != null ? String(n) : '');
+  return {
+    expectedTeamSize: s(e.expectedTeamSize),
+    minMaleCount: s(e.minMaleCount),
+    minFemaleCount: s(e.minFemaleCount),
+    maxPlayerMmr: s(e.maxPlayerMmr),
+    maxTeamAvgMmr: s(e.maxTeamAvgMmr),
+  };
+}
+
+function parseRule(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const n = Number.parseInt(trimmed, 10);
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+}
+
+function EligibilityDialog({ tournament, onClose }: EligibilityDialogProps) {
+  const { toast } = useToast();
+  const query = useTournamentEligibility(tournament.id);
+  const mutation = useUpdateTournamentEligibility();
+
+  const [form, setForm] = useState<EligibilityFormState>(emptyEligibilityForm());
+
+  useEffect(() => {
+    if (query.data) setForm(eligibilityToForm(query.data));
+  }, [query.data]);
+
+  function update<K extends keyof EligibilityFormState>(
+    key: K,
+    value: EligibilityFormState[K],
+  ) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function handleSave() {
+    const parsed = {
+      expectedTeamSize: parseRule(form.expectedTeamSize),
+      minMaleCount: parseRule(form.minMaleCount),
+      minFemaleCount: parseRule(form.minFemaleCount),
+      maxPlayerMmr: parseRule(form.maxPlayerMmr),
+      maxTeamAvgMmr: parseRule(form.maxTeamAvgMmr),
+    };
+    for (const [k, v] of Object.entries(parsed)) {
+      if (Number.isNaN(v as number)) {
+        toast({
+          title: 'Ошибка',
+          description: `${k}: целое число ≥ 0 или пусто`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+    try {
+      await mutation.mutateAsync({ id: tournament.id, body: parsed });
+      toast({
+        title: 'Правила сохранены',
+        description: 'Команды этого турнира пересчитаны.',
+      });
+      onClose();
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleClearAll() {
+    try {
+      await mutation.mutateAsync({
+        id: tournament.id,
+        body: {
+          expectedTeamSize: null,
+          minMaleCount: null,
+          minFemaleCount: null,
+          maxPlayerMmr: null,
+          maxTeamAvgMmr: null,
+        },
+      });
+      toast({ title: 'Правила сброшены' });
+      onClose();
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Правила турнира — {tournament.name}</DialogTitle>
+          <DialogDescription>
+            Все поля опциональны. Пусто = «не проверять это правило». Soft
+            валидация: регистрации не блокируются, нарушения помечаются флагами
+            для админа.
+          </DialogDescription>
+        </DialogHeader>
+
+        {query.isLoading ? (
+          <div className="text-sm text-muted-foreground">Загрузка…</div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="rule-team-size">Размер команды</Label>
+              <Input
+                id="rule-team-size"
+                type="number"
+                min={0}
+                value={form.expectedTeamSize}
+                onChange={(e) => update('expectedTeamSize', e.target.value)}
+                placeholder="напр., 5"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rule-min-male">Минимум мужчин в команде</Label>
+              <Input
+                id="rule-min-male"
+                type="number"
+                min={0}
+                value={form.minMaleCount}
+                onChange={(e) => update('minMaleCount', e.target.value)}
+                placeholder="напр., 3"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rule-min-female">Минимум женщин в команде</Label>
+              <Input
+                id="rule-min-female"
+                type="number"
+                min={0}
+                value={form.minFemaleCount}
+                onChange={(e) => update('minFemaleCount', e.target.value)}
+                placeholder="напр., 2"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rule-max-player-mmr">
+                Макс. MMR на игрока
+              </Label>
+              <Input
+                id="rule-max-player-mmr"
+                type="number"
+                min={0}
+                value={form.maxPlayerMmr}
+                onChange={(e) => update('maxPlayerMmr', e.target.value)}
+                placeholder="напр., 8000"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="rule-max-team-avg-mmr">
+                Макс. средний MMR команды
+              </Label>
+              <Input
+                id="rule-max-team-avg-mmr"
+                type="number"
+                min={0}
+                value={form.maxTeamAvgMmr}
+                onChange={(e) => update('maxTeamAvgMmr', e.target.value)}
+                placeholder="напр., 7000"
+              />
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={handleClearAll}
+            disabled={mutation.isPending || query.isLoading}
+          >
+            Сбросить все правила
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Отмена
+          </Button>
+          <Button onClick={handleSave} disabled={mutation.isPending}>
+            {mutation.isPending ? 'Сохранение…' : 'Сохранить'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -946,6 +1176,7 @@ interface TournamentRowProps {
   t: TournamentDto;
   mutating: boolean;
   onEdit: () => void;
+  onEligibility: () => void;
   onOpenReg: () => void;
   onCloseReg: () => void;
   onGenerateBracket: () => void;
@@ -957,6 +1188,7 @@ function TournamentRow({
   t,
   mutating,
   onEdit,
+  onEligibility,
   onOpenReg,
   onCloseReg,
   onGenerateBracket,
@@ -994,6 +1226,9 @@ function TournamentRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onEdit}>Редактировать</DropdownMenuItem>
+            <DropdownMenuItem onClick={onEligibility}>
+              Правила (eligibility)
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={onOpenReg}
               disabled={!canOpen}

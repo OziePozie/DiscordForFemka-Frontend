@@ -25,6 +25,7 @@ import type {
   UpdateSeasonRequest,
   CreateTournamentRequest,
   UpdateTournamentRequest,
+  TournamentEligibilityDto,
   CreateTeamRequest,
   UpdateTeamRequest,
   TeamInviteDto,
@@ -428,6 +429,27 @@ export function finishTournament(
       body: winnerTeamId
         ? JSON.stringify({ winnerTeamId })
         : JSON.stringify({}),
+    },
+  );
+}
+
+export function getTournamentEligibility(
+  id: string,
+): Promise<TournamentEligibilityDto> {
+  return api<TournamentEligibilityDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/eligibility`,
+  );
+}
+
+export function putTournamentEligibility(
+  id: string,
+  body: TournamentEligibilityDto,
+): Promise<TournamentEligibilityDto> {
+  return api<TournamentEligibilityDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/eligibility`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(body),
     },
   );
 }

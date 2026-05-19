@@ -45,6 +45,8 @@ import {
   startTournament,
   finishTournament,
   generateBracket,
+  getTournamentEligibility,
+  putTournamentEligibility,
   createTeam,
   updateTeam,
   uploadAttachment,
@@ -101,6 +103,7 @@ import type {
   UpdateSeasonRequest,
   CreateTournamentRequest,
   UpdateTournamentRequest,
+  TournamentEligibilityDto,
   CreateTeamRequest,
   UpdateTeamRequest,
   TeamInviteDto,
@@ -574,6 +577,34 @@ export function useGenerateBracket() {
     mutationFn: generateBracket,
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: qk.bracket(id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
+  });
+}
+
+// Tournament eligibility rules — admin GET/PUT.
+export function useTournamentEligibility(
+  tournamentId: string | null | undefined,
+) {
+  return useQuery({
+    queryKey: ['tournament-eligibility', tournamentId],
+    queryFn: () => getTournamentEligibility(tournamentId as string),
+    enabled: !!tournamentId,
+  });
+}
+
+export function useUpdateTournamentEligibility() {
+  const qc = useQueryClient();
+  return useMutation<
+    TournamentEligibilityDto,
+    Error,
+    { id: string; body: TournamentEligibilityDto }
+  >({
+    mutationFn: ({ id, body }) => putTournamentEligibility(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ['tournament-eligibility', id] });
+      // Violations on registered teams are recomputed server-side; invalidate
+      // anything that may render them.
       qc.invalidateQueries({ queryKey: ['tournament'] });
     },
   });
