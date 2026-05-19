@@ -17,6 +17,14 @@ export default function HeroBlob() {
         alt=""
         className="relative max-h-[600px] w-auto select-none drop-shadow-[0_30px_80px_rgba(170,120,255,0.35)]"
         draggable={false}
+        style={{
+          // Плавно гасим правый край PNG, чтобы не было видимой границы,
+          // которая раньше пересекала caption "Организуй. Соревнуйся. Сияй."
+          WebkitMaskImage:
+            'linear-gradient(to right, black 0%, black 78%, transparent 100%)',
+          maskImage:
+            'linear-gradient(to right, black 0%, black 78%, transparent 100%)',
+        }}
       />
     </div>
   );
