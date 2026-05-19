@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { formatGameTime } from '@/lib/dota/format';
 import type {
   MatchDto,
@@ -96,9 +97,11 @@ function ResultTable({
                   <td className="px-2 py-1">
                     <div className="flex items-center gap-2">
                       <HeroIcon heroId={r.heroId} size={28} />
-                      <span className="truncate max-w-[140px]">
-                        {r.playerName ?? `#${r.steamAccountId}`}
-                      </span>
+                      <PlayerNameLink
+                        playerId={r.playerId}
+                        nickname={r.playerName ?? `#${r.steamAccountId}`}
+                        className="truncate max-w-[140px]"
+                      />
                     </div>
                   </td>
                   <td className="px-2 py-1 text-center font-mono">{r.level}</td>

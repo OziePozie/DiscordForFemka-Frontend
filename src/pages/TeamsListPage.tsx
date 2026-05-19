@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TEAM_STATUS_LABEL, type TeamStatus } from '@/lib/api/types';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
+import { TeamNameLink } from '@/components/TeamNameLink';
 
 const PAGE_SIZE = 12;
 
@@ -157,10 +159,11 @@ export default function TeamsListPage() {
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <CardTitle className="truncate text-lg">
-                        {team.name}{' '}
-                        <span className="text-sm text-muted-foreground">
-                          [{team.tag}]
-                        </span>
+                        <TeamNameLink
+                          teamId={team.id}
+                          name={team.name}
+                          tag={team.tag}
+                        />
                       </CardTitle>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         <Badge variant={statusVariant(team.status)}>
@@ -173,9 +176,11 @@ export default function TeamsListPage() {
                 <CardContent className="mt-auto space-y-2 text-sm">
                   <div className="text-muted-foreground">
                     Капитан:{' '}
-                    <span className="text-foreground">
-                      {team.captain.nickname ?? 'Без ника'}
-                    </span>
+                    <PlayerNameLink
+                      playerId={team.captain.id}
+                      nickname={team.captain.nickname ?? 'Без ника'}
+                      className="text-foreground"
+                    />
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>MMR: {team.avgMmr ?? '—'}</span>

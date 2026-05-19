@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { formatGameTime } from '@/lib/dota/format';
 import type {
   MatchDto,
@@ -119,7 +120,11 @@ function PlayerRow({ p, meId }: { p: PlayerLiveDto; meId?: string }) {
       <td className="px-2 py-1">
         <div className="flex items-center gap-2">
           <HeroIcon heroId={p.heroId} size={28} />
-          <span className="truncate max-w-[140px]">{p.name}</span>
+          <PlayerNameLink
+            playerId={p.playerId}
+            nickname={p.name}
+            className="truncate max-w-[140px]"
+          />
         </div>
       </td>
       <td className="px-2 py-1 text-center font-mono">{p.level}</td>
