@@ -56,8 +56,12 @@ export default function Header() {
     <header className="border-b">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
         <div className="flex items-center gap-8">
-          <Link to="/" className="text-base font-semibold tracking-tight">
-            PLAY STAGE
+          <Link to="/" className="flex items-center" aria-label="Play Stage — на главную">
+            <img
+              src="/logo.png"
+              alt="Play Stage"
+              className="h-10 w-auto object-contain"
+            />
           </Link>
           <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
             <Link to="/" className="hover:text-foreground">
