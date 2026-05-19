@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
+import { TeamNameLink } from '@/components/TeamNameLink';
 import {
   useAcceptInvite,
   useDeclineInvite,
@@ -150,15 +151,11 @@ export default function MyInvitesPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <CardTitle className="text-lg">
-                        <Link
-                          to={`/teams/${inv.team.id}`}
-                          className="hover:underline"
-                        >
-                          {inv.team.name}{' '}
-                          <span className="text-sm text-muted-foreground">
-                            [{inv.team.tag}]
-                          </span>
-                        </Link>
+                        <TeamNameLink
+                          teamId={inv.team.id}
+                          name={inv.team.name}
+                          tag={inv.team.tag}
+                        />
                       </CardTitle>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <Badge
@@ -202,9 +199,11 @@ export default function MyInvitesPage() {
                 <CardContent className="space-y-1 text-sm text-muted-foreground">
                   <div>
                     Пригласил:{' '}
-                    <span className="text-foreground">
-                      {inv.inviter.nickname ?? 'Без ника'}
-                    </span>
+                    <PlayerNameLink
+                      playerId={inv.inviter.id}
+                      nickname={inv.inviter.nickname ?? 'Без ника'}
+                      className="text-foreground"
+                    />
                   </div>
                   <div>Создано: {new Date(inv.createdAt).toLocaleString()}</div>
                 </CardContent>
