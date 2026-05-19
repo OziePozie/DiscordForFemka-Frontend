@@ -90,6 +90,9 @@ type FormState = {
   defaultCoinToss: boolean;
   defaultAutoLaunch: boolean;
   dotaLeagueId: string;
+  // BO format defaults
+  matchFormatDefault: string; // 'BO1' | 'BO3' | 'BO5'
+  grandFinalFormat: string;   // 'BO1' | 'BO3' | 'BO5'
 };
 
 function emptyForm(seasonId: string | null): FormState {
@@ -111,6 +114,8 @@ function emptyForm(seasonId: string | null): FormState {
     defaultCoinToss: true,
     defaultAutoLaunch: false,
     dotaLeagueId: '',
+    matchFormatDefault: 'BO1',
+    grandFinalFormat: 'BO3',
   };
 }
 
@@ -224,6 +229,8 @@ export default function AdminTournamentsPage() {
       defaultCoinToss?: boolean | null;
       defaultAutoLaunch?: boolean | null;
       dotaLeagueId?: number | null;
+      matchFormatDefault?: 'BO1' | 'BO3' | 'BO5' | null;
+      grandFinalFormat?: 'BO1' | 'BO3' | 'BO5' | null;
     };
     setForm({
       name: t.name,
@@ -244,6 +251,8 @@ export default function AdminTournamentsPage() {
       defaultAutoLaunch: extra.defaultAutoLaunch ?? false,
       dotaLeagueId:
         extra.dotaLeagueId != null ? String(extra.dotaLeagueId) : '',
+      matchFormatDefault: extra.matchFormatDefault ?? 'BO1',
+      grandFinalFormat: extra.grandFinalFormat ?? 'BO3',
     });
     setDialog({ kind: 'edit', tournament: t });
   }
@@ -281,6 +290,8 @@ export default function AdminTournamentsPage() {
       defaultCoinToss: form.defaultCoinToss,
       defaultAutoLaunch: form.defaultAutoLaunch,
       dotaLeagueId: form.dotaLeagueId ? Number(form.dotaLeagueId) : null,
+      matchFormatDefault: form.matchFormatDefault as 'BO1' | 'BO3' | 'BO5',
+      grandFinalFormat: form.grandFinalFormat as 'BO1' | 'BO3' | 'BO5',
     };
   }
 
@@ -778,6 +789,44 @@ export default function AdminTournamentsPage() {
                             {REGION_LABEL[r]}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-bo-default">Best Of (обычные)</Label>
+                    <Select
+                      value={form.matchFormatDefault}
+                      onValueChange={(v) =>
+                        setForm({ ...form, matchFormatDefault: v })
+                      }
+                    >
+                      <SelectTrigger id="tn-bo-default">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BO1">BO1</SelectItem>
+                        <SelectItem value="BO3">BO3</SelectItem>
+                        <SelectItem value="BO5">BO5</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-bo-gf">Best Of (Grand Final)</Label>
+                    <Select
+                      value={form.grandFinalFormat}
+                      onValueChange={(v) =>
+                        setForm({ ...form, grandFinalFormat: v })
+                      }
+                    >
+                      <SelectTrigger id="tn-bo-gf">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="BO1">BO1</SelectItem>
+                        <SelectItem value="BO3">BO3</SelectItem>
+                        <SelectItem value="BO5">BO5</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
