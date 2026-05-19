@@ -1,6 +1,7 @@
 import { useCurrentSeason, useSeason } from '@/lib/queries';
 import BackgroundDecor from '@/components/home/BackgroundDecor';
 import HomeHero from '@/components/home/HomeHero';
+import SeasonBanner from '@/components/home/SeasonBanner';
 import ActiveTournaments from '@/components/home/ActiveTournaments';
 import FeaturesRow from '@/components/home/FeaturesRow';
 
@@ -29,6 +30,8 @@ export default function HomePage() {
         season={season}
         seasonLoading={currentSeason.isLoading}
       />
+
+      <SeasonBanner season={season} />
 
       <ActiveTournaments
         tournaments={tournaments}

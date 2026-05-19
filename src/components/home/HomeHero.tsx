@@ -60,7 +60,7 @@ export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
 
         {/* RIGHT */}
         <div className="relative flex items-center justify-center">
-          <HeroBlob bannerUrl={season?.bannerUrl} />
+          <HeroBlob />
           <div
             aria-hidden="true"
             className="absolute right-0 top-1/2 -translate-y-1/2 text-right text-sm font-medium uppercase leading-8 tracking-[0.3em] text-purple-500/80"
