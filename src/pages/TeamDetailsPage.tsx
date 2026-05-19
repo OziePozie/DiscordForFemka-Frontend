@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { PlayerNameLink } from '@/components/PlayerNameLink';
 import {
   useCancelTeamInvite,
   useCreateTeamInvite,
@@ -337,12 +338,11 @@ export default function TeamDetailsPage() {
                   </Badge>
                   <span>
                     Капитан:{' '}
-                    <Link
-                      to={`/players/${team.captain.id}`}
-                      className="text-foreground hover:underline"
-                    >
-                      {team.captain.nickname ?? 'Без ника'}
-                    </Link>
+                    <PlayerNameLink
+                      playerId={team.captain.id}
+                      nickname={team.captain.nickname ?? 'Без ника'}
+                      className="text-foreground"
+                    />
                   </span>
                 </CardDescription>
               </div>
@@ -443,12 +443,10 @@ export default function TeamDetailsPage() {
                   return (
                     <tr key={m.player.id} className="border-t">
                       <td className="px-4 py-2">
-                        <Link
-                          to={`/players/${m.player.id}`}
-                          className="hover:underline"
-                        >
-                          {m.player.nickname ?? 'Без ника'}
-                        </Link>
+                        <PlayerNameLink
+                          playerId={m.player.id}
+                          nickname={m.player.nickname ?? 'Без ника'}
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <Badge variant="outline">
@@ -523,12 +521,10 @@ export default function TeamDetailsPage() {
                     {invites.data.map((inv) => (
                       <tr key={inv.id} className="border-t">
                         <td className="px-4 py-2">
-                          <Link
-                            to={`/players/${inv.invitee.id}`}
-                            className="hover:underline"
-                          >
-                            {inv.invitee.nickname ?? 'Без ника'}
-                          </Link>
+                          <PlayerNameLink
+                            playerId={inv.invitee.id}
+                            nickname={inv.invitee.nickname ?? 'Без ника'}
+                          />
                         </td>
                         <td className="px-4 py-2">
                           <Badge variant="outline">
