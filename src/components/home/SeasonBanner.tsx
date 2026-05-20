@@ -25,7 +25,7 @@ export default function SeasonBanner({ season }: SeasonBannerProps) {
           type="button"
           onClick={() => navigate(`/scenes/${season.slug}`)}
           aria-label={`Открыть сцену ${season.name}`}
-          className="group relative block w-full overflow-hidden rounded-[40px] border border-white/50 shadow-[0_20px_80px_rgba(120,100,255,0.15)] transition-transform duration-500 hover:-translate-y-1"
+          className="group relative block w-full overflow-hidden rounded-[2.5rem] border border-white/50 shadow-[0_1.25rem_5rem_rgba(120,100,255,0.15)] transition-transform duration-500 hover:-translate-y-1"
         >
           <div className="aspect-[21/9] w-full">
             <img
@@ -43,7 +43,7 @@ export default function SeasonBanner({ season }: SeasonBannerProps) {
 
           {/* подпись поверх баннера */}
           <div className="absolute inset-y-0 left-0 flex max-w-md flex-col justify-center px-10 text-left">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/85">
+            <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.3em] text-white/85">
               Текущая сцена · {SEASON_STATUS_LABEL[season.status]}
             </span>
             <h2 className="mt-3 text-4xl font-black text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.4)]">

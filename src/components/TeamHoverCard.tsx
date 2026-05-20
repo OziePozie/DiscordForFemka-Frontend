@@ -40,13 +40,13 @@ export function TeamHoverCard({ teamId }: Props) {
         <span>{t.members.length} игроков</span>
       </div>
 
-      <div className="max-h-[200px] space-y-1.5 overflow-y-auto">
+      <div className="max-h-[12.5rem] space-y-1.5 overflow-y-auto">
         {t.members.map((m) => (
           <div key={m.player.id} className="flex items-center justify-between gap-2 text-sm">
             <Link to={`/players/${m.player.id}`} className="flex min-w-0 items-center gap-2 hover:underline">
               <Avatar className="h-6 w-6">
                 {m.player.avatarUrl && <AvatarImage src={m.player.avatarUrl} alt={m.player.nickname ?? ''} />}
-                <AvatarFallback className="text-[10px]">
+                <AvatarFallback className="text-[0.625rem]">
                   {(m.player.nickname ?? '??').slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>

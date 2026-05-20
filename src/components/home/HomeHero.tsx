@@ -38,7 +38,7 @@ export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
 
           <div className="mt-10 flex flex-wrap gap-4">
             {seasonLoading ? (
-              <Skeleton className="h-[54px] w-[200px] rounded-[20px]" />
+              <Skeleton className="h-[3.375rem] w-[12.5rem] rounded-[1.25rem]" />
             ) : (
               <button
                 className="ps-main-button"

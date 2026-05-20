@@ -453,7 +453,7 @@ export default function AdminPlayersPage() {
               id="ban-reason"
               value={banReason}
               onChange={(e) => setBanReason(e.target.value)}
-              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-[6.25rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder="Опишите причину блокировки"
             />
           </div>
@@ -527,7 +527,7 @@ export default function AdminPlayersPage() {
                 id="edit-mmr-reason"
                 value={editMmrReason}
                 onChange={(e) => setEditMmrReason(e.target.value)}
-                className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-[3.75rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
           </div>

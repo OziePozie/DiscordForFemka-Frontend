@@ -123,7 +123,7 @@ function PlayerRow({ p, meId }: { p: PlayerLiveDto; meId?: string }) {
           <PlayerNameLink
             playerId={p.playerId}
             nickname={p.name}
-            className="truncate max-w-[140px]"
+            className="truncate max-w-[8.75rem]"
           />
         </div>
       </td>

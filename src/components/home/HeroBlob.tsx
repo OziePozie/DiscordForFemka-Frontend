@@ -10,12 +10,12 @@ export default function HeroBlob() {
   return (
     <div
       aria-hidden="true"
-      className="relative flex h-[620px] items-center justify-center"
+      className="relative flex h-[38.75rem] items-center justify-center"
     >
       <img
         src="/hero-blob.png"
         alt=""
-        className="relative max-h-[600px] w-auto select-none drop-shadow-[0_40px_90px_rgba(140,100,255,0.35)]"
+        className="relative max-h-[37.5rem] w-auto select-none drop-shadow-[0_2.5rem_5.625rem_rgba(140,100,255,0.35)]"
         draggable={false}
       />
     </div>

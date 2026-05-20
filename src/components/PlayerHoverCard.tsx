@@ -48,7 +48,7 @@ export function PlayerHoverCard({ playerId }: Props) {
           )}
         </div>
         <div className="flex items-center gap-1.5 font-semibold">
-          <span className="truncate max-w-[180px]">{p.nickname ?? '—'}</span>
+          <span className="truncate max-w-[11.25rem]">{p.nickname ?? '—'}</span>
           {mmrConfirmed && <CheckCircle2 className="h-4 w-4 text-blue-500" aria-label="MMR подтверждён" />}
         </div>
       </div>
@@ -104,11 +104,11 @@ export function PlayerHoverCard({ playerId }: Props) {
               className="flex items-center gap-2 hover:underline"
             >
               <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-[10px]">
+                <AvatarFallback className="text-[0.625rem]">
                   {primaryTeam.tag.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate max-w-[160px]">
+              <span className="truncate max-w-[10rem]">
                 {primaryTeam.name} <span className="text-muted-foreground">[{primaryTeam.tag}]</span>
               </span>
             </Link>

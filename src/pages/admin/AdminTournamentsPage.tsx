@@ -652,7 +652,7 @@ export default function AdminTournamentsPage() {
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
                 }
-                className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-[3.75rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
             <div className="space-y-1">
@@ -661,7 +661,7 @@ export default function AdminTournamentsPage() {
                 id="tn-rules"
                 value={form.rules}
                 onChange={(e) => setForm({ ...form, rules: e.target.value })}
-                className="min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-[3.75rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">

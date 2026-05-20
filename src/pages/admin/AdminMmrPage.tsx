@@ -272,7 +272,7 @@ export default function AdminMmrPage() {
               id="review-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-[6.25rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               placeholder={
                 dialogState?.action === 'reject'
                   ? 'Укажите причину отклонения'

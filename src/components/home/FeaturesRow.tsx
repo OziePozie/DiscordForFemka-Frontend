@@ -28,7 +28,7 @@ export default function FeaturesRow() {
         {FEATURES.map(({ title, desc }) => (
           <div
             key={title}
-            className="rounded-[28px] border border-white/60 bg-white/55 p-6 shadow-[0_10px_40px_rgba(120,100,255,0.06)] backdrop-blur-xl"
+            className="rounded-[1.75rem] border border-white/60 bg-white/55 p-6 shadow-[0_0.625rem_2.5rem_rgba(120,100,255,0.06)] backdrop-blur-xl"
           >
             <div className="mb-5 h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-300 to-blue-300" />
             <h3 className="mb-3 text-xl font-bold text-[#141938]">{title}</h3>

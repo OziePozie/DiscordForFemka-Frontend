@@ -100,7 +100,7 @@ function ResultTable({
                       <PlayerNameLink
                         playerId={r.playerId}
                         nickname={r.playerName ?? `#${r.steamAccountId}`}
-                        className="truncate max-w-[140px]"
+                        className="truncate max-w-[8.75rem]"
                       />
                     </div>
                   </td>

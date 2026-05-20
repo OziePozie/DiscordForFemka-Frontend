@@ -19,7 +19,7 @@ export default function TournamentCard({ tournament }: TournamentCardProps) {
     TOURNAMENT_STATUS_LABEL[tournament.status];
 
   return (
-    <div className="group flex min-h-[230px] flex-col items-center justify-center rounded-[32px] border border-purple-100 bg-white/60 p-8 text-center backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]">
+    <div className="group flex min-h-[14.375rem] flex-col items-center justify-center rounded-[2rem] border border-purple-100 bg-white/60 p-8 text-center backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_1.25rem_3.125rem_rgba(139,92,246,0.12)]">
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 text-3xl text-white shadow-lg shadow-purple-300/40">
         ✦
       </div>
@@ -28,7 +28,7 @@ export default function TournamentCard({ tournament }: TournamentCardProps) {
         {tournament.name}
       </h3>
 
-      <p className="mt-4 line-clamp-3 max-w-[260px] leading-relaxed text-[#6a7191]">
+      <p className="mt-4 line-clamp-3 max-w-[16.25rem] leading-relaxed text-[#6a7191]">
         {description}
       </p>
 

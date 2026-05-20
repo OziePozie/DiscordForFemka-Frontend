@@ -38,7 +38,7 @@ export default function ActiveTournaments({
 
   return (
     <section className="relative z-10 px-10 pb-12">
-      <div className="mx-auto max-w-7xl rounded-[40px] border border-white/50 bg-white/55 p-8 shadow-[0_20px_80px_rgba(120,100,255,0.08)] backdrop-blur-2xl">
+      <div className="mx-auto max-w-7xl rounded-[2.5rem] border border-white/50 bg-white/55 p-8 shadow-[0_1.25rem_5rem_rgba(120,100,255,0.08)] backdrop-blur-2xl">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="text-3xl font-bold text-[#141938]">
             Активные турниры
@@ -54,7 +54,7 @@ export default function ActiveTournaments({
         <div className="grid gap-6 md:grid-cols-3">
           {loading
             ? Array.from({ length: MAX_CARDS }).map((_, i) => (
-                <Skeleton key={i} className="h-[230px] rounded-[32px]" />
+                <Skeleton key={i} className="h-[14.375rem] rounded-[2rem]" />
               ))
             : (
               <>

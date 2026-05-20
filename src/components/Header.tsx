@@ -121,7 +121,7 @@ export default function Header() {
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuContent align="end" className="min-w-[12.5rem]">
                 <DropdownMenuLabel>
                   {session.nickname ?? 'Без ника'}
                 </DropdownMenuLabel>
