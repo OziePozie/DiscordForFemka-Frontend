@@ -1,12 +1,20 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useAcceptLobby,
   useCancelLobby,
+  useCancelOpenLobby,
   useCreateLobby,
+  useJoinOpenLobbySlot,
+  useLeaveOpenLobby,
   useLobbies,
   useMe,
+  useOpenLobbies,
 } from '@/lib/queries';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { OpenLobbyCard } from '@/components/lobbies/OpenLobbyCard';
+import { OpenLobbyDetailsDialog } from '@/components/lobbies/OpenLobbyDetailsDialog';
+import { CreateOpenLobbyForm } from '@/components/lobbies/CreateOpenLobbyForm';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -96,11 +104,21 @@ export default function LobbiesPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: 'team' | 'open' =
+    searchParams.get('tab') === 'open' ? 'open' : 'team';
+  const setTab = (next: 'team' | 'open') => {
+    const sp = new URLSearchParams(searchParams);
+    sp.set('tab', next);
+    setSearchParams(sp, { replace: true });
+  };
+
   const captainTeams = isAuthenticated
     ? myCaptainTeams(me.data?.teams)
     : [];
   const canCreate = captainTeams.length > 0;
   const canAcceptAsCaptain = canCreate;
+  const currentPlayerId = me.data?.profile.id;
 
   const lobbies = useLobbies({
     kind: kind === 'ALL' ? undefined : kind,
@@ -113,6 +131,21 @@ export default function LobbiesPage() {
     page,
     size: PAGE_SIZE,
   });
+
+  const openLobbiesQuery = useOpenLobbies({
+    region: region.trim() || undefined,
+    mmrMin: mmrMin ? Number(mmrMin) : undefined,
+    mmrMax: mmrMax ? Number(mmrMax) : undefined,
+    from: parseLocalDateTime(fromDt) ?? undefined,
+    to: parseLocalDateTime(toDt) ?? undefined,
+    page,
+    size: PAGE_SIZE,
+  });
+
+  const joinMut = useJoinOpenLobbySlot();
+  const leaveMut = useLeaveOpenLobby();
+  const cancelMut = useCancelOpenLobby();
+  const [detailsId, setDetailsId] = useState<string | undefined>();
 
   const acceptLobby = useAcceptLobby();
   const cancelLobby = useCancelLobby();
@@ -170,7 +203,7 @@ export default function LobbiesPage() {
           <div className="text-sm text-muted-foreground">
             {lobbies.data?.totalItems ?? 0} всего
           </div>
-          {canCreate && (
+          {(canCreate || isAuthenticated) && (
             <Button onClick={() => setCreateOpen(true)}>Создать лобби</Button>
           )}
         </div>
@@ -284,6 +317,17 @@ export default function LobbiesPage() {
         </CardContent>
       </Card>
 
+      <Tabs
+        defaultValue="team"
+        value={tab}
+        onValueChange={(v) => setTab(v as 'team' | 'open')}
+      >
+        <TabsList>
+          <TabsTrigger value="team">Командные</TabsTrigger>
+          <TabsTrigger value="open">Открытые</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="team" className="space-y-3">
       {lobbies.isLoading && (
         <div className="grid gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -411,11 +455,100 @@ export default function LobbiesPage() {
           </Button>
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="open" className="space-y-3">
+          {openLobbiesQuery.isLoading && (
+            <div className="grid gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          )}
+
+          {openLobbiesQuery.isError && (
+            <div className="text-sm text-destructive">
+              Не удалось загрузить открытые лобби:{' '}
+              {openLobbiesQuery.error?.message ?? 'unknown error'}
+            </div>
+          )}
+
+          {openLobbiesQuery.data &&
+            (openLobbiesQuery.data.items?.length ?? 0) === 0 && (
+              <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
+                Открытых лобби нет.
+              </div>
+            )}
+
+          {openLobbiesQuery.data &&
+            (openLobbiesQuery.data.items?.length ?? 0) > 0 && (
+              <div className="space-y-2">
+                {openLobbiesQuery.data.items!.map((lobby) => (
+                  <OpenLobbyCard
+                    key={lobby.id}
+                    lobby={lobby}
+                    currentPlayerId={currentPlayerId}
+                    onOpen={() => setDetailsId(lobby.id)}
+                    onJoin={() => {
+                      const free = lobby.slots.find((s) => !s.playerId);
+                      if (free) {
+                        joinMut.mutate({
+                          id: lobby.id,
+                          slotIndex: free.slotIndex,
+                        });
+                      }
+                    }}
+                    onLeave={() => leaveMut.mutate(lobby.id)}
+                    onCancel={() => cancelMut.mutate(lobby.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+          {openLobbiesQuery.data &&
+            (openLobbiesQuery.data.totalPages ?? 0) > 1 && (
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  variant="outline"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                >
+                  Назад
+                </Button>
+                <div className="text-sm text-muted-foreground">
+                  Страница {(openLobbiesQuery.data.page ?? page) + 1} из{' '}
+                  {openLobbiesQuery.data.totalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={
+                    page + 1 >= (openLobbiesQuery.data.totalPages ?? 1)
+                  }
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Дальше
+                </Button>
+              </div>
+            )}
+        </TabsContent>
+      </Tabs>
+
+      <OpenLobbyDetailsDialog
+        open={!!detailsId}
+        lobbyId={detailsId}
+        onOpenChange={(v) => !v && setDetailsId(undefined)}
+        currentPlayerId={currentPlayerId}
+      />
 
       <CreateLobbyDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
         captainTeams={captainTeams}
+        initialKind={tab === 'open' ? 'open' : 'team'}
+        onOpenLobbyCreated={(id) => {
+          setDetailsId(id);
+          setTab('open');
+        }}
       />
     </div>
   );
@@ -425,16 +558,21 @@ interface CreateLobbyDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   captainTeams: TeamMembershipDto[];
+  initialKind?: 'team' | 'open';
+  onOpenLobbyCreated?: (id: string) => void;
 }
 
 function CreateLobbyDialog({
   open,
   onOpenChange,
   captainTeams,
+  initialKind = 'team',
+  onOpenLobbyCreated,
 }: CreateLobbyDialogProps) {
   const { toast } = useToast();
   const createLobby = useCreateLobby();
 
+  const [createKind, setCreateKind] = useState<'team' | 'open'>(initialKind);
   const [kind, setKind] = useState<MatchKind>('CLAN_WAR');
   const [format, setFormat] = useState<MatchFormat>('BO1');
   const [region, setRegion] = useState('');
@@ -497,12 +635,41 @@ function CreateLobbyDialog({
         <DialogHeader>
           <DialogTitle>Создать лобби</DialogTitle>
           <DialogDescription>
-            {captainTeams.length === 1
-              ? `От имени команды ${captainTeams[0].name} [${captainTeams[0].tag}]`
-              : 'От имени вашей активной команды'}
+            {createKind === 'team'
+              ? captainTeams.length === 1
+                ? `От имени команды ${captainTeams[0].name} [${captainTeams[0].tag}]`
+                : 'От имени вашей активной команды'
+              : 'Открытое лобби на 10 игроков — присоединиться может любой'}
           </DialogDescription>
         </DialogHeader>
 
+        <div className="mb-2 flex gap-2">
+          <Button
+            type="button"
+            variant={createKind === 'team' ? 'default' : 'outline'}
+            onClick={() => setCreateKind('team')}
+          >
+            Командное
+          </Button>
+          <Button
+            type="button"
+            variant={createKind === 'open' ? 'default' : 'outline'}
+            onClick={() => setCreateKind('open')}
+          >
+            Открытое (10 игроков)
+          </Button>
+        </div>
+
+        {createKind === 'open' ? (
+          <CreateOpenLobbyForm
+            onCreated={(id) => {
+              toast({ title: 'Открытое лобби создано' });
+              onOpenChange(false);
+              onOpenLobbyCreated?.(id);
+            }}
+            onCancel={() => onOpenChange(false)}
+          />
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -600,6 +767,7 @@ function CreateLobbyDialog({
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
