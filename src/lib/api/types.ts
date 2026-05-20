@@ -501,3 +501,24 @@ export const INACTIVE_REASON_LABEL: Record<InactiveReason, string> = {
   UNCONFIRMED_CAPTAIN: 'Капитан не подтверждён',
   DISBANDED: 'Расформирована',
 };
+
+// --- Open Lobbies ---
+export type OpenLobbyDto = S['OpenLobbyDto'];
+export type OpenLobbySlotDto = S['OpenLobbySlotDto'];
+export type CreateOpenLobbyRequest = S['CreateOpenLobbyRequest'];
+export type OpenLobbyMode = S['OpenLobbyMode'];
+export type OpenLobbyStatus = S['OpenLobbyStatus'];
+
+export const OPEN_LOBBY_MODE_LABEL: Record<OpenLobbyMode, string> = {
+  SIMPLIFIED: 'Без ролей (10)',
+  WITH_ROLES: 'С ролями (5v5)',
+};
+
+export const OPEN_LOBBY_STATUS_LABEL: Record<OpenLobbyStatus, string> = {
+  OPEN: 'Открыто',
+  READY: 'Готово к запуску',
+  LAUNCHED: 'Лобби создано',
+  IN_PROGRESS: 'Игра идёт',
+  CANCELLED: 'Отменено',
+  EXPIRED: 'Истекло',
+};

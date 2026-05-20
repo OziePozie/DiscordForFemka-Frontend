@@ -2117,6 +2117,309 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/open-lobbies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Листинг открытых лобби (пикап/КВ слотовый формат) */
+        get: {
+            parameters: {
+                query?: {
+                    region?: string;
+                    mmrMin?: number;
+                    mmrMax?: number;
+                    from?: string;
+                    to?: string;
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["OpenLobbyDto"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Создать открытое лобби */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateOpenLobbyRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpenLobbyDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-lobbies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Получить открытое лобби по id */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpenLobbyDto"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        /** Отменить (закрыть) лобби — только для создателя */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-lobbies/{id}/slots/{slotIndex}/join": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Занять слот в лобби */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    slotIndex: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpenLobbyDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-lobbies/{id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Покинуть лобби */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpenLobbyDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-lobbies/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Подтвердить готовность (после READY) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpenLobbyDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-lobbies/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Запустить Dota-лобби (после подтверждения всех) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OpenLobbyDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2181,6 +2484,10 @@ export interface components {
         MatchStatus: "SCHEDULED" | "LIVE" | "FINISHED" | "CANCELLED";
         /** @enum {string} */
         MatchRequestStatus: "OPEN" | "MATCHED" | "CANCELLED" | "EXPIRED";
+        /** @enum {string} */
+        OpenLobbyMode: "SIMPLIFIED" | "WITH_ROLES";
+        /** @enum {string} */
+        OpenLobbyStatus: "OPEN" | "READY" | "LAUNCHED" | "IN_PROGRESS" | "CANCELLED" | "EXPIRED";
         /** @enum {string} */
         AccountProvider: "DISCORD" | "TWITCH";
         /** @enum {string} */
@@ -2791,6 +3098,65 @@ export interface components {
             status: components["schemas"]["MatchRequestStatus"];
             /** Format: date-time */
             createdAt: string;
+        };
+        OpenLobbySlotDto: {
+            /** Format: int32 */
+            slotIndex: number;
+            /** Format: uuid */
+            playerId?: string | null;
+            playerNickname?: string | null;
+            playerAvatarUrl?: string | null;
+            /** Format: date-time */
+            joinedAt?: string | null;
+        };
+        OpenLobbyDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            creatorPlayerId: string;
+            creatorNickname?: string | null;
+            creatorAvatarUrl?: string | null;
+            mode: components["schemas"]["OpenLobbyMode"];
+            format: components["schemas"]["MatchFormat"];
+            region?: string | null;
+            /** Format: int32 */
+            avgMmrMin?: number | null;
+            /** Format: int32 */
+            avgMmrMax?: number | null;
+            /** Format: date-time */
+            startsAt: string;
+            description?: string | null;
+            status: components["schemas"]["OpenLobbyStatus"];
+            /** Format: date-time */
+            readyAt?: string | null;
+            /** Format: date-time */
+            confirmationExpiresAt?: string | null;
+            dotaLobbyId?: string | null;
+            /** Format: date-time */
+            launchedAt?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            closedAt?: string | null;
+            /** Format: int32 */
+            slotsFilled: number;
+            /** Format: int32 */
+            slotsTotal: number;
+            slots: components["schemas"]["OpenLobbySlotDto"][];
+        };
+        CreateOpenLobbyRequest: {
+            mode: components["schemas"]["OpenLobbyMode"];
+            format: components["schemas"]["MatchFormat"];
+            region?: string | null;
+            /** Format: int32 */
+            avgMmrMin?: number | null;
+            /** Format: int32 */
+            avgMmrMax?: number | null;
+            /** Format: date-time */
+            startsAt: string;
+            description?: string | null;
+            /** Format: int32 */
+            creatorSlotIndex?: number | null;
         };
     };
     responses: {
