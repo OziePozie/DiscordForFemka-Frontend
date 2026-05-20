@@ -922,15 +922,18 @@ export function useOpenLobbies(params: OpenLobbiesPageParams = {}) {
   return useQuery({
     queryKey: qk.openLobbies(params),
     queryFn: () => listOpenLobbies(params),
+    refetchInterval: 4000,
+    refetchIntervalInBackground: false,
   });
 }
 
-export function useOpenLobby(id: string | undefined, pollMs?: number) {
+export function useOpenLobby(id: string | undefined) {
   return useQuery({
-    queryKey: id ? qk.openLobby(id) : ['open-lobby', 'none'],
+    queryKey: qk.openLobby(id ?? ''),
     queryFn: () => getOpenLobby(id!),
-    enabled: Boolean(id),
-    refetchInterval: pollMs ?? false,
+    enabled: !!id,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: false,
   });
 }
 
