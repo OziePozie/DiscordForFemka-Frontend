@@ -45,6 +45,8 @@ import type {
   TeamHistoryDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
+  CreateOpenLobbyRequest,
+  OpenLobbyDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -725,4 +727,74 @@ export function getTeamHistory(id: string): Promise<TeamHistoryDto> {
   return api<TeamHistoryDto>(
     `/api/v1/teams/${encodeURIComponent(id)}/history`,
   );
+}
+
+// ──────────────── Open Lobbies ────────────────
+
+export interface OpenLobbiesPageParams {
+  region?: string;
+  mmrMin?: number;
+  mmrMax?: number;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export function listOpenLobbies(
+  params: OpenLobbiesPageParams = {},
+): Promise<PagedResponse<OpenLobbyDto>> {
+  return api<PagedResponse<OpenLobbyDto>>(
+    `/api/v1/open-lobbies${buildQuery(params)}`,
+  );
+}
+
+export function getOpenLobby(id: string): Promise<OpenLobbyDto> {
+  return api<OpenLobbyDto>(`/api/v1/open-lobbies/${encodeURIComponent(id)}`);
+}
+
+export function createOpenLobby(
+  body: CreateOpenLobbyRequest,
+): Promise<OpenLobbyDto> {
+  return api<OpenLobbyDto>('/api/v1/open-lobbies', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function joinOpenLobbySlot(
+  id: string,
+  slotIndex: number,
+): Promise<OpenLobbyDto> {
+  return api<OpenLobbyDto>(
+    `/api/v1/open-lobbies/${encodeURIComponent(id)}/slots/${slotIndex}/join`,
+    { method: 'POST' },
+  );
+}
+
+export function leaveOpenLobby(id: string): Promise<OpenLobbyDto> {
+  return api<OpenLobbyDto>(
+    `/api/v1/open-lobbies/${encodeURIComponent(id)}/leave`,
+    { method: 'POST' },
+  );
+}
+
+export function confirmOpenLobby(id: string): Promise<OpenLobbyDto> {
+  return api<OpenLobbyDto>(
+    `/api/v1/open-lobbies/${encodeURIComponent(id)}/confirm`,
+    { method: 'POST' },
+  );
+}
+
+export function startOpenLobby(id: string): Promise<OpenLobbyDto> {
+  return api<OpenLobbyDto>(
+    `/api/v1/open-lobbies/${encodeURIComponent(id)}/start`,
+    { method: 'POST' },
+  );
+}
+
+export function cancelOpenLobby(id: string): Promise<void> {
+  return api<void>(`/api/v1/open-lobbies/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
