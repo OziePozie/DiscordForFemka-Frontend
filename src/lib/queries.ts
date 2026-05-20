@@ -72,6 +72,14 @@ import {
   getSeasonChampions,
   getPlayerHistory,
   getTeamHistory,
+  listOpenLobbies,
+  getOpenLobby,
+  createOpenLobby,
+  joinOpenLobbySlot,
+  leaveOpenLobby,
+  confirmOpenLobby,
+  startOpenLobby,
+  cancelOpenLobby,
   type SeasonsPageParams,
   type TournamentMatchesParams,
   type TeamsPageParams,
@@ -81,6 +89,7 @@ import {
   type AdminPlayersPageParams,
   type AdminAuditPageParams,
   type PlayersPageParams,
+  type OpenLobbiesPageParams,
 } from './api/endpoints';
 import type {
   SessionDto,
@@ -119,6 +128,8 @@ import type {
   SeasonChampionDto,
   PlayerHistoryDto,
   TeamHistoryDto,
+  OpenLobbyDto,
+  CreateOpenLobbyRequest,
 } from './api/types';
 
 export const qk = {
@@ -153,6 +164,9 @@ export const qk = {
     ['season', slug, 'champions'] as const,
   playerHistory: (id: string) => ['player', id, 'history'] as const,
   teamHistory: (id: string) => ['team', id, 'history'] as const,
+  openLobbies: (params: OpenLobbiesPageParams) =>
+    ['open-lobbies', params] as const,
+  openLobby: (id: string) => ['open-lobby', id] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -889,6 +903,103 @@ export function useTeamHistory(id: string | undefined) {
     queryKey: id ? qk.teamHistory(id) : ['team', 'none', 'history'],
     queryFn: () => getTeamHistory(id!),
     enabled: Boolean(id),
+  });
+}
+
+// ──────────────── Open Lobbies ────────────────
+
+function invalidateOpenLobbies(
+  qc: ReturnType<typeof useQueryClient>,
+  id?: string,
+) {
+  qc.invalidateQueries({ queryKey: ['open-lobbies'] });
+  if (id) {
+    qc.invalidateQueries({ queryKey: qk.openLobby(id) });
+  }
+}
+
+export function useOpenLobbies(params: OpenLobbiesPageParams = {}) {
+  return useQuery({
+    queryKey: qk.openLobbies(params),
+    queryFn: () => listOpenLobbies(params),
+  });
+}
+
+export function useOpenLobby(id: string | undefined, pollMs?: number) {
+  return useQuery({
+    queryKey: id ? qk.openLobby(id) : ['open-lobby', 'none'],
+    queryFn: () => getOpenLobby(id!),
+    enabled: Boolean(id),
+    refetchInterval: pollMs ?? false,
+  });
+}
+
+export function useCreateOpenLobby() {
+  const qc = useQueryClient();
+  return useMutation<OpenLobbyDto, Error, CreateOpenLobbyRequest>({
+    mutationFn: createOpenLobby,
+    onSuccess: (lobby) => {
+      qc.setQueryData(qk.openLobby(lobby.id), lobby);
+      invalidateOpenLobbies(qc);
+    },
+  });
+}
+
+export function useJoinOpenLobbySlot() {
+  const qc = useQueryClient();
+  return useMutation<
+    OpenLobbyDto,
+    Error,
+    { id: string; slotIndex: number }
+  >({
+    mutationFn: ({ id, slotIndex }) => joinOpenLobbySlot(id, slotIndex),
+    onSuccess: (lobby) => {
+      qc.setQueryData(qk.openLobby(lobby.id), lobby);
+      invalidateOpenLobbies(qc, lobby.id);
+    },
+  });
+}
+
+export function useLeaveOpenLobby() {
+  const qc = useQueryClient();
+  return useMutation<OpenLobbyDto, Error, string>({
+    mutationFn: leaveOpenLobby,
+    onSuccess: (lobby) => {
+      qc.setQueryData(qk.openLobby(lobby.id), lobby);
+      invalidateOpenLobbies(qc, lobby.id);
+    },
+  });
+}
+
+export function useConfirmOpenLobby() {
+  const qc = useQueryClient();
+  return useMutation<OpenLobbyDto, Error, string>({
+    mutationFn: confirmOpenLobby,
+    onSuccess: (lobby) => {
+      qc.setQueryData(qk.openLobby(lobby.id), lobby);
+      invalidateOpenLobbies(qc, lobby.id);
+    },
+  });
+}
+
+export function useStartOpenLobby() {
+  const qc = useQueryClient();
+  return useMutation<OpenLobbyDto, Error, string>({
+    mutationFn: startOpenLobby,
+    onSuccess: (lobby) => {
+      qc.setQueryData(qk.openLobby(lobby.id), lobby);
+      invalidateOpenLobbies(qc, lobby.id);
+    },
+  });
+}
+
+export function useCancelOpenLobby() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: cancelOpenLobby,
+    onSuccess: (_v, id) => {
+      invalidateOpenLobbies(qc, id);
+    },
   });
 }
 
