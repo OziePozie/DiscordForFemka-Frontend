@@ -253,14 +253,14 @@ export default function AdminMatchesPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="season-filter" className="text-sm">
-          Сезон:
+          Сцена:
         </Label>
         <Select
           value={seasonSlug || undefined}
           onValueChange={(v) => setSeasonSlug(v)}
         >
           <SelectTrigger id="season-filter" className="w-56">
-            <SelectValue placeholder="Выберите сезон" />
+            <SelectValue placeholder="Выберите сцену" />
           </SelectTrigger>
           <SelectContent>
             {seasons.map((s) => (
@@ -298,13 +298,13 @@ export default function AdminMatchesPage() {
 
       {seasonsQ.data && seasons.length === 0 && (
         <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-          Нет сезонов.
+          Нет сцен.
         </div>
       )}
 
       {seasonDetailsQ.data && tournaments.length === 0 && (
         <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-          В этом сезоне нет турниров.
+          На этой сцене нет турниров.
         </div>
       )}
 

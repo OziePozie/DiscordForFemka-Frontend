@@ -49,7 +49,7 @@ export default function ArchivePage() {
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Архив</h1>
         <div className="text-sm text-muted-foreground">
-          Чемпионы прошедших сезонов
+          Чемпионы прошедших сцен
         </div>
       </div>
 
@@ -57,7 +57,7 @@ export default function ArchivePage() {
         {/* Left: seasons list */}
         <aside className="space-y-1">
           <h2 className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Сезоны
+            Сцены
           </h2>
           {seasonsQ.isLoading && (
             <div className="space-y-2">
@@ -68,7 +68,7 @@ export default function ArchivePage() {
           )}
           {seasonsQ.data && seasons.length === 0 && (
             <div className="rounded-md border px-3 py-6 text-center text-sm text-muted-foreground">
-              Нет сезонов.
+              Нет сцен.
             </div>
           )}
           <nav className="flex flex-col gap-1">
@@ -97,7 +97,7 @@ export default function ArchivePage() {
         <section className="space-y-4">
           {!selectedSlug && (
             <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-              Выберите сезон слева.
+              Выберите сцену слева.
             </div>
           )}
 
@@ -114,7 +114,7 @@ export default function ArchivePage() {
 
           {selectedSlug && championsQ.data && champions.length === 0 && (
             <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-              В этом сезоне пока нет чемпионов.
+              На этой сцене пока нет чемпионов.
             </div>
           )}
 

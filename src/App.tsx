@@ -38,8 +38,8 @@ export default function App() {
         />
         <Route path="/players/:id" element={<PlayerPublicPage />} />
 
-        <Route path="/seasons" element={<SeasonsListPage />} />
-        <Route path="/seasons/:slug" element={<SeasonDetailsPage />} />
+        <Route path="/scenes" element={<SeasonsListPage />} />
+        <Route path="/scenes/:slug" element={<SeasonDetailsPage />} />
         <Route path="/tournaments/:slug" element={<TournamentDetailsPage />} />
         <Route path="/teams" element={<TeamsListPage />} />
         <Route

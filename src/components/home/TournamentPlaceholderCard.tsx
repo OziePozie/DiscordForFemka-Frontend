@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 
 interface TournamentPlaceholderCardProps {
-  /** Если есть текущий сезон, кнопка ведёт на него; иначе — на список сезонов. */
+  /** Если есть текущая сцена, кнопка ведёт на неё; иначе — на список сцен. */
   seasonSlug?: string;
 }
 
@@ -13,7 +13,7 @@ export default function TournamentPlaceholderCard({
   seasonSlug,
 }: TournamentPlaceholderCardProps) {
   const navigate = useNavigate();
-  const target = seasonSlug ? `/seasons/${seasonSlug}` : '/seasons';
+  const target = seasonSlug ? `/scenes/${seasonSlug}` : '/scenes';
 
   return (
     <div className="group flex min-h-[230px] flex-col items-center justify-center rounded-[32px] border border-purple-100 bg-white/60 p-8 text-center backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(139,92,246,0.12)]">

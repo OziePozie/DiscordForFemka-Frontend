@@ -46,11 +46,11 @@ function statusPillClass(s: SeasonStatus): string {
 function actionLabel(s: SeasonStatus): string {
   switch (s) {
     case 'ACTIVE':
-      return 'Открыть сезон';
+      return 'Открыть сцену';
     case 'PLANNED':
       return 'Подробнее';
     case 'FINISHED':
-      return 'Итоги сезона';
+      return 'Итоги сцены';
   }
 }
 
@@ -81,11 +81,12 @@ export default function SeasonsListPage() {
         <header className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-5xl font-black tracking-[-2px] text-[#0f1533] md:text-6xl">
-              <span className="ps-gradient-text">Сезоны</span>
+              <span className="ps-gradient-text">Сцены</span>
             </h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-[#5b6284]">
-              Сезон — это серия турниров с общим призовым фондом и
-              таблицей лидеров. Выбирай свой сезон!
+              Сцены — это лиги и серии турниров от разных организаторов.
+              У каждой сцены свои правила, форматы и условия участия.
+              Выбирай свою сцену!
             </p>
           </div>
           <div className="text-sm font-medium text-purple-700/70">
@@ -118,7 +119,7 @@ export default function SeasonsListPage() {
 
           <div className="relative w-full sm:max-w-xs">
             <Input
-              placeholder="Поиск сезонов…"
+              placeholder="Поиск сцен…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-11 rounded-2xl border-purple-100 bg-white/70 pr-10 backdrop-blur-xl placeholder:text-[#9aa0bc] focus-visible:ring-purple-300"
@@ -141,14 +142,14 @@ export default function SeasonsListPage() {
 
         {q.isError && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-sm text-red-700">
-            Не удалось загрузить сезоны: {q.error?.message ?? 'unknown error'}
+            Не удалось загрузить сцены: {q.error?.message ?? 'unknown error'}
           </div>
         )}
 
         {q.data && filtered.length === 0 && (
           <div className="rounded-3xl border border-purple-100 bg-white/60 px-4 py-16 text-center text-sm text-[#5b6284] backdrop-blur-xl">
             {items.length === 0
-              ? 'Сезонов пока нет.'
+              ? 'Сцен пока нет.'
               : 'Ничего не нашлось. Попробуй изменить фильтр или запрос.'}
           </div>
         )}
@@ -159,7 +160,7 @@ export default function SeasonsListPage() {
               <SeasonCard
                 key={s.id}
                 season={s}
-                onOpen={() => navigate(`/seasons/${s.slug}`)}
+                onOpen={() => navigate(`/scenes/${s.slug}`)}
               />
             ))}
           </div>

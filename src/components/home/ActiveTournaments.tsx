@@ -29,7 +29,7 @@ export default function ActiveTournaments({
   seasonSlug,
 }: ActiveTournamentsProps) {
   const navigate = useNavigate();
-  const target = seasonSlug ? `/seasons/${seasonSlug}` : '/seasons';
+  const target = seasonSlug ? `/scenes/${seasonSlug}` : '/scenes';
 
   const active = tournaments
     .filter((t) => ACTIVE_STATUSES.includes(t.status))

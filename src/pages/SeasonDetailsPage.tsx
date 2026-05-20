@@ -80,7 +80,7 @@ export default function SeasonDetailsPage() {
   if (q.isError || !q.data) {
     return (
       <div className="text-sm text-destructive">
-        Не удалось загрузить сезон: {q.error?.message ?? 'unknown error'}
+        Не удалось загрузить сцену: {q.error?.message ?? 'unknown error'}
       </div>
     );
   }
@@ -114,7 +114,7 @@ export default function SeasonDetailsPage() {
       </header>
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Турниры сезона</h2>
+        <h2 className="text-xl font-semibold">Турниры сцены</h2>
         {tournaments.length === 0 ? (
           <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
             Турниров пока нет.

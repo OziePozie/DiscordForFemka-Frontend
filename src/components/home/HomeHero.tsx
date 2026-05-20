@@ -10,8 +10,8 @@ interface HomeHeroProps {
 
 /**
  * Hero-секция главной. Левая колонка — текст + CTA, правая — анимированный
- * блоб с вертикальной подписью. CTA "Открыть сезон" уходит в /seasons/{slug};
- * если сезон ещё не загружен — показываем Skeleton; если сезона нет —
+ * блоб с вертикальной подписью. CTA "Открыть сцену" уходит в /scenes/{slug};
+ * если сцена ещё не загружена — показываем Skeleton; если сцены нет —
  * disabled "Скоро".
  */
 export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
@@ -43,15 +43,15 @@ export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
               <button
                 className="ps-main-button"
                 disabled={!season}
-                onClick={() => navigate(`/seasons/${season!.slug}`)}
+                onClick={() => navigate(`/scenes/${season!.slug}`)}
               >
-                {season ? 'Открыть сезон' : 'Скоро'}
+                {season ? 'Открыть сцену' : 'Скоро'}
               </button>
             )}
 
             <button
               className="ps-secondary-button"
-              onClick={() => navigate('/seasons')}
+              onClick={() => navigate('/scenes')}
             >
               К турнирам
             </button>

@@ -189,7 +189,7 @@ export default function AdminSeasonsPage() {
           endsAt: parseLocalDateTime(form.endsAt)!,
           bannerAttachmentId: form.bannerAttachmentId,
         });
-        toast({ title: 'Сезон создан' });
+        toast({ title: 'Сцена создана' });
         closeDialog();
       } catch (e) {
         toast({
@@ -218,7 +218,7 @@ export default function AdminSeasonsPage() {
             bannerAttachmentId: form.bannerDirty ? form.bannerAttachmentId : null,
           },
         });
-        toast({ title: 'Сезон обновлён' });
+        toast({ title: 'Сцена обновлена' });
         closeDialog();
       } catch (e) {
         toast({
@@ -236,10 +236,10 @@ export default function AdminSeasonsPage() {
     try {
       if (action === 'start') {
         await startMut.mutateAsync(season.id);
-        toast({ title: 'Сезон запущен' });
+        toast({ title: 'Сцена запущена' });
       } else {
         await finishMut.mutateAsync(season.id);
-        toast({ title: 'Сезон завершён' });
+        toast({ title: 'Сцена завершена' });
       }
       closeDialog();
     } catch (e) {
@@ -261,21 +261,21 @@ export default function AdminSeasonsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">Сезоны</h1>
-        <Button onClick={openCreate}>Новый сезон</Button>
+        <h1 className="text-2xl font-bold tracking-tight">Сцены</h1>
+        <Button onClick={openCreate}>Новая сцена</Button>
       </div>
 
       {q.isLoading && <Skeleton className="h-80 w-full" />}
 
       {q.isError && (
         <div className="text-sm text-destructive">
-          Не удалось загрузить сезоны: {q.error?.message ?? 'unknown error'}
+          Не удалось загрузить сцены: {q.error?.message ?? 'unknown error'}
         </div>
       )}
 
       {q.data && (q.data.items?.length ?? 0) === 0 && (
         <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-          Сезонов нет.
+          Сцен нет.
         </div>
       )}
 
@@ -325,7 +325,7 @@ export default function AdminSeasonsPage() {
                         disabled={mutating || s.status !== 'PLANNED'}
                         title={
                           s.status === 'PLANNED'
-                            ? 'Запустить сезон'
+                            ? 'Запустить сцену'
                             : 'Доступно только для PLANNED'
                         }
                       >
@@ -344,7 +344,7 @@ export default function AdminSeasonsPage() {
                         disabled={mutating || s.status !== 'ACTIVE'}
                         title={
                           s.status === 'ACTIVE'
-                            ? 'Завершить сезон'
+                            ? 'Завершить сцену'
                             : 'Доступно только для ACTIVE'
                         }
                       >
@@ -391,7 +391,7 @@ export default function AdminSeasonsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {dialog?.kind === 'edit' ? 'Редактировать сезон' : 'Новый сезон'}
+              {dialog?.kind === 'edit' ? 'Редактировать сцену' : 'Новая сцена'}
             </DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'edit'
@@ -512,8 +512,8 @@ export default function AdminSeasonsPage() {
           <DialogHeader>
             <DialogTitle>
               {dialog?.kind === 'confirm' && dialog.action === 'start'
-                ? 'Запустить сезон?'
-                : 'Завершить сезон?'}
+                ? 'Запустить сцену?'
+                : 'Завершить сцену?'}
             </DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'confirm' ? dialog.season.name : ''}

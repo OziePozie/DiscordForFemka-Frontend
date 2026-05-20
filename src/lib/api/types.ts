@@ -341,9 +341,9 @@ export const MMR_SOURCE_LABEL: Record<MmrSource, string> = {
 };
 
 export const SEASON_STATUS_LABEL: Record<SeasonStatus, string> = {
-  PLANNED: 'Запланирован',
-  ACTIVE: 'Идёт',
-  FINISHED: 'Завершён',
+  PLANNED: 'Запланирована',
+  ACTIVE: 'Активна',
+  FINISHED: 'Завершена',
 };
 
 export const TOURNAMENT_STATUS_LABEL: Record<TournamentStatus, string> = {

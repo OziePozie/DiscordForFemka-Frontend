@@ -262,7 +262,7 @@ export default function AdminTournamentsPage() {
       return 'Slug может содержать только a-z, 0-9 и дефис';
     }
     if (form.slug.length > 64) return 'Slug не длиннее 64 символов';
-    if (!form.seasonId) return 'Выберите сезон';
+    if (!form.seasonId) return 'Выберите сцену';
     if (form.maxTeams && !/^\d+$/.test(form.maxTeams)) {
       return 'maxTeams должно быть целым числом';
     }
@@ -458,14 +458,14 @@ export default function AdminTournamentsPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="season-filter" className="text-sm">
-          Сезон:
+          Сцена:
         </Label>
         <Select
           value={seasonSlug || undefined}
           onValueChange={(v) => setSeasonSlug(v)}
         >
           <SelectTrigger id="season-filter" className="w-64">
-            <SelectValue placeholder="Выберите сезон" />
+            <SelectValue placeholder="Выберите сцену" />
           </SelectTrigger>
           <SelectContent>
             {seasons.map((s) => (
@@ -490,13 +490,13 @@ export default function AdminTournamentsPage() {
 
       {seasonsQ.data && seasons.length === 0 && (
         <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-          Нет сезонов. Создайте сезон во вкладке «Сезоны».
+          Нет сцен. Создайте сцену во вкладке «Сцены».
         </div>
       )}
 
       {seasonDetailsQ.data && allTournaments.length === 0 && (
         <div className="rounded-md border px-4 py-12 text-center text-sm text-muted-foreground">
-          В этом сезоне ещё нет турниров.
+          На этой сцене ещё нет турниров.
         </div>
       )}
 
@@ -575,7 +575,7 @@ export default function AdminTournamentsPage() {
             </DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'edit'
-                ? 'Slug, формат и сезон изменить нельзя.'
+                ? 'Slug, формат и сцену изменить нельзя.'
                 : 'Поля, отмеченные звёздочкой — обязательны.'}
             </DialogDescription>
           </DialogHeader>
@@ -604,14 +604,14 @@ export default function AdminTournamentsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="tn-season">Сезон *</Label>
+                <Label htmlFor="tn-season">Сцена *</Label>
                 <Select
                   value={form.seasonId || undefined}
                   onValueChange={(v) => setForm({ ...form, seasonId: v })}
                   disabled={dialog?.kind === 'edit'}
                 >
                   <SelectTrigger id="tn-season">
-                    <SelectValue placeholder="Выберите сезон" />
+                    <SelectValue placeholder="Выберите сцену" />
                   </SelectTrigger>
                   <SelectContent>
                     {seasons.map((s) => (
