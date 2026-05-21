@@ -255,7 +255,7 @@ export default function ProfilePage() {
           <div>
             <CardTitle>Профиль</CardTitle>
             <CardDescription>
-              Steam ID: {String(data.steamId)}
+              Steam ID: {data.steamId}
             </CardDescription>
           </div>
           {!editing ? (

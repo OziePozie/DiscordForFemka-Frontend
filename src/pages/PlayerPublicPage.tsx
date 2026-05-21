@@ -127,7 +127,7 @@ export default function PlayerPublicPage() {
 
           <div className="flex flex-wrap gap-2">
             {p.discordId && (
-              <Badge variant="secondary">Discord: {String(p.discordId)}</Badge>
+              <Badge variant="secondary">Discord: {p.discordId}</Badge>
             )}
             {p.twitchLogin && (
               <Badge variant="secondary">Twitch: {p.twitchLogin}</Badge>

@@ -2498,7 +2498,7 @@ export interface components {
             /** Format: uuid */
             playerId: string;
             /** Format: int64 */
-            steamId: number;
+            steamId: string;
             nickname?: string | null;
             avatarUrl?: string | null;
             roles: components["schemas"]["PlayerRole"][];
@@ -2537,7 +2537,7 @@ export interface components {
             mmr?: components["schemas"]["PlayerMmrPublicDto"] | null;
             activity: components["schemas"]["ActivityStatus"];
             /** Format: int64 */
-            discordId?: number | null;
+            discordId?: string | null;
             twitchLogin?: string | null;
             dotabuffUrl?: string | null;
             stratzUrl?: string | null;
@@ -2581,7 +2581,7 @@ export interface components {
         MeDto: {
             profile: components["schemas"]["PlayerPublicDto"];
             /** Format: int64 */
-            steamId: number;
+            steamId: string;
             mmr?: components["schemas"]["PlayerMmrDto"] | null;
             activity?: components["schemas"]["PlayerActivityDto"] | null;
             links: components["schemas"]["AccountLinkDto"][];
@@ -2600,9 +2600,9 @@ export interface components {
         PlayerAdminDto: {
             profile: components["schemas"]["PlayerPublicDto"];
             /** Format: int64 */
-            steamId: number;
+            steamId: string;
             /** Format: int64 */
-            discordId?: number | null;
+            discordId?: string | null;
             twitchLogin?: string | null;
             banned: boolean;
             banReason?: string | null;
