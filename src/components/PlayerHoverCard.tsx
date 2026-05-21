@@ -132,7 +132,7 @@ function SocialLinks({
   dotabuffUrl,
   stratzUrl,
 }: {
-  discordId: number | null;
+  discordId: string | null;
   twitchLogin: string | null;
   dotabuffUrl: string | null;
   stratzUrl: string | null;

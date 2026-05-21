@@ -324,7 +324,7 @@ export default function AdminPlayersPage() {
                       className="font-medium"
                     />
                     <div className="font-mono text-xs text-muted-foreground">
-                      {String(p.steamId)}
+                      {p.steamId}
                     </div>
                   </td>
                   <td className="px-4 py-3 font-mono">
