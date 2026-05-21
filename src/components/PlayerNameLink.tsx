@@ -6,6 +6,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import { useHoverCardSingleton } from '@/components/ui/hover-card-singleton';
 import { PlayerHoverCard } from '@/components/PlayerHoverCard';
 import { getPlayer } from '@/lib/api/endpoints';
 import { qk } from '@/lib/queries';
@@ -19,11 +20,29 @@ type Props = {
 };
 
 export function PlayerNameLink({ playerId, nickname, className, children }: Props) {
-  const queryClient = useQueryClient();
-
   if (!playerId) {
     return <span className={className}>{children ?? nickname ?? '—'}</span>;
   }
+
+  return (
+    <PlayerNameLinkInner
+      playerId={playerId}
+      nickname={nickname}
+      className={className}
+    >
+      {children}
+    </PlayerNameLinkInner>
+  );
+}
+
+function PlayerNameLinkInner({
+  playerId,
+  nickname,
+  className,
+  children,
+}: Props & { playerId: string }) {
+  const queryClient = useQueryClient();
+  const { open, setOpen, claim } = useHoverCardSingleton(`player:${playerId}`);
 
   const prefetch = () => {
     queryClient.prefetchQuery({
@@ -34,13 +53,19 @@ export function PlayerNameLink({ playerId, nickname, className, children }: Prop
   };
 
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
+    <HoverCard openDelay={200} closeDelay={100} open={open} onOpenChange={setOpen}>
       <HoverCardTrigger asChild>
         <Link
           to={`/players/${playerId}`}
           className={cn('hover:underline', className)}
-          onPointerEnter={prefetch}
-          onFocus={prefetch}
+          onPointerEnter={() => {
+            prefetch();
+            claim();
+          }}
+          onFocus={() => {
+            prefetch();
+            claim();
+          }}
         >
           {children ?? nickname ?? playerId.slice(0, 6)}
         </Link>

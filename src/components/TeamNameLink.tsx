@@ -6,6 +6,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
+import { useHoverCardSingleton } from '@/components/ui/hover-card-singleton';
 import { TeamHoverCard } from '@/components/TeamHoverCard';
 import { getTeamById } from '@/lib/api/endpoints';
 import { qk } from '@/lib/queries';
@@ -20,8 +21,6 @@ type Props = {
 };
 
 export function TeamNameLink({ teamId, name, tag, className, children }: Props) {
-  const queryClient = useQueryClient();
-
   const label =
     children ??
     (name && tag
@@ -32,6 +31,25 @@ export function TeamNameLink({ teamId, name, tag, className, children }: Props) 
     return <span className={className}>{label}</span>;
   }
 
+  return (
+    <TeamNameLinkInner teamId={teamId} className={className}>
+      {label}
+    </TeamNameLinkInner>
+  );
+}
+
+function TeamNameLinkInner({
+  teamId,
+  className,
+  children,
+}: {
+  teamId: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const queryClient = useQueryClient();
+  const { open, setOpen, claim } = useHoverCardSingleton(`team:${teamId}`);
+
   const prefetch = () => {
     queryClient.prefetchQuery({
       queryKey: qk.team(teamId),
@@ -41,15 +59,21 @@ export function TeamNameLink({ teamId, name, tag, className, children }: Props) 
   };
 
   return (
-    <HoverCard openDelay={200} closeDelay={100}>
+    <HoverCard openDelay={200} closeDelay={100} open={open} onOpenChange={setOpen}>
       <HoverCardTrigger asChild>
         <Link
           to={`/teams/${teamId}`}
           className={cn('hover:underline', className)}
-          onPointerEnter={prefetch}
-          onFocus={prefetch}
+          onPointerEnter={() => {
+            prefetch();
+            claim();
+          }}
+          onFocus={() => {
+            prefetch();
+            claim();
+          }}
         >
-          {label}
+          {children}
         </Link>
       </HoverCardTrigger>
       <HoverCardContent>
