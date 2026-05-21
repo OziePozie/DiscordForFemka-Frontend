@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   HoverCard,
@@ -7,6 +7,8 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { TeamHoverCard } from '@/components/TeamHoverCard';
+import { getTeamById } from '@/lib/api/endpoints';
+import { qk } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -18,7 +20,7 @@ type Props = {
 };
 
 export function TeamNameLink({ teamId, name, tag, className, children }: Props) {
-  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const label =
     children ??
@@ -30,18 +32,28 @@ export function TeamNameLink({ teamId, name, tag, className, children }: Props) 
     return <span className={className}>{label}</span>;
   }
 
+  const prefetch = () => {
+    queryClient.prefetchQuery({
+      queryKey: qk.team(teamId),
+      queryFn: () => getTeamById(teamId),
+      staleTime: 5 * 60_000,
+    });
+  };
+
   return (
-    <HoverCard openDelay={300} closeDelay={150} open={open} onOpenChange={setOpen}>
+    <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
         <Link
           to={`/teams/${teamId}`}
           className={cn('hover:underline', className)}
+          onPointerEnter={prefetch}
+          onFocus={prefetch}
         >
           {label}
         </Link>
       </HoverCardTrigger>
       <HoverCardContent>
-        {open && <TeamHoverCard teamId={teamId} />}
+        <TeamHoverCard teamId={teamId} />
       </HoverCardContent>
     </HoverCard>
   );

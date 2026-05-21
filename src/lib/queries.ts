@@ -190,6 +190,7 @@ export function usePlayer(id: string | undefined) {
     queryKey: id ? qk.player(id) : ['player', 'none'],
     queryFn: () => getPlayer(id!),
     enabled: Boolean(id),
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -331,6 +332,7 @@ export function useTeam(id: string | undefined) {
     queryKey: id ? qk.team(id) : ['team', 'none'],
     queryFn: () => getTeamById(id!),
     enabled: Boolean(id),
+    staleTime: 5 * 60_000,
   });
 }
 
