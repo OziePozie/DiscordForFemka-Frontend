@@ -30,11 +30,11 @@ import { TeamNameLink } from '@/components/TeamNameLink';
 
 const PAGE_SIZE = 12;
 
+// DISBANDED teams are not displayed in the web interface, so the filter omits them.
 const STATUS_OPTIONS: Array<{ value: 'ALL' | TeamStatus; label: string }> = [
   { value: 'ALL', label: 'Все статусы' },
   { value: 'ACTIVE', label: TEAM_STATUS_LABEL.ACTIVE },
   { value: 'INACTIVE', label: TEAM_STATUS_LABEL.INACTIVE },
-  { value: 'DISBANDED', label: TEAM_STATUS_LABEL.DISBANDED },
 ];
 
 function statusVariant(s: TeamStatus) {
