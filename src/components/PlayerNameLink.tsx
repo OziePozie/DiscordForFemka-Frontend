@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   HoverCard,
@@ -7,6 +7,8 @@ import {
   HoverCardTrigger,
 } from '@/components/ui/hover-card';
 import { PlayerHoverCard } from '@/components/PlayerHoverCard';
+import { getPlayer } from '@/lib/api/endpoints';
+import { qk } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -17,24 +19,34 @@ type Props = {
 };
 
 export function PlayerNameLink({ playerId, nickname, className, children }: Props) {
-  const [open, setOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   if (!playerId) {
     return <span className={className}>{children ?? nickname ?? '—'}</span>;
   }
 
+  const prefetch = () => {
+    queryClient.prefetchQuery({
+      queryKey: qk.player(playerId),
+      queryFn: () => getPlayer(playerId),
+      staleTime: 5 * 60_000,
+    });
+  };
+
   return (
-    <HoverCard openDelay={300} closeDelay={150} open={open} onOpenChange={setOpen}>
+    <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
         <Link
           to={`/players/${playerId}`}
           className={cn('hover:underline', className)}
+          onPointerEnter={prefetch}
+          onFocus={prefetch}
         >
           {children ?? nickname ?? playerId.slice(0, 6)}
         </Link>
       </HoverCardTrigger>
       <HoverCardContent>
-        {open && <PlayerHoverCard playerId={playerId} />}
+        <PlayerHoverCard playerId={playerId} />
       </HoverCardContent>
     </HoverCard>
   );
