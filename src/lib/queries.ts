@@ -69,6 +69,10 @@ import {
   banAdminPlayer,
   unbanAdminPlayer,
   getAdminAuditPage,
+  listAdminBots,
+  adminBotLeaveLobby,
+  adminBotGcRehello,
+  adminBotSteamReconnect,
   updateAdminMatch,
   getSeasonChampions,
   getPlayerHistory,
@@ -131,6 +135,7 @@ import type {
   TeamHistoryDto,
   OpenLobbyDto,
   CreateOpenLobbyRequest,
+  BotStatusDto,
 } from './api/types';
 
 export const qk = {
@@ -159,6 +164,7 @@ export const qk = {
     ['adminPlayers', params] as const,
   adminAudit: (params: AdminAuditPageParams) =>
     ['adminAudit', params] as const,
+  adminBots: ['adminBots'] as const,
   teamInvites: (teamId: string) => ['team', teamId, 'invites'] as const,
   playersPage: (params: PlayersPageParams) => ['players', params] as const,
   seasonChampions: (slug: string) =>
@@ -873,6 +879,41 @@ export function useAdminAudit(params: AdminAuditPageParams = {}) {
   return useQuery({
     queryKey: qk.adminAudit(params),
     queryFn: () => getAdminAuditPage(params),
+  });
+}
+
+// ──────────────── Admin: Dota bots ────────────────
+
+export function useAdminBots() {
+  return useQuery<BotStatusDto[]>({
+    queryKey: qk.adminBots,
+    queryFn: listAdminBots,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useAdminBotLeaveLobby() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: adminBotLeaveLobby,
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminBots }),
+  });
+}
+
+export function useAdminBotGcRehello() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: adminBotGcRehello,
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminBots }),
+  });
+}
+
+export function useAdminBotSteamReconnect() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: adminBotSteamReconnect,
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminBots }),
   });
 }
 

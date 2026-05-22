@@ -21,6 +21,7 @@ import AdminTournamentsPage from '@/pages/admin/AdminTournamentsPage';
 import AdminPlayersPage from '@/pages/admin/AdminPlayersPage';
 import AdminMatchesPage from '@/pages/admin/AdminMatchesPage';
 import AdminAuditPage from '@/pages/admin/AdminAuditPage';
+import AdminBotsPage from '@/pages/admin/AdminBotsPage';
 import ArchivePage from '@/pages/ArchivePage';
 
 export default function App() {
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="matches" element={<AdminMatchesPage />} />
           <Route path="players" element={<AdminPlayersPage />} />
           <Route path="audit" element={<AdminAuditPage />} />
+          <Route path="bots" element={<AdminBotsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

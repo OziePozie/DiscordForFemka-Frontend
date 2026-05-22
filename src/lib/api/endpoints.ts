@@ -37,6 +37,7 @@ import type {
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
   AuditLogDto,
+  BotStatusDto,
   ActivityStatus,
   PlayerRole,
   UpdateMatchRequest,
@@ -713,6 +714,33 @@ export function getAdminAuditPage(
 ): Promise<PagedResponse<AuditLogDto>> {
   return api<PagedResponse<AuditLogDto>>(
     `/api/v1/admin/audit${buildQuery(params)}`,
+  );
+}
+
+// ──────────────── Admin: Dota bots ────────────────
+
+export function listAdminBots(): Promise<BotStatusDto[]> {
+  return api<BotStatusDto[]>('/api/v1/admin/bots');
+}
+
+export function adminBotLeaveLobby(username: string): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/bots/${encodeURIComponent(username)}/leave-lobby`,
+    { method: 'POST' },
+  );
+}
+
+export function adminBotGcRehello(username: string): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/bots/${encodeURIComponent(username)}/gc/rehello`,
+    { method: 'POST' },
+  );
+}
+
+export function adminBotSteamReconnect(username: string): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/bots/${encodeURIComponent(username)}/steam/reconnect`,
+    { method: 'POST' },
   );
 }
 

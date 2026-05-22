@@ -52,6 +52,20 @@ export interface AuditLogDto {
   at: string;
 }
 
+// Admin: Dota bots (proxy to Dota2API). Not in openapi.yaml — typed manually.
+// steamState: 'DISCONNECTED' | 'CONNECTING' | 'CONNECTED' | 'LOGGING_IN' | 'LOGGED_ON'
+// gcState:    'NOT_CONNECTED' | 'HELLO_SENT' | 'READY'
+// healthy is pre-computed by Dota2API as steamState===LOGGED_ON && gcState===READY.
+export interface BotStatusDto {
+  username: string;
+  accountId: number;
+  steamState: string;
+  gcState: string;
+  inLobby: boolean;
+  currentLobbyId: number | null;
+  healthy: boolean;
+}
+
 // Seasons / Tournaments / Matches
 export type SeasonDto = S['SeasonDto'];
 export type SeasonDetailsDto = S['SeasonDetailsDto'];
