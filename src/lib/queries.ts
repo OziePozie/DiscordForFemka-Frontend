@@ -63,6 +63,7 @@ import {
   markMatchReady,
   markMatchUnready,
   recreateLobby,
+  launchLobby,
   getAdminPlayersPage,
   updateAdminPlayer,
   banAdminPlayer,
@@ -805,6 +806,17 @@ export function useRecreateLobby() {
   const qc = useQueryClient();
   return useMutation<MatchDto, Error, string>({
     mutationFn: (matchId) => recreateLobby(matchId),
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+    },
+  });
+}
+
+export function useLaunchLobby() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: (matchId) => launchLobby(matchId),
     onSuccess: (m) => {
       qc.setQueryData(qk.match(m.id), m);
       qc.invalidateQueries({ queryKey: qk.match(m.id) });

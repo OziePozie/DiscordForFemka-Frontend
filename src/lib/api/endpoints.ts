@@ -624,6 +624,13 @@ export function recreateLobby(matchId: string): Promise<MatchDto> {
   );
 }
 
+export function launchLobby(matchId: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(matchId)}/lobby/launch`,
+    { method: 'POST' },
+  );
+}
+
 export function updateAdminMatch(
   id: string,
   patch: UpdateMatchRequest,

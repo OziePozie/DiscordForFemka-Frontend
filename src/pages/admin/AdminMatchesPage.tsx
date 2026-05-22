@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
+  useLaunchLobby,
   useRecreateLobby,
   useUpdateAdminMatch,
 } from '@/lib/queries';
@@ -92,6 +93,7 @@ function describeError(e: unknown): string {
 type DialogState =
   | { kind: 'settings'; match: MatchDto }
   | { kind: 'recreate'; match: MatchDto }
+  | { kind: 'launch'; match: MatchDto }
   | { kind: 'reset-ready'; match: MatchDto }
   | null;
 
@@ -162,7 +164,9 @@ export default function AdminMatchesPage() {
   // Mutations.
   const updateMut = useUpdateAdminMatch();
   const recreateMut = useRecreateLobby();
-  const mutating = updateMut.isPending || recreateMut.isPending;
+  const launchMut = useLaunchLobby();
+  const mutating =
+    updateMut.isPending || recreateMut.isPending || launchMut.isPending;
 
   // Dialog state.
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -217,6 +221,25 @@ export default function AdminMatchesPage() {
     } catch (e) {
       toast({
         title: 'Не удалось пересоздать лобби',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleLaunch() {
+    if (!dialog || dialog.kind !== 'launch') return;
+    try {
+      await launchMut.mutateAsync(dialog.match.id);
+      toast({ title: 'Запрос на старт отправлен в Dota' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      // For PLATFORM_LOBBY_LAUNCH_REJECTED Dota's own message (e.g.
+      // "not enough players") is in ProblemDetail.detail — describeError
+      // pulls it out so the admin sees the actual reason.
+      toast({
+        title: 'Dota отклонила запуск',
         description: describeError(e),
         variant: 'destructive',
       });
@@ -425,6 +448,14 @@ export default function AdminMatchesPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
+                                setDialog({ kind: 'launch', match: m })
+                              }
+                              disabled={!m.lobbyId}
+                            >
+                              Принудительно стартовать в Dota
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
                                 setDialog({ kind: 'reset-ready', match: m })
                               }
                               disabled={!aReady && !bReady}
@@ -582,6 +613,35 @@ export default function AdminMatchesPage() {
               disabled={mutating}
             >
               {recreateMut.isPending ? 'Пересоздание…' : 'Пересоздать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Force-launch confirm */}
+      <Dialog
+        open={dialog?.kind === 'launch'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Принудительно стартовать в Dota?</DialogTitle>
+            <DialogDescription>
+              Бот отправит запрос на старт уже созданного лобби в Dota2API.
+              Учтите: Dota откажет, если в команде меньше игроков, чем требует
+              выбранный режим (например, Captains Mode требует 5v5). Если
+              увидите ошибку в стиле «not enough players» — это и значит, что
+              слотов в Steam-лобби не хватает.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleLaunch} disabled={mutating}>
+              {launchMut.isPending ? 'Запуск…' : 'Стартовать'}
             </Button>
           </DialogFooter>
         </DialogContent>
