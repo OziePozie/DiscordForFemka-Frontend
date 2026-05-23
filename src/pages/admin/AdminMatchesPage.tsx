@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
+  useFinishMatch,
   useLaunchLobby,
   useRecreateLobby,
   useUpdateAdminMatch,
@@ -95,6 +96,7 @@ type DialogState =
   | { kind: 'recreate'; match: MatchDto }
   | { kind: 'launch'; match: MatchDto }
   | { kind: 'reset-ready'; match: MatchDto }
+  | { kind: 'finish'; match: MatchDto }
   | null;
 
 type SettingsForm = {
@@ -110,6 +112,16 @@ function settingsFromMatch(m: MatchDto): SettingsForm {
     region: m.region ?? NONE,
     coinToss: m.coinToss ?? true,
     autoLaunch: m.autoLaunch ?? false,
+  };
+}
+
+type FinishForm = { winner: 'A' | 'B'; scoreA: string; scoreB: string };
+
+function defaultFinishForm(winner: 'A' | 'B'): FinishForm {
+  return {
+    winner,
+    scoreA: winner === 'A' ? '1' : '0',
+    scoreB: winner === 'B' ? '1' : '0',
   };
 }
 
@@ -165,8 +177,12 @@ export default function AdminMatchesPage() {
   const updateMut = useUpdateAdminMatch();
   const recreateMut = useRecreateLobby();
   const launchMut = useLaunchLobby();
+  const finishMut = useFinishMatch();
   const mutating =
-    updateMut.isPending || recreateMut.isPending || launchMut.isPending;
+    updateMut.isPending ||
+    recreateMut.isPending ||
+    launchMut.isPending ||
+    finishMut.isPending;
 
   // Dialog state.
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -176,6 +192,9 @@ export default function AdminMatchesPage() {
     coinToss: true,
     autoLaunch: false,
   });
+  const [finishForm, setFinishForm] = useState<FinishForm>(
+    defaultFinishForm('A'),
+  );
 
   function openSettings(m: MatchDto) {
     setForm(settingsFromMatch(m));
@@ -262,6 +281,52 @@ export default function AdminMatchesPage() {
     } catch (e) {
       toast({
         title: 'Не удалось сбросить готовность',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  function openFinish(m: MatchDto) {
+    setFinishForm(defaultFinishForm('A'));
+    setDialog({ kind: 'finish', match: m });
+  }
+
+  async function handleFinish() {
+    if (!dialog || dialog.kind !== 'finish') return;
+    const scoreA = Number(finishForm.scoreA);
+    const scoreB = Number(finishForm.scoreB);
+    if (
+      !Number.isFinite(scoreA) ||
+      !Number.isInteger(scoreA) ||
+      scoreA < 0 ||
+      !Number.isFinite(scoreB) ||
+      !Number.isInteger(scoreB) ||
+      scoreB < 0
+    ) {
+      toast({
+        title: 'Некорректный счёт',
+        description: 'Введите целые неотрицательные числа.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const m = dialog.match;
+    const winnerTeamId =
+      finishForm.winner === 'A' ? m.teamA.id : m.teamB.id;
+    try {
+      await finishMut.mutateAsync({
+        id: m.id,
+        winnerTeamId,
+        scoreA,
+        scoreB,
+      });
+      toast({ title: 'Матч завершён' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось завершить матч',
         description: describeError(e),
         variant: 'destructive',
       });
@@ -461,6 +526,9 @@ export default function AdminMatchesPage() {
                               disabled={!aReady && !bReady}
                             >
                               Сбросить готовность
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openFinish(m)}>
+                              Завершить матч
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -671,6 +739,108 @@ export default function AdminMatchesPage() {
               disabled={mutating}
             >
               {updateMut.isPending ? 'Сброс…' : 'Сбросить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Finish match confirm */}
+      <Dialog
+        open={dialog?.kind === 'finish'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Завершить матч?</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'finish'
+                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {dialog?.kind === 'finish' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Победитель</Label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="finish-winner"
+                      className="h-4 w-4"
+                      checked={finishForm.winner === 'A'}
+                      onChange={() => setFinishForm(defaultFinishForm('A'))}
+                    />
+                    {dialog.match.teamA.name}{' '}
+                    <span className="text-muted-foreground">
+                      [{dialog.match.teamA.tag}]
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="finish-winner"
+                      className="h-4 w-4"
+                      checked={finishForm.winner === 'B'}
+                      onChange={() => setFinishForm(defaultFinishForm('B'))}
+                    />
+                    {dialog.match.teamB.name}{' '}
+                    <span className="text-muted-foreground">
+                      [{dialog.match.teamB.tag}]
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="finish-score-a">Счёт A</Label>
+                  <input
+                    id="finish-score-a"
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={finishForm.scoreA}
+                    onChange={(e) =>
+                      setFinishForm({ ...finishForm, scoreA: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="finish-score-b">Счёт B</Label>
+                  <input
+                    id="finish-score-b"
+                    type="number"
+                    min={0}
+                    step={1}
+                    inputMode="numeric"
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={finishForm.scoreB}
+                    onChange={(e) =>
+                      setFinishForm({ ...finishForm, scoreB: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Действие необратимо. Очки начислятся победителю, следующий
+                матч сетки заполнится автоматически.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleFinish}
+              disabled={mutating}
+            >
+              {finishMut.isPending ? 'Завершение…' : 'Завершить'}
             </Button>
           </DialogFooter>
         </DialogContent>

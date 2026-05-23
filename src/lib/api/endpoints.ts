@@ -645,6 +645,16 @@ export function updateAdminMatch(
   );
 }
 
+export function finishMatch(
+  id: string,
+  body: { winnerTeamId: string; scoreA: number; scoreB: number },
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/finish`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
 // ──────────────── Admin Players ────────────────
 
 export interface AdminPlayersPageParams {

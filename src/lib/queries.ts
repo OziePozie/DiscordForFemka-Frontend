@@ -64,6 +64,7 @@ import {
   markMatchUnready,
   recreateLobby,
   launchLobby,
+  finishMatch,
   getAdminPlayersPage,
   updateAdminPlayer,
   banAdminPlayer,
@@ -826,6 +827,28 @@ export function useLaunchLobby() {
     onSuccess: (m) => {
       qc.setQueryData(qk.match(m.id), m);
       qc.invalidateQueries({ queryKey: qk.match(m.id) });
+    },
+  });
+}
+
+export function useFinishMatch() {
+  const qc = useQueryClient();
+  return useMutation<
+    MatchDto,
+    Error,
+    { id: string; winnerTeamId: string; scoreA: number; scoreB: number }
+  >({
+    mutationFn: ({ id, winnerTeamId, scoreA, scoreB }) =>
+      finishMatch(id, { winnerTeamId, scoreA, scoreB }),
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+      // propagateWinner may have mutated the next-round shell, and both
+      // qk.bracket / qk.tournamentMatches start with ['tournament', ...],
+      // so a single prefix invalidation catches them.
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+      // AdminMatchesPage uses this raw key, not via qk.
+      qc.invalidateQueries({ queryKey: ['admin-tournament-matches'] });
     },
   });
 }
