@@ -2011,6 +2011,79 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/matches/{id}/lobby/launch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Force-start the already-created Dota lobby for a match.
+         * @description ADMIN-only. Admin override of the normal `autoLaunch` flow — sends
+         *     `POST /api/lobby/{lobbyId}/launch` to dota2api. Use when the lobby was
+         *     created with `autoLaunch=false` (or auto-launch did not fire for any
+         *     reason) and the admin wants to force-start the match.
+         *
+         *     Dota may still reject the launch if the lobby state does not permit
+         *     starting (e.g. the selected game mode requires 5v5 but the rosters are
+         *     short, or not all listed steam ids have joined the Steam lobby). The
+         *     upstream reason is surfaced as `502 PLATFORM_LOBBY_LAUNCH_REJECTED`
+         *     with the raw Dota message in `detail`.
+         *
+         *     Returns `400 PLATFORM_VALIDATION_FAILED` if the match has no `lobbyId`
+         *     yet (nothing to launch).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                /** @description Match has no lobby yet */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ErrorDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                /** @description Lobby launch rejected or failed upstream */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ErrorDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/match-requests": {
         parameters: {
             query?: never;
@@ -2852,6 +2925,12 @@ export interface components {
             dotaLeagueId?: number | null;
             matchFormatDefault?: components["schemas"]["MatchFormat"];
             grandFinalFormat?: components["schemas"]["MatchFormat"];
+            /**
+             * @description Dota account IDs зрителей-кастеров, которым разрешён доступ к лобби
+             *     (передаётся в dota2api как allowedBroadcasterAccountIds). Всегда массив;
+             *     пустой = кастеров нет.
+             */
+            broadcasterAccountIds: number[];
         };
         CreateTournamentRequest: {
             name: string;
@@ -2880,6 +2959,8 @@ export interface components {
             dotaLeagueId?: number;
             matchFormatDefault?: components["schemas"]["MatchFormat"];
             grandFinalFormat?: components["schemas"]["MatchFormat"];
+            /** @description Опционально. Отсутствие или null = пустой список. Нормализуется на сервере. */
+            broadcasterAccountIds?: number[];
         };
         /** @description PATCH-семантика — поля со значением `null` или отсутствующие не меняются. */
         UpdateTournamentRequest: {
@@ -2905,6 +2986,11 @@ export interface components {
             dotaLeagueId?: number;
             matchFormatDefault?: components["schemas"]["MatchFormat"];
             grandFinalFormat?: components["schemas"]["MatchFormat"];
+            /**
+             * @description PATCH-семантика. null/отсутствие = не менять; [] = очистить;
+             *     непустой массив = заменить (с нормализацией: дубли отбрасываются, ≤ 50).
+             */
+            broadcasterAccountIds?: number[];
         };
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];

@@ -93,6 +93,8 @@ type FormState = {
   defaultCoinToss: boolean;
   defaultAutoLaunch: boolean;
   dotaLeagueId: string;
+  // Dota account IDs кастеров, через запятую (raw CSV; парсится в submit).
+  broadcasterAccountIds: string;
   // BO format defaults
   matchFormatDefault: string; // 'BO1' | 'BO3' | 'BO5'
   grandFinalFormat: string;   // 'BO1' | 'BO3' | 'BO5'
@@ -117,6 +119,7 @@ function emptyForm(seasonId: string | null): FormState {
     defaultCoinToss: true,
     defaultAutoLaunch: false,
     dotaLeagueId: '',
+    broadcasterAccountIds: '',
     matchFormatDefault: 'BO1',
     grandFinalFormat: 'BO3',
   };
@@ -244,6 +247,7 @@ export default function AdminTournamentsPage() {
       defaultAutoLaunch: t.defaultAutoLaunch ?? false,
       dotaLeagueId:
         t.dotaLeagueId != null ? String(t.dotaLeagueId) : '',
+      broadcasterAccountIds: (t.broadcasterAccountIds ?? []).join(', '),
       matchFormatDefault: t.matchFormatDefault ?? 'BO1',
       grandFinalFormat: t.grandFinalFormat ?? 'BO3',
     });
@@ -272,6 +276,16 @@ export default function AdminTournamentsPage() {
     return null;
   }
 
+  function parseBroadcasterIds(raw: string): number[] {
+    return raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => /^\d+$/.test(s))
+      .map((s) => Number(s))
+      .filter((n, i, arr) => arr.indexOf(n) === i)
+      .slice(0, 50);
+  }
+
   function matchDefaultsPayload() {
     return {
       defaultGameMode:
@@ -283,6 +297,7 @@ export default function AdminTournamentsPage() {
       defaultCoinToss: form.defaultCoinToss,
       defaultAutoLaunch: form.defaultAutoLaunch,
       dotaLeagueId: form.dotaLeagueId ? Number(form.dotaLeagueId) : null,
+      broadcasterAccountIds: parseBroadcasterIds(form.broadcasterAccountIds),
       matchFormatDefault: form.matchFormatDefault as 'BO1' | 'BO3' | 'BO5',
       grandFinalFormat: form.grandFinalFormat as 'BO1' | 'BO3' | 'BO5',
     };
@@ -869,6 +884,26 @@ export default function AdminTournamentsPage() {
                     }
                     placeholder="опционально"
                   />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="tn-broadcasters">
+                    ID кастеров (через запятую)
+                  </Label>
+                  <Input
+                    id="tn-broadcasters"
+                    value={form.broadcasterAccountIds}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        broadcasterAccountIds: e.target.value,
+                      })
+                    }
+                    placeholder="напр. 12345678, 98765432"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Dota account ID комментаторов (до 50). Пустые и
+                    невалидные значения отбрасываются при сохранении.
+                  </p>
                 </div>
               </div>
             </details>
