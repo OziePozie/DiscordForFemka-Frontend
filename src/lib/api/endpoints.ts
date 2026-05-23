@@ -655,6 +655,13 @@ export function finishMatch(
   );
 }
 
+export function repropagateMatch(id: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/repropagate`,
+    { method: 'POST' },
+  );
+}
+
 // ──────────────── Admin Players ────────────────
 
 export interface AdminPlayersPageParams {

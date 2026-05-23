@@ -5,6 +5,7 @@ import {
   useFinishMatch,
   useLaunchLobby,
   useRecreateLobby,
+  useRepropagateMatch,
   useUpdateAdminMatch,
 } from '@/lib/queries';
 import {
@@ -97,6 +98,7 @@ type DialogState =
   | { kind: 'launch'; match: MatchDto }
   | { kind: 'reset-ready'; match: MatchDto }
   | { kind: 'finish'; match: MatchDto }
+  | { kind: 'repropagate'; match: MatchDto }
   | null;
 
 type SettingsForm = {
@@ -178,11 +180,13 @@ export default function AdminMatchesPage() {
   const recreateMut = useRecreateLobby();
   const launchMut = useLaunchLobby();
   const finishMut = useFinishMatch();
+  const repropagateMut = useRepropagateMatch();
   const mutating =
     updateMut.isPending ||
     recreateMut.isPending ||
     launchMut.isPending ||
-    finishMut.isPending;
+    finishMut.isPending ||
+    repropagateMut.isPending;
 
   // Dialog state.
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -333,6 +337,22 @@ export default function AdminMatchesPage() {
     }
   }
 
+  async function handleRepropagate() {
+    if (!dialog || dialog.kind !== 'repropagate') return;
+    try {
+      await repropagateMut.mutateAsync(dialog.match.id);
+      toast({ title: 'Победитель перепроброшен в сетку' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось перепровести победителя',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -440,6 +460,11 @@ export default function AdminMatchesPage() {
                   m.status === 'FINISHED' || m.status === 'CANCELLED';
                 const aReady = !!m.teamAReadyAt;
                 const bReady = !!m.teamBReadyAt;
+                const canRepropagate =
+                  m.status === 'FINISHED' &&
+                  m.kind === 'TOURNAMENT' &&
+                  !!m.winnerTeamId;
+                const showActions = !finished || canRepropagate;
                 return (
                   <tr
                     key={m.id}
@@ -489,7 +514,7 @@ export default function AdminMatchesPage() {
                       className="px-4 py-3 text-right"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {!finished && (
+                      {showActions && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
@@ -501,35 +526,58 @@ export default function AdminMatchesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openSettings(m)}>
-                              Настройки лобби
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setDialog({ kind: 'recreate', match: m })
-                              }
-                            >
-                              Пересоздать лобби
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setDialog({ kind: 'launch', match: m })
-                              }
-                              disabled={!m.lobbyId}
-                            >
-                              Принудительно стартовать в Dota
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setDialog({ kind: 'reset-ready', match: m })
-                              }
-                              disabled={!aReady && !bReady}
-                            >
-                              Сбросить готовность
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openFinish(m)}>
-                              Завершить матч
-                            </DropdownMenuItem>
+                            {!finished && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => openSettings(m)}
+                                >
+                                  Настройки лобби
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setDialog({ kind: 'recreate', match: m })
+                                  }
+                                >
+                                  Пересоздать лобби
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setDialog({ kind: 'launch', match: m })
+                                  }
+                                  disabled={!m.lobbyId}
+                                >
+                                  Принудительно стартовать в Dota
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setDialog({
+                                      kind: 'reset-ready',
+                                      match: m,
+                                    })
+                                  }
+                                  disabled={!aReady && !bReady}
+                                >
+                                  Сбросить готовность
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openFinish(m)}
+                                >
+                                  Завершить матч
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {canRepropagate && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setDialog({
+                                    kind: 'repropagate',
+                                    match: m,
+                                  })
+                                }
+                              >
+                                Перепровести победителя в сетку
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -841,6 +889,39 @@ export default function AdminMatchesPage() {
               disabled={mutating}
             >
               {finishMut.isPending ? 'Завершение…' : 'Завершить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Re-propagate winner confirm */}
+      <Dialog
+        open={dialog?.kind === 'repropagate'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Перепровести победителя в сетку?</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'repropagate'
+                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Повторно протолкнёт победителя в следующий матч сетки. Безопасно —
+            очки и аудит не задвоятся (событие «матч завершён» не публикуется
+            повторно). Используйте, если сетка не обновилась автоматически
+            после завершения матча.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleRepropagate} disabled={mutating}>
+              {repropagateMut.isPending ? 'Перепровод…' : 'Перепровести'}
             </Button>
           </DialogFooter>
         </DialogContent>

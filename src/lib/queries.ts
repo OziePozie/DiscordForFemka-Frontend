@@ -65,6 +65,7 @@ import {
   recreateLobby,
   launchLobby,
   finishMatch,
+  repropagateMatch,
   getAdminPlayersPage,
   updateAdminPlayer,
   banAdminPlayer,
@@ -848,6 +849,19 @@ export function useFinishMatch() {
       // so a single prefix invalidation catches them.
       qc.invalidateQueries({ queryKey: ['tournament'] });
       // AdminMatchesPage uses this raw key, not via qk.
+      qc.invalidateQueries({ queryKey: ['admin-tournament-matches'] });
+    },
+  });
+}
+
+export function useRepropagateMatch() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: repropagateMatch,
+    onSuccess: (m) => {
+      qc.setQueryData(qk.match(m.id), m);
+      qc.invalidateQueries({ queryKey: qk.match(m.id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
       qc.invalidateQueries({ queryKey: ['admin-tournament-matches'] });
     },
   });
