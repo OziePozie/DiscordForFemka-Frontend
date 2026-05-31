@@ -1,0 +1,73 @@
+import { usePlayerRating } from '@/lib/queries';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { RankBadge } from '@/components/RankBadge';
+
+type Props = {
+  playerId: string | undefined;
+};
+
+/**
+ * Self-contained internal-rating widget for a player profile.
+ * Renders nothing if the rating cannot be loaded so it never breaks the page.
+ */
+export function PlayerRatingCard({ playerId }: Props) {
+  const q = usePlayerRating(playerId);
+
+  if (q.isLoading) {
+    return <Skeleton className="h-32 w-full" />;
+  }
+  if (q.isError || !q.data) {
+    return null;
+  }
+
+  const r = q.data;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Внутренний рейтинг</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap items-center gap-6">
+          <div>
+            <div className="text-4xl font-black text-purple-700">
+              {r.rating}
+            </div>
+            <div className="mt-1">
+              <RankBadge tier={r.rankTier} />
+            </div>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm sm:grid-cols-4">
+            <Stat label="Игр" value={r.gamesPlayed} />
+            <Stat label="Побед" value={r.wins} valueClass="text-emerald-600" />
+            <Stat label="Поражений" value={r.losses} valueClass="text-red-500" />
+            <Stat label="Серия" value={r.currentStreak} />
+          </dl>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value: number;
+  valueClass?: string;
+}) {
+  return (
+    <div>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className={`font-semibold ${valueClass ?? ''}`}>{value}</dd>
+    </div>
+  );
+}

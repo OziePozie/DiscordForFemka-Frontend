@@ -23,6 +23,7 @@ import AdminMatchesPage from '@/pages/admin/AdminMatchesPage';
 import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 import AdminBotsPage from '@/pages/admin/AdminBotsPage';
 import ArchivePage from '@/pages/ArchivePage';
+import LeaderboardPage from '@/pages/LeaderboardPage';
 
 export default function App() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
         />
         <Route path="/teams/:id" element={<TeamDetailsPage />} />
 
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/lobbies" element={<LobbiesPage />} />
         <Route path="/matches/:id" element={<MatchDetailsPage />} />
         <Route path="/archive" element={<ArchivePage />} />

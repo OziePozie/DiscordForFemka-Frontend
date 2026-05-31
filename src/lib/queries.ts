@@ -87,6 +87,9 @@ import {
   confirmOpenLobby,
   startOpenLobby,
   cancelOpenLobby,
+  getLeaderboardPage,
+  getPlayerRating,
+  type LeaderboardPageParams,
   type SeasonsPageParams,
   type TournamentMatchesParams,
   type TeamsPageParams,
@@ -138,6 +141,8 @@ import type {
   OpenLobbyDto,
   CreateOpenLobbyRequest,
   BotStatusDto,
+  LeaderboardEntryDto,
+  PlayerRatingDto,
 } from './api/types';
 
 export const qk = {
@@ -176,6 +181,9 @@ export const qk = {
   openLobbies: (params: OpenLobbiesPageParams) =>
     ['open-lobbies', params] as const,
   openLobby: (id: string) => ['open-lobby', id] as const,
+  leaderboard: (params: LeaderboardPageParams) =>
+    ['leaderboard', params] as const,
+  playerRating: (id: string) => ['player', id, 'rating'] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -1098,4 +1106,23 @@ export function useCancelOpenLobby() {
   });
 }
 
-export type { PlayerPublicDto, TeamInviteDto };
+// ──────────────── Internal player rating ────────────────
+
+export function useLeaderboard(params: LeaderboardPageParams = {}) {
+  return useQuery({
+    queryKey: qk.leaderboard(params),
+    queryFn: () => getLeaderboardPage(params),
+    staleTime: 60_000,
+  });
+}
+
+export function usePlayerRating(id: string | undefined) {
+  return useQuery({
+    queryKey: id ? qk.playerRating(id) : ['player', 'none', 'rating'],
+    queryFn: () => getPlayerRating(id!),
+    enabled: Boolean(id),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export type { PlayerPublicDto, TeamInviteDto, LeaderboardEntryDto, PlayerRatingDto };

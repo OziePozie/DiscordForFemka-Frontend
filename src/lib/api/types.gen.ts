@@ -345,6 +345,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ratings/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Таблица лидеров по внутреннему рейтингу платформы
+         * @description Игроки, отсортированные по внутреннему рейтингу (по убыванию). Рейтинг
+         *     отдельный от импортированного Dota MMR.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["LeaderboardEntryDto"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ratings/players/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Внутренний рейтинг игрока
+         * @description Текущий внутренний рейтинг игрока. Для игрока без сыгранных матчей
+         *     возвращается синтетическая запись со стартовым рейтингом (ранг Blossom).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerRatingDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/ratings/recalculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Пересчитать внутренний рейтинг по необработанным завершённым матчам
+         * @description Идемпотентно применяет рейтинговые дельты для всех завершённых матчей,
+         *     ещё не обработанных. Безопасно вызывать повторно.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: int32 */
+                            appliedMatches?: number;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/mmr": {
         parameters: {
             query?: never;
@@ -2617,6 +2747,50 @@ export interface components {
             teams?: components["schemas"]["TeamMembershipDto"][];
             /** Format: date-time */
             createdAt?: string;
+        };
+        /**
+         * @description Внутренний ранг по порогам рейтинга.
+         * @enum {string}
+         */
+        RankTier: "BLOSSOM" | "SAPPHIRE" | "DIAMOND" | "IMMORTAL" | "CELESTIAL";
+        PlayerRatingDto: {
+            /** Format: uuid */
+            playerId: string;
+            /** Format: int32 */
+            rating: number;
+            /** Format: int32 */
+            gamesPlayed: number;
+            /** Format: int32 */
+            wins: number;
+            /** Format: int32 */
+            losses: number;
+            /** Format: int32 */
+            currentStreak: number;
+            rankTier: components["schemas"]["RankTier"];
+            rankName: string;
+            /** Format: date-time */
+            updatedAt?: string | null;
+        };
+        LeaderboardEntryDto: {
+            /** Format: int32 */
+            rank: number;
+            /** Format: uuid */
+            playerId: string;
+            nickname?: string | null;
+            avatarUrl?: string | null;
+            country?: string | null;
+            /** Format: int32 */
+            rating: number;
+            /** Format: int32 */
+            gamesPlayed: number;
+            /** Format: int32 */
+            wins: number;
+            /** Format: int32 */
+            losses: number;
+            /** Format: int32 */
+            currentStreak: number;
+            rankTier: components["schemas"]["RankTier"];
+            rankName: string;
         };
         /** @enum {string} */
         GenderType: "MALE" | "FEMALE";

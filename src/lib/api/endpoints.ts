@@ -48,6 +48,8 @@ import type {
   MatchResultDto,
   CreateOpenLobbyRequest,
   OpenLobbyDto,
+  LeaderboardEntryDto,
+  PlayerRatingDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -99,6 +101,34 @@ export function getPlayersPage(
 
 export function logout(): Promise<void> {
   return api<void>('/api/v1/auth/logout', { method: 'POST' });
+}
+
+// ──────────────── Internal rating (public) ────────────────
+
+export interface LeaderboardPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getLeaderboardPage(
+  params: LeaderboardPageParams = {},
+): Promise<PagedResponse<LeaderboardEntryDto>> {
+  return api<PagedResponse<LeaderboardEntryDto>>(
+    `/api/v1/ratings/leaderboard${buildQuery(params)}`,
+  );
+}
+
+export function getPlayerRating(id: string): Promise<PlayerRatingDto> {
+  return api<PlayerRatingDto>(
+    `/api/v1/ratings/players/${encodeURIComponent(id)}`,
+  );
+}
+
+export function recalculateRatings(): Promise<{ appliedMatches: number }> {
+  return api<{ appliedMatches: number }>(
+    '/api/v1/admin/ratings/recalculate',
+    { method: 'POST' },
+  );
 }
 
 export function unlinkProvider(

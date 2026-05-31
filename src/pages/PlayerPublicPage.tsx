@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { TeamNameLink } from '@/components/TeamNameLink';
+import { PlayerRatingCard } from '@/components/PlayerRatingCard';
 import { usePlayer, usePlayerHistory } from '@/lib/queries';
 import {
   Avatar,
@@ -141,6 +142,9 @@ export default function PlayerPublicPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Internal platform rating */}
+      <PlayerRatingCard playerId={id} />
 
       {/* Tournaments history */}
       <Card>
