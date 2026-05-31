@@ -10,6 +10,7 @@ import {
   useRecreateLobby,
   useRepropagateMatch,
   useTechResultMatch,
+  useTournamentTeams,
   useUpdateAdminMatch,
 } from '@/lib/queries';
 import {
@@ -227,8 +228,12 @@ export default function AdminMatchesPage() {
     side: 'A',
     mode: 'TECH_WIN',
   });
-  const [moveSwap, setMoveSwap] = useState(false);
+  const [moveA, setMoveA] = useState<string>(NONE);
+  const [moveB, setMoveB] = useState<string>(NONE);
   const [formatValue, setFormatValue] = useState<MatchFormat>('BO1');
+
+  const teamsQ = useTournamentTeams(tournamentId || undefined);
+  const tournamentTeams = (teamsQ.data ?? []).filter((t) => !t.withdrawn);
 
   function openSettings(m: MatchDto) {
     setForm(settingsFromMatch(m));
@@ -432,20 +437,25 @@ export default function AdminMatchesPage() {
   }
 
   async function handleMove() {
-    if (!dialog || dialog.kind !== 'move' || !moveSwap) return;
+    if (!dialog || dialog.kind !== 'move') return;
     const m = dialog.match;
-    if (!m.teamA?.id || !m.teamB?.id) return;
-    try {
-      await moveMut.mutateAsync({
-        id: m.id,
-        body: { teamAId: m.teamB.id, teamBId: m.teamA.id },
+    const teamAId = moveA === NONE ? null : moveA;
+    const teamBId = moveB === NONE ? null : moveB;
+    if (teamAId && teamBId && teamAId === teamBId) {
+      toast({
+        title: 'Нельзя поставить одну команду в оба слота',
+        variant: 'destructive',
       });
-      toast({ title: 'Команды переставлены' });
+      return;
+    }
+    try {
+      await moveMut.mutateAsync({ id: m.id, body: { teamAId, teamBId } });
+      toast({ title: 'Команды обновлены' });
       await matchesQ.refetch();
       closeDialog();
     } catch (e) {
       toast({
-        title: 'Не удалось переставить команды',
+        title: 'Не удалось обновить команды',
         description: describeError(e),
         variant: 'destructive',
       });
@@ -705,7 +715,8 @@ export default function AdminMatchesPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    setMoveSwap(false);
+                                    setMoveA(m.teamA?.id ?? NONE);
+                                    setMoveB(m.teamB?.id ?? NONE);
                                     setDialog({ kind: 'move', match: m });
                                   }}
                                 >
@@ -1228,29 +1239,80 @@ export default function AdminMatchesPage() {
                 : ''}
             </DialogDescription>
           </DialogHeader>
-          {dialog?.kind === 'move' && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Поменять местами команду A и команду B в этом слоте сетки.
-                Готовность капитанов будет сброшена.
-              </p>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-input"
-                  checked={moveSwap}
-                  onChange={(e) => setMoveSwap(e.target.checked)}
-                />
-                Поменять A ↔ B: {teamName(dialog.match.teamB)} vs{' '}
-                {teamName(dialog.match.teamA)}
-              </label>
-            </div>
-          )}
+          {dialog?.kind === 'move' &&
+            (() => {
+              const optionMap = new Map<
+                string,
+                { id: string; name: string; tag: string }
+              >();
+              for (const t of tournamentTeams) optionMap.set(t.team.id, t.team);
+              for (const slot of [dialog.match.teamA, dialog.match.teamB]) {
+                if (slot?.id) optionMap.set(slot.id, slot);
+              }
+              const options = Array.from(optionMap.values());
+              return (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Назначьте команды на слоты этого матча. Можно выбрать любую
+                    команду турнира или оставить слот пустым. Готовность капитанов
+                    будет сброшена.
+                  </p>
+                  {teamsQ.isLoading && (
+                    <p className="text-sm text-muted-foreground">
+                      Загрузка команд…
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    <Label>Команда A</Label>
+                    <Select value={moveA} onValueChange={setMoveA}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Пусто (TBD)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Пусто (TBD)</SelectItem>
+                        {options.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {teamLabel(t)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Команда B</Label>
+                    <Select value={moveB} onValueChange={setMoveB}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Пусто (TBD)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NONE}>Пусто (TBD)</SelectItem>
+                        {options.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {teamLabel(t)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMoveA(moveB);
+                      setMoveB(moveA);
+                    }}
+                  >
+                    Поменять A ↔ B
+                  </Button>
+                </div>
+              );
+            })()}
           <DialogFooter>
             <Button variant="ghost" onClick={closeDialog}>
               Отмена
             </Button>
-            <Button onClick={handleMove} disabled={mutating || !moveSwap}>
+            <Button onClick={handleMove} disabled={mutating}>
               {moveMut.isPending ? 'Сохранение…' : 'Применить'}
             </Button>
           </DialogFooter>
