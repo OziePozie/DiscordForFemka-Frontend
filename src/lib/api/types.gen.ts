@@ -345,6 +345,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/players/{id}/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Сыгранные матчи игрока (пагинация, новые сверху)
+         * @description Список матчей с записанной пост-игровой статистикой: результат (победа/поражение),
+         *     герой, KDA, турнир и дата. Строится из MatchPlayerStat + Match.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["PlayerMatchSummaryDto"][];
+                        };
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/players/{id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Сводная статистика игрока
+         * @description Винрейт, любимые герои (топ по числу игр), число турниров, средний KDA,
+         *     текущий и лучший стрик. Считается на лету из MatchPlayerStat + Match.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerStatsDto"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ratings/leaderboard": {
         parameters: {
             query?: never;
@@ -2214,6 +2305,207 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/matches/{id}/tech-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Award a technical win/loss.
+         * @description MODERATOR/ADMIN. Finishes the match with the given winner and tags the
+         *     result as TECH_WIN/TECH_LOSS. Propagates the bracket like a normal finish.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TechResultRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/cancel-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void a finished match result.
+         * @description MODERATOR/ADMIN. Reverts FINISHED → SCHEDULED, clears winner/score, and
+         *     undoes bracket propagation so downstream shells are corrected. Returns
+         *     409 if a downstream match has already progressed past SCHEDULED.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/move-teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reassign / swap the team slots of a match.
+         * @description MODERATOR/ADMIN. Sets teamA and/or teamB on a not-yet-finished match and
+         *     clears captain readiness so captains must reconfirm.
+         *
+         *     Rejected with 409 PLATFORM_CONFLICT if the match is FINISHED, or if its
+         *     result has already been propagated into a downstream bracket slot
+         *     (WB/LB/GF) — reassigning would orphan that slot. Cancel the result first
+         *     (POST /cancel-result) in that case. Because the move is only permitted
+         *     while no downstream slot has been fed, no re-propagation is required.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MoveTeamsRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/format": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change a match's series format (BO1/BO3/BO5).
+         * @description MODERATOR/ADMIN. Rejects FINISHED matches.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangeFormatRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/match-requests": {
         parameters: {
             query?: never;
@@ -2681,6 +2973,8 @@ export interface components {
         MatchKind: "TOURNAMENT" | "CLAN_WAR" | "SHOWMATCH";
         /** @enum {string} */
         MatchFormat: "BO1" | "BO3" | "BO5";
+        /** @enum {string} */
+        MatchResultType: "NORMAL" | "TECH_WIN" | "TECH_LOSS" | "CANCELLED";
         /** @enum {string} */
         BracketSection: "WB" | "LB" | "GF";
         /** @enum {string} */
@@ -3215,6 +3509,7 @@ export interface components {
             scoreB: number;
             /** Format: uuid */
             winnerTeamId?: string | null;
+            resultType?: components["schemas"]["MatchResultType"];
             notes?: string | null;
             /** Format: date-time */
             finishedAt?: string | null;
@@ -3293,6 +3588,8 @@ export interface components {
             resultFetchedAt: string;
             radiant: components["schemas"]["MatchPlayerStatDto"][];
             dire: components["schemas"]["MatchPlayerStatDto"][];
+            /** Format: int64 */
+            mvpSteamAccountId?: number | null;
         };
         MatchPlayerStatDto: {
             /** Format: int64 */
@@ -3319,6 +3616,59 @@ export interface components {
             abilities?: number[] | null;
             isWin: boolean;
         };
+        PlayerMatchSummaryDto: {
+            /** Format: uuid */
+            matchId: string;
+            /** Format: int64 */
+            dotaMatchId: number;
+            win: boolean;
+            heroId: number;
+            kills: number;
+            deaths: number;
+            assists: number;
+            gpm: number;
+            xpm: number;
+            netWorth: number;
+            durationSec: number;
+            radiant: boolean;
+            kind?: components["schemas"]["MatchKind"];
+            /** Format: uuid */
+            tournamentId?: string | null;
+            tournamentSlug?: string | null;
+            tournamentName?: string | null;
+            /** Format: date-time */
+            playedAt: string;
+        };
+        PlayerStatsDto: {
+            games: number;
+            wins: number;
+            losses: number;
+            /**
+             * Format: double
+             * @description 0..1 fraction
+             */
+            winrate: number;
+            /** Format: double */
+            avgKills: number;
+            /** Format: double */
+            avgDeaths: number;
+            /** Format: double */
+            avgAssists: number;
+            /** Format: double */
+            avgKda: number;
+            tournamentsPlayed: number;
+            /** @description signed: + win streak, - loss streak */
+            currentStreak: number;
+            bestWinStreak: number;
+            favoriteHeroes: components["schemas"]["FavoriteHeroDto"][];
+        };
+        FavoriteHeroDto: {
+            heroId: number;
+            games: number;
+            wins: number;
+            /** Format: double */
+            winrate: number;
+        };
         /**
          * @description Admin PATCH payload for a match. All fields nullable — only non-null
          *     fields are applied. `gameMode`/`region`/`coinToss`/`autoLaunch` set per-match
@@ -3340,6 +3690,24 @@ export interface components {
             autoLaunch?: boolean;
             teamAReady?: boolean;
             teamBReady?: boolean;
+        };
+        TechResultRequest: {
+            /** Format: uuid */
+            winnerTeamId: string;
+            resultType: components["schemas"]["MatchResultType"];
+        };
+        /**
+         * @description Reassign one or both team slots of a not-yet-finished bracket match.
+         *     Omit a field to leave that slot unchanged.
+         */
+        MoveTeamsRequest: {
+            /** Format: uuid */
+            teamAId?: string | null;
+            /** Format: uuid */
+            teamBId?: string | null;
+        };
+        ChangeFormatRequest: {
+            format: components["schemas"]["MatchFormat"];
         };
         CreateMatchRequestDto: {
             kind: components["schemas"]["MatchKind"];

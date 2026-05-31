@@ -53,6 +53,8 @@ import type {
   OpenLobbyDto,
   LeaderboardEntryDto,
   PlayerRatingDto,
+  PlayerMatchSummaryDto,
+  PlayerStatsDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -83,6 +85,26 @@ export function uploadAvatar(file: File): Promise<AttachmentDto> {
 
 export function getPlayer(id: string): Promise<PlayerPublicDto> {
   return api<PlayerPublicDto>(`/api/v1/players/${encodeURIComponent(id)}`);
+}
+
+export interface PlayerMatchesPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getPlayerMatches(
+  id: string,
+  params: PlayerMatchesPageParams = {},
+): Promise<PagedResponse<PlayerMatchSummaryDto>> {
+  return api<PagedResponse<PlayerMatchSummaryDto>>(
+    `/api/v1/players/${encodeURIComponent(id)}/matches${buildQuery(params)}`,
+  );
+}
+
+export function getPlayerStats(id: string): Promise<PlayerStatsDto> {
+  return api<PlayerStatsDto>(
+    `/api/v1/players/${encodeURIComponent(id)}/stats`,
+  );
 }
 
 export interface PlayersPageParams {

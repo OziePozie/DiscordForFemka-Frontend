@@ -142,6 +142,9 @@ export type TeamLiveDto = S['TeamLiveDto'];
 export type PlayerLiveDto = S['PlayerLiveDto'];
 export type MatchResultDto = S['MatchResultDto'];
 export type MatchPlayerStatDto = S['MatchPlayerStatDto'];
+export type PlayerMatchSummaryDto = S['PlayerMatchSummaryDto'];
+export type PlayerStatsDto = S['PlayerStatsDto'];
+export type FavoriteHeroDto = S['FavoriteHeroDto'];
 
 // TODO: regenerate openapi — admin match update payload (Stage 9).
 export interface UpdateMatchRequest {

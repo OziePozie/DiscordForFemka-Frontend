@@ -1,6 +1,8 @@
 import { Link, useParams } from 'react-router-dom';
 import { TeamNameLink } from '@/components/TeamNameLink';
 import { PlayerRatingCard } from '@/components/PlayerRatingCard';
+import { PlayerStats } from '@/components/PlayerStats';
+import { PlayerMatchesTab } from '@/components/PlayerMatchesTab';
 import { usePlayer, usePlayerHistory } from '@/lib/queries';
 import {
   Avatar,
@@ -145,6 +147,12 @@ export default function PlayerPublicPage() {
 
       {/* Internal platform rating */}
       <PlayerRatingCard playerId={id} />
+
+      {/* Career stats: winrate, KDA, favorite heroes, streaks */}
+      <PlayerStats playerId={id} />
+
+      {/* Played matches with post-game stats */}
+      <PlayerMatchesTab playerId={id} />
 
       {/* Tournaments history */}
       <Card>

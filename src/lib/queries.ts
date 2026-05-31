@@ -93,7 +93,10 @@ import {
   cancelOpenLobby,
   getLeaderboardPage,
   getPlayerRating,
+  getPlayerMatches,
+  getPlayerStats,
   type LeaderboardPageParams,
+  type PlayerMatchesPageParams,
   type SeasonsPageParams,
   type TournamentMatchesParams,
   type TeamsPageParams,
@@ -150,6 +153,7 @@ import type {
   BotStatusDto,
   LeaderboardEntryDto,
   PlayerRatingDto,
+  PlayerStatsDto,
 } from './api/types';
 
 export const qk = {
@@ -191,6 +195,9 @@ export const qk = {
   leaderboard: (params: LeaderboardPageParams) =>
     ['leaderboard', params] as const,
   playerRating: (id: string) => ['player', id, 'rating'] as const,
+  playerMatches: (id: string, params: PlayerMatchesPageParams) =>
+    ['player', id, 'matches', params] as const,
+  playerStats: (id: string) => ['player', id, 'stats'] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -1174,6 +1181,33 @@ export function usePlayerRating(id: string | undefined) {
     queryFn: () => getPlayerRating(id!),
     enabled: Boolean(id),
     staleTime: 5 * 60_000,
+  });
+}
+
+// ──────────────── Player match history & stats ────────────────
+
+export function usePlayerMatches(
+  id: string | undefined,
+  params: PlayerMatchesPageParams = {},
+) {
+  return useQuery({
+    queryKey: id
+      ? qk.playerMatches(id, params)
+      : ['player', 'none', 'matches', params],
+    queryFn: () => getPlayerMatches(id!, params),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+}
+
+export function usePlayerStats(
+  id: string | undefined,
+): UseQueryResult<PlayerStatsDto> {
+  return useQuery({
+    queryKey: id ? qk.playerStats(id) : ['player', 'none', 'stats'],
+    queryFn: () => getPlayerStats(id!),
+    enabled: Boolean(id),
+    staleTime: 60_000,
   });
 }
 
