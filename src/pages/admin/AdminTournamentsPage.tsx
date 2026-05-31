@@ -98,6 +98,10 @@ type FormState = {
   // BO format defaults
   matchFormatDefault: string; // 'BO1' | 'BO3' | 'BO5'
   grandFinalFormat: string;   // 'BO1' | 'BO3' | 'BO5'
+  // Регламент турнира
+  regulationsUrl: string;
+  regulationsContent: string;
+  regulationsVersion: string;
 };
 
 function emptyForm(seasonId: string | null): FormState {
@@ -122,6 +126,9 @@ function emptyForm(seasonId: string | null): FormState {
     broadcasterAccountIds: '',
     matchFormatDefault: 'BO1',
     grandFinalFormat: 'BO3',
+    regulationsUrl: '',
+    regulationsContent: '',
+    regulationsVersion: '',
   };
 }
 
@@ -250,6 +257,9 @@ export default function AdminTournamentsPage() {
       broadcasterAccountIds: (t.broadcasterAccountIds ?? []).join(', '),
       matchFormatDefault: t.matchFormatDefault ?? 'BO1',
       grandFinalFormat: t.grandFinalFormat ?? 'BO3',
+      regulationsUrl: t.regulationsUrl ?? '',
+      regulationsContent: t.regulationsContent ?? '',
+      regulationsVersion: t.regulationsVersion ?? '',
     });
     setDialog({ kind: 'edit', tournament: t });
   }
@@ -379,6 +389,10 @@ export default function AdminTournamentsPage() {
             startsAt: parseLocalDateTime(form.startsAt),
             endsAt: parseLocalDateTime(form.endsAt),
             ...matchDefaultsPayload(),
+            // Регламент: пустая строка очищает поле на сервере.
+            regulationsUrl: form.regulationsUrl.trim(),
+            regulationsContent: form.regulationsContent.trim(),
+            regulationsVersion: form.regulationsVersion.trim(),
           },
         });
         toast({ title: 'Турнир обновлён' });
@@ -903,6 +917,58 @@ export default function AdminTournamentsPage() {
                   <p className="text-xs text-muted-foreground">
                     Dota account ID комментаторов (до 50). Пустые и
                     невалидные значения отбрасываются при сохранении.
+                  </p>
+                </div>
+              </div>
+            </details>
+
+            <details className="rounded-md border bg-muted/30 px-3 py-2">
+              <summary className="cursor-pointer select-none text-sm font-medium">
+                Регламент турнира
+              </summary>
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-reg-url">Ссылка на регламент (PDF/страница)</Label>
+                    <Input
+                      id="tn-reg-url"
+                      value={form.regulationsUrl}
+                      onChange={(e) =>
+                        setForm({ ...form, regulationsUrl: e.target.value })
+                      }
+                      placeholder="https://… .pdf"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-reg-version">Версия регламента</Label>
+                    <Input
+                      id="tn-reg-version"
+                      value={form.regulationsVersion}
+                      onChange={(e) =>
+                        setForm({ ...form, regulationsVersion: e.target.value })
+                      }
+                      placeholder="напр., v1.0"
+                      maxLength={64}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="tn-reg-content">
+                    Текст регламента (опционально)
+                  </Label>
+                  <textarea
+                    id="tn-reg-content"
+                    value={form.regulationsContent}
+                    onChange={(e) =>
+                      setForm({ ...form, regulationsContent: e.target.value })
+                    }
+                    className="min-h-[6rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    placeholder="Можно указать вместо/вместе со ссылкой. Отображается прямо на странице турнира."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Дата обновления регламента проставляется автоматически при
+                    сохранении изменений. Сохранение применяется только при
+                    редактировании существующего турнира.
                   </p>
                 </div>
               </div>

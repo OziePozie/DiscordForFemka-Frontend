@@ -74,6 +74,15 @@ function fmtDateTime(iso?: string | null): string {
   });
 }
 
+function fmtDate(iso?: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
 export default function TournamentDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
   const q = useTournament(slug);
@@ -105,6 +114,7 @@ export default function TournamentDetailsPage() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Обзор</TabsTrigger>
+          <TabsTrigger value="regulations">Регламент</TabsTrigger>
           <TabsTrigger value="teams">Команды</TabsTrigger>
           <TabsTrigger value="matches">Матчи</TabsTrigger>
           <TabsTrigger value="bracket">Сетка</TabsTrigger>
@@ -116,6 +126,10 @@ export default function TournamentDetailsPage() {
             rules={rules}
             registeredTeamsCount={registeredTeamsCount}
           />
+        </TabsContent>
+
+        <TabsContent value="regulations">
+          <RegulationsTab tournament={tournament} />
         </TabsContent>
 
         <TabsContent value="teams">
@@ -227,13 +241,26 @@ function Header({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Button
-            onClick={handleRegister}
-            disabled={!canRegBtn || register.isPending}
-            title={regHint || undefined}
-          >
-            {register.isPending ? 'Регистрируем…' : 'Зарегистрироваться'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {tournament.regulationsUrl && (
+              <Button variant="outline" asChild>
+                <a
+                  href={tournament.regulationsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Регламент
+                </a>
+              </Button>
+            )}
+            <Button
+              onClick={handleRegister}
+              disabled={!canRegBtn || register.isPending}
+              title={regHint || undefined}
+            >
+              {register.isPending ? 'Регистрируем…' : 'Зарегистрироваться'}
+            </Button>
+          </div>
           {regHint && (
             <span className="text-xs text-muted-foreground">{regHint}</span>
           )}
@@ -300,6 +327,60 @@ function OverviewTab({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function RegulationsTab({ tournament }: { tournament: TournamentDto }) {
+  const url = tournament.regulationsUrl ?? null;
+  const content = tournament.regulationsContent ?? null;
+  const version = tournament.regulationsVersion ?? null;
+  const updatedAt = tournament.regulationsUpdatedAt ?? null;
+  const hasAny = !!url || !!content || !!version;
+
+  if (!hasAny) {
+    return (
+      <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+        Регламент пока не опубликован.
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="text-lg">Регламент турнира</CardTitle>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            {version && <Badge variant="outline">Версия: {version}</Badge>}
+            <span>Обновлён: {fmtDate(updatedAt)}</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        {url && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild>
+              <a href={url} target="_blank" rel="noopener noreferrer">
+                Открыть регламент (PDF)
+              </a>
+            </Button>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="truncate text-xs text-muted-foreground underline"
+            >
+              {url}
+            </a>
+          </div>
+        )}
+        {content && (
+          <div className="space-y-2">
+            <p className="whitespace-pre-wrap">{content}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

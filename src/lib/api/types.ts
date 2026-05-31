@@ -308,6 +308,13 @@ export interface UpdateTournamentRequest {
   defaultCoinToss?: boolean | null;
   defaultAutoLaunch?: boolean | null;
   dotaLeagueId?: number | null;
+  broadcasterAccountIds?: number[] | null;
+  matchFormatDefault?: MatchFormat | null;
+  grandFinalFormat?: MatchFormat | null;
+  // Регламент: null/отсутствие = не менять; пустая строка = очистить.
+  regulationsUrl?: string | null;
+  regulationsContent?: string | null;
+  regulationsVersion?: string | null;
 }
 
 // Enums (as union types)
