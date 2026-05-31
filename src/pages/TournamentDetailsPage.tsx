@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
+import { safeHttpUrl } from '@/lib/utils';
 import {
   MATCH_FORMAT_LABEL,
   MATCH_STATUS_LABEL,
@@ -205,6 +206,8 @@ function Header({
     }
   }
 
+  const regulationsHref = safeHttpUrl(tournament.regulationsUrl);
+
   return (
     <header className="space-y-4">
       {tournament.bannerUrl && (
@@ -242,10 +245,10 @@ function Header({
         </div>
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
-            {tournament.regulationsUrl && (
+            {regulationsHref && (
               <Button variant="outline" asChild>
                 <a
-                  href={tournament.regulationsUrl}
+                  href={regulationsHref}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -332,6 +335,7 @@ function OverviewTab({
 
 function RegulationsTab({ tournament }: { tournament: TournamentDto }) {
   const url = tournament.regulationsUrl ?? null;
+  const safeUrl = safeHttpUrl(url);
   const content = tournament.regulationsContent ?? null;
   const version = tournament.regulationsVersion ?? null;
   const updatedAt = tournament.regulationsUpdatedAt ?? null;
@@ -357,22 +361,26 @@ function RegulationsTab({ tournament }: { tournament: TournamentDto }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        {url && (
+        {safeUrl ? (
           <div className="flex flex-wrap items-center gap-3">
             <Button asChild>
-              <a href={url} target="_blank" rel="noopener noreferrer">
+              <a href={safeUrl} target="_blank" rel="noopener noreferrer">
                 Открыть регламент (PDF)
               </a>
             </Button>
             <a
-              href={url}
+              href={safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="truncate text-xs text-muted-foreground underline"
             >
-              {url}
+              {safeUrl}
             </a>
           </div>
+        ) : (
+          url && (
+            <p className="break-all text-xs text-muted-foreground">{url}</p>
+          )
         )}
         {content && (
           <div className="space-y-2">

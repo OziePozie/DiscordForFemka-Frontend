@@ -289,6 +289,13 @@ export interface CreateTournamentRequest {
   defaultCoinToss?: boolean | null;
   defaultAutoLaunch?: boolean | null;
   dotaLeagueId?: number | null;
+  broadcasterAccountIds?: number[] | null;
+  matchFormatDefault?: MatchFormat | null;
+  grandFinalFormat?: MatchFormat | null;
+  // Регламент: создаётся вместе с турниром. Пустая строка → поле пустое.
+  regulationsUrl?: string | null;
+  regulationsContent?: string | null;
+  regulationsVersion?: string | null;
 }
 
 export interface UpdateTournamentRequest {

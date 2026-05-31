@@ -337,6 +337,10 @@ export default function AdminTournamentsPage() {
           startsAt: parseLocalDateTime(form.startsAt),
           endsAt: parseLocalDateTime(form.endsAt),
           ...matchDefaultsPayload(),
+          // Регламент: создаётся вместе с турниром. Пустая строка → поле пустое.
+          regulationsUrl: form.regulationsUrl.trim() || null,
+          regulationsContent: form.regulationsContent.trim() || null,
+          regulationsVersion: form.regulationsVersion.trim() || null,
         });
         toast({ title: 'Турнир создан', description: t.name });
         closeDialog();
@@ -967,8 +971,7 @@ export default function AdminTournamentsPage() {
                   />
                   <p className="text-xs text-muted-foreground">
                     Дата обновления регламента проставляется автоматически при
-                    сохранении изменений. Сохранение применяется только при
-                    редактировании существующего турнира.
+                    сохранении. Ссылка должна начинаться с http:// или https://.
                   </p>
                 </div>
               </div>

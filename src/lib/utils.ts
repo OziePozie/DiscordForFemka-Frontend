@@ -5,6 +5,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Returns the trimmed URL only if it uses the http(s) scheme; otherwise null.
+ * Guards against XSS via `javascript:` / `data:` URLs that React does not
+ * sanitize when used as an `<a href>`. Use before rendering any admin-supplied
+ * URL as a link.
+ */
+export function safeHttpUrl(
+  url: string | null | undefined,
+): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+    ? trimmed
+    : null;
+}
+
 export function timeAgo(iso: string | null | undefined): string {
   if (!iso) return '—';
   const then = new Date(iso).getTime();
