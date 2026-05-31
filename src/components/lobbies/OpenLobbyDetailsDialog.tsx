@@ -9,6 +9,7 @@ import {
   useStartOpenLobby,
 } from '@/lib/queries';
 import { OPEN_LOBBY_STATUS_LABEL } from '@/lib/api/types';
+import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 
 interface Props {
   open: boolean;
@@ -65,7 +66,10 @@ export function OpenLobbyDetailsDialog({ open, lobbyId, onOpenChange, currentPla
               <div className="grid grid-cols-2 gap-2">
                 {lobby.slots.map((slot) => (
                   <div key={slot.slotIndex} className="border rounded p-2 flex justify-between items-center">
-                    <span>{slot.playerNickname ?? '— свободно —'}</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      {slot.playerNickname ?? '— свободно —'}
+                      <VerifiedFemaleBadge verified={slot.playerFemaleVerified} />
+                    </span>
                     {!slot.playerId && !isCreator && !mine && (
                       <Button size="sm" onClick={() => joinMut.mutate({ id: lobby.id, slotIndex: slot.slotIndex })}>
                         Занять
@@ -80,7 +84,10 @@ export function OpenLobbyDetailsDialog({ open, lobbyId, onOpenChange, currentPla
                   <div className="font-medium mb-2">Radiant</div>
                   {lobby.slots.slice(0, 5).map((slot) => (
                     <div key={slot.slotIndex} className="border rounded p-2 flex justify-between mb-1">
-                      <span>{roleLabel(slot.slotIndex)}: {slot.playerNickname ?? '— свободно —'}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {roleLabel(slot.slotIndex)}: {slot.playerNickname ?? '— свободно —'}
+                        <VerifiedFemaleBadge verified={slot.playerFemaleVerified} />
+                      </span>
                       {!slot.playerId && !isCreator && !mine && (
                         <Button size="sm" onClick={() => joinMut.mutate({ id: lobby.id, slotIndex: slot.slotIndex })}>
                           Занять
@@ -93,7 +100,10 @@ export function OpenLobbyDetailsDialog({ open, lobbyId, onOpenChange, currentPla
                   <div className="font-medium mb-2">Dire</div>
                   {lobby.slots.slice(5, 10).map((slot) => (
                     <div key={slot.slotIndex} className="border rounded p-2 flex justify-between mb-1">
-                      <span>{roleLabel(slot.slotIndex)}: {slot.playerNickname ?? '— свободно —'}</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {roleLabel(slot.slotIndex)}: {slot.playerNickname ?? '— свободно —'}
+                        <VerifiedFemaleBadge verified={slot.playerFemaleVerified} />
+                      </span>
                       {!slot.playerId && !isCreator && !mine && (
                         <Button size="sm" onClick={() => joinMut.mutate({ id: lobby.id, slotIndex: slot.slotIndex })}>
                           Занять

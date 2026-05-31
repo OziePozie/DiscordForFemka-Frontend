@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
+import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import {
   useBracket,
   useMe,
@@ -393,66 +394,100 @@ function RegulationsTab({ tournament }: { tournament: TournamentDto }) {
 }
 
 function TeamsTab({ tournamentId }: { tournamentId: string }) {
-  const q = useTournamentTeams(tournamentId);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const q = useTournamentTeams(tournamentId, verifiedOnly);
 
-  if (q.isLoading) return <Skeleton className="h-60 w-full" />;
+  const filterToggle = (
+    <div className="flex items-center justify-end">
+      <Button
+        size="sm"
+        variant={verifiedOnly ? 'default' : 'outline'}
+        onClick={() => setVerifiedOnly((v) => !v)}
+        aria-pressed={verifiedOnly}
+      >
+        <VerifiedFemaleBadge verified className="mr-1.5" />
+        Только verified
+      </Button>
+    </div>
+  );
+
+  if (q.isLoading)
+    return (
+      <div className="space-y-3">
+        {filterToggle}
+        <Skeleton className="h-60 w-full" />
+      </div>
+    );
   if (q.isError)
     return (
-      <div className="text-sm text-destructive">
-        Не удалось загрузить команды: {q.error?.message ?? 'unknown error'}
+      <div className="space-y-3">
+        {filterToggle}
+        <div className="text-sm text-destructive">
+          Не удалось загрузить команды: {q.error?.message ?? 'unknown error'}
+        </div>
       </div>
     );
 
   const teams = q.data ?? [];
-  if (teams.length === 0)
-    return (
-      <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
-        Пока никто не зарегистрирован.
-      </div>
-    );
 
   return (
-    <div className="overflow-x-auto rounded-md border">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left">
-          <tr>
-            <th className="px-4 py-2 font-medium">#</th>
-            <th className="px-4 py-2 font-medium">Команда</th>
-            <th className="px-4 py-2 font-medium">Капитан</th>
-            <th className="px-4 py-2 font-medium">Состояние</th>
-          </tr>
-        </thead>
-        <tbody>
-          {teams.map((tt) => (
-            <tr key={tt.team.id} className="border-t">
-              <td className="px-4 py-2 text-muted-foreground">
-                {tt.seed ?? '—'}
-              </td>
-              <td className="px-4 py-2">
-                <TeamNameLink
-                  teamId={tt.team.id}
-                  name={tt.team.name}
-                  tag={tt.team.tag}
-                  className="font-medium"
-                />
-              </td>
-              <td className="px-4 py-2">
-                <PlayerNameLink
-                  playerId={tt.team.captain.id}
-                  nickname={tt.team.captain.nickname ?? 'Без ника'}
-                />
-              </td>
-              <td className="px-4 py-2">
-                {tt.withdrawn ? (
-                  <Badge variant="destructive">Снялась</Badge>
-                ) : (
-                  <Badge variant="secondary">Заявлена</Badge>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      {filterToggle}
+      {teams.length === 0 ? (
+        <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+          {verifiedOnly
+            ? 'Нет команд с верифицированными игроками.'
+            : 'Пока никто не зарегистрирован.'}
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-md border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left">
+              <tr>
+                <th className="px-4 py-2 font-medium">#</th>
+                <th className="px-4 py-2 font-medium">Команда</th>
+                <th className="px-4 py-2 font-medium">Капитан</th>
+                <th className="px-4 py-2 font-medium">Состояние</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((tt) => (
+                <tr key={tt.team.id} className="border-t">
+                  <td className="px-4 py-2 text-muted-foreground">
+                    {tt.seed ?? '—'}
+                  </td>
+                  <td className="px-4 py-2">
+                    <TeamNameLink
+                      teamId={tt.team.id}
+                      name={tt.team.name}
+                      tag={tt.team.tag}
+                      className="font-medium"
+                    />
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className="inline-flex items-center gap-1.5">
+                      <PlayerNameLink
+                        playerId={tt.team.captain.id}
+                        nickname={tt.team.captain.nickname ?? 'Без ника'}
+                      />
+                      <VerifiedFemaleBadge
+                        verified={tt.team.captain.femaleVerified}
+                      />
+                    </span>
+                  </td>
+                  <td className="px-4 py-2">
+                    {tt.withdrawn ? (
+                      <Badge variant="destructive">Снялась</Badge>
+                    ) : (
+                      <Badge variant="secondary">Заявлена</Badge>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

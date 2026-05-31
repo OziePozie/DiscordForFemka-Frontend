@@ -5,7 +5,9 @@ import {
   useBanAdminPlayer,
   useUnbanAdminPlayer,
   useUpdateAdminPlayer,
+  useSetAdminPlayerFemaleVerified,
 } from '@/lib/queries';
+import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,7 +88,12 @@ export default function AdminPlayersPage() {
   const banMut = useBanAdminPlayer();
   const unbanMut = useUnbanAdminPlayer();
   const updateMut = useUpdateAdminPlayer();
-  const mutating = banMut.isPending || unbanMut.isPending || updateMut.isPending;
+  const verifyMut = useSetAdminPlayerFemaleVerified();
+  const mutating =
+    banMut.isPending ||
+    unbanMut.isPending ||
+    updateMut.isPending ||
+    verifyMut.isPending;
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [banReason, setBanReason] = useState('');
@@ -147,6 +154,22 @@ export default function AdminPlayersPage() {
     } catch (e) {
       toast({
         title: 'Не удалось снять бан',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleToggleVerified(p: PlayerAdminDto) {
+    const next = !p.profile.femaleVerified;
+    try {
+      await verifyMut.mutateAsync({ id: p.profile.id, verified: next });
+      toast({
+        title: next ? 'Статус выдан' : 'Статус снят',
+      });
+    } catch (e) {
+      toast({
+        title: 'Не удалось изменить статус',
         description: describeError(e),
         variant: 'destructive',
       });
@@ -318,11 +341,16 @@ export default function AdminPlayersPage() {
               {query.data.items!.map((p) => (
                 <tr key={p.profile.id} className="border-t align-top">
                   <td className="px-4 py-3">
-                    <PlayerNameLink
-                      playerId={p.profile.id}
-                      nickname={p.profile.nickname ?? 'Без ника'}
-                      className="font-medium"
-                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <PlayerNameLink
+                        playerId={p.profile.id}
+                        nickname={p.profile.nickname ?? 'Без ника'}
+                        className="font-medium"
+                      />
+                      <VerifiedFemaleBadge
+                        verified={p.profile.femaleVerified}
+                      />
+                    </span>
                     <div className="font-mono text-xs text-muted-foreground">
                       {p.steamId}
                     </div>
@@ -388,6 +416,13 @@ export default function AdminPlayersPage() {
                             Бан
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem
+                          onClick={() => handleToggleVerified(p)}
+                        >
+                          {p.profile.femaleVerified
+                            ? 'Снять верификацию'
+                            : 'Выдать верификацию'}
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => openEdit(p)}
                           disabled={!isAdmin}

@@ -206,9 +206,11 @@ export function getTournamentBySlug(
 
 export function getTournamentTeams(
   tournamentId: string,
+  verifiedOnly = false,
 ): Promise<TournamentTeamDto[]> {
+  const qs = verifiedOnly ? '?verifiedOnly=true' : '';
   return api<TournamentTeamDto[]>(
-    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/teams`,
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/teams${qs}`,
   );
 }
 
@@ -781,6 +783,19 @@ export function unbanAdminPlayer(id: string): Promise<PlayerAdminDto> {
   return api<PlayerAdminDto>(
     `/api/v1/admin/players/${encodeURIComponent(id)}/unban`,
     { method: 'POST' },
+  );
+}
+
+export function setAdminPlayerFemaleVerified(
+  id: string,
+  verified: boolean,
+): Promise<PlayerAdminDto> {
+  return api<PlayerAdminDto>(
+    `/api/v1/admin/players/${encodeURIComponent(id)}/female-verification`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ verified }),
+    },
   );
 }
 

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { usePlayer } from '@/lib/queries';
 import { POSITION_LABEL } from '@/lib/api/types';
 import { timeAgoRu } from '@/lib/format';
@@ -49,6 +50,7 @@ export function PlayerHoverCard({ playerId }: Props) {
         </div>
         <div className="flex items-center gap-1.5 font-semibold">
           <span className="truncate max-w-[11.25rem]">{p.nickname ?? '—'}</span>
+          <VerifiedFemaleBadge verified={p.femaleVerified} />
           {mmrConfirmed && <CheckCircle2 className="h-4 w-4 text-blue-500" aria-label="MMR подтверждён" />}
         </div>
       </div>

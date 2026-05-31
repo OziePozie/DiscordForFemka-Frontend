@@ -796,6 +796,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/players/{id}/female-verification": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Выдать/снять официальный статус «верифицирована» (MODERATOR/ADMIN).
+         * @description verified=true проставляет femaleVerifiedAt/By; verified=false очищает их.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        verified: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerAdminDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/mmr/requests": {
         parameters: {
             query?: never;
@@ -1664,7 +1713,10 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Вернуть только команды, в которых есть хотя бы один верифицированный игрок. */
+                    verifiedOnly?: boolean;
+                };
                 header?: never;
                 path: {
                     id: components["parameters"]["IdInPath"];
@@ -2214,6 +2266,207 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/matches/{id}/tech-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Award a technical win/loss.
+         * @description MODERATOR/ADMIN. Finishes the match with the given winner and tags the
+         *     result as TECH_WIN/TECH_LOSS. Propagates the bracket like a normal finish.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TechResultRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/cancel-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Void a finished match result.
+         * @description MODERATOR/ADMIN. Reverts FINISHED → SCHEDULED, clears winner/score, and
+         *     undoes bracket propagation so downstream shells are corrected. Returns
+         *     409 if a downstream match has already progressed past SCHEDULED.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/move-teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reassign / swap the team slots of a match.
+         * @description MODERATOR/ADMIN. Sets teamA and/or teamB on a not-yet-finished match and
+         *     clears captain readiness so captains must reconfirm.
+         *
+         *     Rejected with 409 PLATFORM_CONFLICT if the match is FINISHED, or if its
+         *     result has already been propagated into a downstream bracket slot
+         *     (WB/LB/GF) — reassigning would orphan that slot. Cancel the result first
+         *     (POST /cancel-result) in that case. Because the move is only permitted
+         *     while no downstream slot has been fed, no re-propagation is required.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MoveTeamsRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/format": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change a match's series format (BO1/BO3/BO5).
+         * @description MODERATOR/ADMIN. Rejects FINISHED matches.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangeFormatRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MatchDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/match-requests": {
         parameters: {
             query?: never;
@@ -2682,6 +2935,8 @@ export interface components {
         /** @enum {string} */
         MatchFormat: "BO1" | "BO3" | "BO5";
         /** @enum {string} */
+        MatchResultType: "NORMAL" | "TECH_WIN" | "TECH_LOSS" | "CANCELLED";
+        /** @enum {string} */
         BracketSection: "WB" | "LB" | "GF";
         /** @enum {string} */
         MatchStatus: "SCHEDULED" | "LIVE" | "FINISHED" | "CANCELLED";
@@ -2735,6 +2990,8 @@ export interface components {
             avatarUrl?: string | null;
             country?: string | null;
             gender?: components["schemas"]["GenderType"] | null;
+            /** @description Official 'verified female' status granted by an admin. */
+            femaleVerified?: boolean;
             primaryRole?: components["schemas"]["PlayerPosition"] | null;
             secondaryRoles?: components["schemas"]["PlayerPosition"][];
             mmr?: components["schemas"]["PlayerMmrPublicDto"] | null;
@@ -3215,6 +3472,7 @@ export interface components {
             scoreB: number;
             /** Format: uuid */
             winnerTeamId?: string | null;
+            resultType?: components["schemas"]["MatchResultType"];
             notes?: string | null;
             /** Format: date-time */
             finishedAt?: string | null;
@@ -3341,6 +3599,24 @@ export interface components {
             teamAReady?: boolean;
             teamBReady?: boolean;
         };
+        TechResultRequest: {
+            /** Format: uuid */
+            winnerTeamId: string;
+            resultType: components["schemas"]["MatchResultType"];
+        };
+        /**
+         * @description Reassign one or both team slots of a not-yet-finished bracket match.
+         *     Omit a field to leave that slot unchanged.
+         */
+        MoveTeamsRequest: {
+            /** Format: uuid */
+            teamAId?: string | null;
+            /** Format: uuid */
+            teamBId?: string | null;
+        };
+        ChangeFormatRequest: {
+            format: components["schemas"]["MatchFormat"];
+        };
         CreateMatchRequestDto: {
             kind: components["schemas"]["MatchKind"];
             format: components["schemas"]["MatchFormat"];
@@ -3374,6 +3650,8 @@ export interface components {
             playerId?: string | null;
             playerNickname?: string | null;
             playerAvatarUrl?: string | null;
+            /** @description Official 'verified female' status of the slot's player. */
+            playerFemaleVerified?: boolean;
             /** Format: date-time */
             joinedAt?: string | null;
         };
