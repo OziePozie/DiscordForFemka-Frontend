@@ -41,6 +41,9 @@ import type {
   ActivityStatus,
   PlayerRole,
   UpdateMatchRequest,
+  TechResultRequest,
+  MoveTeamsRequest,
+  ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
   TeamHistoryDto,
@@ -659,6 +662,43 @@ export function repropagateMatch(id: string): Promise<MatchDto> {
   return api<MatchDto>(
     `/api/v1/admin/matches/${encodeURIComponent(id)}/repropagate`,
     { method: 'POST' },
+  );
+}
+
+export function techResultMatch(
+  id: string,
+  body: TechResultRequest,
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/tech-result`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function cancelMatchResult(id: string): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/cancel-result`,
+    { method: 'POST' },
+  );
+}
+
+export function moveMatchTeams(
+  id: string,
+  body: MoveTeamsRequest,
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/move-teams`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function changeMatchFormat(
+  id: string,
+  body: ChangeFormatRequest,
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/format`,
+    { method: 'POST', body: JSON.stringify(body) },
   );
 }
 

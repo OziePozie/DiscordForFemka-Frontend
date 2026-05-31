@@ -66,6 +66,10 @@ import {
   launchLobby,
   finishMatch,
   repropagateMatch,
+  techResultMatch,
+  cancelMatchResult,
+  moveMatchTeams,
+  changeMatchFormat,
   getAdminPlayersPage,
   updateAdminPlayer,
   banAdminPlayer,
@@ -132,6 +136,9 @@ import type {
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
   UpdateMatchRequest,
+  TechResultRequest,
+  MoveTeamsRequest,
+  ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
   TeamHistoryDto,
@@ -865,6 +872,51 @@ export function useRepropagateMatch() {
       qc.invalidateQueries({ queryKey: ['admin-tournament-matches'] });
     },
   });
+}
+
+// Shared invalidation for any admin op that may mutate the bracket.
+function invalidateMatchAndBracket(
+  qc: ReturnType<typeof useQueryClient>,
+  m: MatchDto,
+) {
+  qc.setQueryData(qk.match(m.id), m);
+  qc.invalidateQueries({ queryKey: qk.match(m.id) });
+  qc.invalidateQueries({ queryKey: ['tournament'] });
+  qc.invalidateQueries({ queryKey: ['admin-tournament-matches'] });
+}
+
+export function useTechResultMatch() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, { id: string; body: TechResultRequest }>({
+    mutationFn: ({ id, body }) => techResultMatch(id, body),
+    onSuccess: (m) => invalidateMatchAndBracket(qc, m),
+  });
+}
+
+export function useCancelMatchResult() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, string>({
+    mutationFn: cancelMatchResult,
+    onSuccess: (m) => invalidateMatchAndBracket(qc, m),
+  });
+}
+
+export function useMoveMatchTeams() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, { id: string; body: MoveTeamsRequest }>({
+    mutationFn: ({ id, body }) => moveMatchTeams(id, body),
+    onSuccess: (m) => invalidateMatchAndBracket(qc, m),
+  });
+}
+
+export function useChangeMatchFormat() {
+  const qc = useQueryClient();
+  return useMutation<MatchDto, Error, { id: string; body: ChangeFormatRequest }>(
+    {
+      mutationFn: ({ id, body }) => changeMatchFormat(id, body),
+      onSuccess: (m) => invalidateMatchAndBracket(qc, m),
+    },
+  );
 }
 
 // ──────────────── Admin players ────────────────

@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
+  useCancelMatchResult,
+  useChangeMatchFormat,
   useFinishMatch,
   useLaunchLobby,
+  useMoveMatchTeams,
   useRecreateLobby,
   useRepropagateMatch,
+  useTechResultMatch,
   useUpdateAdminMatch,
 } from '@/lib/queries';
 import {
@@ -44,11 +48,14 @@ import {
   GAME_MODES,
   GAME_MODE_LABEL,
   MATCH_FORMAT_LABEL,
+  MATCH_FORMATS,
+  MATCH_RESULT_TYPE_LABEL,
   MATCH_STATUS_LABEL,
   REGIONS,
   REGION_LABEL,
   type GameMode,
   type MatchDto,
+  type MatchFormat,
   type MatchStatus,
   type Region,
   type SeasonDto,
@@ -99,6 +106,10 @@ type DialogState =
   | { kind: 'reset-ready'; match: MatchDto }
   | { kind: 'finish'; match: MatchDto }
   | { kind: 'repropagate'; match: MatchDto }
+  | { kind: 'tech'; match: MatchDto }
+  | { kind: 'cancel'; match: MatchDto }
+  | { kind: 'move'; match: MatchDto }
+  | { kind: 'format'; match: MatchDto }
   | null;
 
 type SettingsForm = {
@@ -126,6 +137,10 @@ function defaultFinishForm(winner: 'A' | 'B'): FinishForm {
     scoreB: winner === 'B' ? '1' : '0',
   };
 }
+
+// Technical result: which side gets the win, framed as TECH_WIN (awarded to the
+// chosen side) or TECH_LOSS (the chosen side loses by default → opponent wins).
+type TechForm = { side: 'A' | 'B'; mode: 'TECH_WIN' | 'TECH_LOSS' };
 
 export default function AdminMatchesPage() {
   const { toast } = useToast();
@@ -181,12 +196,20 @@ export default function AdminMatchesPage() {
   const launchMut = useLaunchLobby();
   const finishMut = useFinishMatch();
   const repropagateMut = useRepropagateMatch();
+  const techMut = useTechResultMatch();
+  const cancelMut = useCancelMatchResult();
+  const moveMut = useMoveMatchTeams();
+  const formatMut = useChangeMatchFormat();
   const mutating =
     updateMut.isPending ||
     recreateMut.isPending ||
     launchMut.isPending ||
     finishMut.isPending ||
-    repropagateMut.isPending;
+    repropagateMut.isPending ||
+    techMut.isPending ||
+    cancelMut.isPending ||
+    moveMut.isPending ||
+    formatMut.isPending;
 
   // Dialog state.
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -199,6 +222,12 @@ export default function AdminMatchesPage() {
   const [finishForm, setFinishForm] = useState<FinishForm>(
     defaultFinishForm('A'),
   );
+  const [techForm, setTechForm] = useState<TechForm>({
+    side: 'A',
+    mode: 'TECH_WIN',
+  });
+  const [moveSwap, setMoveSwap] = useState(false);
+  const [formatValue, setFormatValue] = useState<MatchFormat>('BO1');
 
   function openSettings(m: MatchDto) {
     setForm(settingsFromMatch(m));
@@ -353,6 +382,97 @@ export default function AdminMatchesPage() {
     }
   }
 
+  function openTech(m: MatchDto) {
+    setTechForm({ side: 'A', mode: 'TECH_WIN' });
+    setDialog({ kind: 'tech', match: m });
+  }
+
+  async function handleTech() {
+    if (!dialog || dialog.kind !== 'tech') return;
+    const m = dialog.match;
+    // TECH_WIN: chosen side wins. TECH_LOSS: chosen side loses → opponent wins.
+    const chosenIsA = techForm.side === 'A';
+    const winnerSideIsA =
+      techForm.mode === 'TECH_WIN' ? chosenIsA : !chosenIsA;
+    const winnerTeamId = winnerSideIsA ? m.teamA.id : m.teamB.id;
+    try {
+      await techMut.mutateAsync({
+        id: m.id,
+        body: { winnerTeamId, resultType: techForm.mode },
+      });
+      toast({ title: 'Технический результат проставлен' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось проставить техрезультат',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleCancel() {
+    if (!dialog || dialog.kind !== 'cancel') return;
+    try {
+      await cancelMut.mutateAsync(dialog.match.id);
+      toast({ title: 'Результат матча отменён' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось отменить результат',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleMove() {
+    if (!dialog || dialog.kind !== 'move' || !moveSwap) return;
+    const m = dialog.match;
+    if (!m.teamA?.id || !m.teamB?.id) return;
+    try {
+      await moveMut.mutateAsync({
+        id: m.id,
+        body: { teamAId: m.teamB.id, teamBId: m.teamA.id },
+      });
+      toast({ title: 'Команды переставлены' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось переставить команды',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  function openFormat(m: MatchDto) {
+    setFormatValue(m.format);
+    setDialog({ kind: 'format', match: m });
+  }
+
+  async function handleFormat() {
+    if (!dialog || dialog.kind !== 'format') return;
+    try {
+      await formatMut.mutateAsync({
+        id: dialog.match.id,
+        body: { format: formatValue },
+      });
+      toast({ title: 'Формат серии изменён' });
+      await matchesQ.refetch();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось изменить формат',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -464,7 +584,8 @@ export default function AdminMatchesPage() {
                   m.status === 'FINISHED' &&
                   m.kind === 'TOURNAMENT' &&
                   !!m.winnerTeamId;
-                const showActions = !finished || canRepropagate;
+                const canCancel = m.status === 'FINISHED';
+                const showActions = !finished || canRepropagate || canCancel;
                 return (
                   <tr
                     key={m.id}
@@ -564,7 +685,32 @@ export default function AdminMatchesPage() {
                                 >
                                   Завершить матч
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openTech(m)}>
+                                  Техвин / техлуз
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setMoveSwap(false);
+                                    setDialog({ kind: 'move', match: m });
+                                  }}
+                                >
+                                  Переставить команды
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => openFormat(m)}
+                                >
+                                  Изменить формат серии
+                                </DropdownMenuItem>
                               </>
+                            )}
+                            {canCancel && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setDialog({ kind: 'cancel', match: m })
+                                }
+                              >
+                                Отменить результат
+                              </DropdownMenuItem>
                             )}
                             {canRepropagate && (
                               <DropdownMenuItem
@@ -922,6 +1068,232 @@ export default function AdminMatchesPage() {
             </Button>
             <Button onClick={handleRepropagate} disabled={mutating}>
               {repropagateMut.isPending ? 'Перепровод…' : 'Перепровести'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tech win/loss */}
+      <Dialog
+        open={dialog?.kind === 'tech'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Технический результат</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'tech'
+                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {dialog?.kind === 'tech' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Тип</Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="tech-mode"
+                      className="h-4 w-4"
+                      checked={techForm.mode === 'TECH_WIN'}
+                      onChange={() =>
+                        setTechForm({ ...techForm, mode: 'TECH_WIN' })
+                      }
+                    />
+                    Техвин (победа выбранной)
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="tech-mode"
+                      className="h-4 w-4"
+                      checked={techForm.mode === 'TECH_LOSS'}
+                      onChange={() =>
+                        setTechForm({ ...techForm, mode: 'TECH_LOSS' })
+                      }
+                    />
+                    Техлуз (поражение выбранной)
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Команда</Label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="tech-side"
+                      className="h-4 w-4"
+                      checked={techForm.side === 'A'}
+                      onChange={() => setTechForm({ ...techForm, side: 'A' })}
+                    />
+                    {dialog.match.teamA.name}{' '}
+                    <span className="text-muted-foreground">
+                      [{dialog.match.teamA.tag}]
+                    </span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="tech-side"
+                      className="h-4 w-4"
+                      checked={techForm.side === 'B'}
+                      onChange={() => setTechForm({ ...techForm, side: 'B' })}
+                    />
+                    {dialog.match.teamB.name}{' '}
+                    <span className="text-muted-foreground">
+                      [{dialog.match.teamB.tag}]
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Матч завершится со счётом 1:0 в пользу победителя и пометкой{' '}
+                {MATCH_RESULT_TYPE_LABEL[techForm.mode]}. Сетка обновится
+                автоматически.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleTech}
+              disabled={mutating}
+            >
+              {techMut.isPending ? 'Сохранение…' : 'Применить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel result */}
+      <Dialog
+        open={dialog?.kind === 'cancel'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Отменить результат матча?</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'cancel'
+                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Матч вернётся в статус «Запланирован», победитель и счёт будут
+            очищены, а продвижение по сетке откатится. Если следующий матч уже
+            начался или завершён — сначала отмените его.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={mutating}
+            >
+              {cancelMut.isPending ? 'Отмена…' : 'Отменить результат'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move / swap teams */}
+      <Dialog
+        open={dialog?.kind === 'move'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Переставить команды</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'move'
+                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {dialog?.kind === 'move' && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Поменять местами команду A и команду B в этом слоте сетки.
+                Готовность капитанов будет сброшена.
+              </p>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-input"
+                  checked={moveSwap}
+                  onChange={(e) => setMoveSwap(e.target.checked)}
+                />
+                Поменять A ↔ B: {dialog.match.teamB.name} vs{' '}
+                {dialog.match.teamA.name}
+              </label>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleMove} disabled={mutating || !moveSwap}>
+              {moveMut.isPending ? 'Сохранение…' : 'Применить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change series format */}
+      <Dialog
+        open={dialog?.kind === 'format'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Формат серии</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'format'
+                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label htmlFor="m-format">Формат</Label>
+            <Select
+              value={formatValue}
+              onValueChange={(v) => setFormatValue(v as MatchFormat)}
+            >
+              <SelectTrigger id="m-format">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MATCH_FORMATS.map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {MATCH_FORMAT_LABEL[f]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleFormat} disabled={mutating}>
+              {formatMut.isPending ? 'Сохранение…' : 'Сохранить'}
             </Button>
           </DialogFooter>
         </DialogContent>
