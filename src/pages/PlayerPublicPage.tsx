@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom';
 import { TeamNameLink } from '@/components/TeamNameLink';
 import { PlayerRatingCard } from '@/components/PlayerRatingCard';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
+import { NicknameHistory } from '@/components/NicknameHistory';
 import { usePlayer, usePlayerHistory } from '@/lib/queries';
 import {
   Avatar,
@@ -142,6 +143,8 @@ export default function PlayerPublicPage() {
               Присоединился: {timeAgo(p.createdAt)}
             </div>
           )}
+
+          <NicknameHistory current={p.nickname} history={p.nicknameHistory} />
         </CardContent>
       </Card>
 

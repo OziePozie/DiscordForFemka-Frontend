@@ -3004,6 +3004,13 @@ export interface components {
             teams?: components["schemas"]["TeamMembershipDto"][];
             /** Format: date-time */
             createdAt?: string;
+            nicknameHistory?: components["schemas"]["NicknameHistoryEntryDto"][];
+        };
+        /** @description One past nickname and the time it was replaced. */
+        NicknameHistoryEntryDto: {
+            nickname?: string | null;
+            /** Format: date-time */
+            changedAt: string;
         };
         /**
          * @description Внутренний ранг по порогам рейтинга.

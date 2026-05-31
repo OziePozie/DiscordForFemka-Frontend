@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import { safeHttpUrl } from '@/lib/utils';
+import { teamLabel } from '@/lib/format';
 import {
   MATCH_FORMAT_LABEL,
   MATCH_STATUS_LABEL,
@@ -548,8 +549,8 @@ function MatchesTab({ tournamentId }: { tournamentId: string }) {
 
 function MatchRow({ m }: { m: MatchDto }) {
   const finished = m.status === 'FINISHED';
-  const aWin = finished && m.winnerTeamId === m.teamA.id;
-  const bWin = finished && m.winnerTeamId === m.teamB.id;
+  const aWin = finished && m.winnerTeamId === m.teamA?.id;
+  const bWin = finished && m.winnerTeamId === m.teamB?.id;
   return (
     <Link
       to={`/matches/${m.id}`}
@@ -558,11 +559,11 @@ function MatchRow({ m }: { m: MatchDto }) {
       <div className="flex items-center gap-3">
         <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
         <span className={aWin ? 'font-semibold text-green-700' : ''}>
-          {m.teamA.name} [{m.teamA.tag}]
+          {teamLabel(m.teamA)}
         </span>
         <span className="text-muted-foreground">vs</span>
         <span className={bWin ? 'font-semibold text-green-700' : ''}>
-          {m.teamB.name} [{m.teamB.tag}]
+          {teamLabel(m.teamB)}
         </span>
       </div>
       <div className="flex items-center gap-3">
@@ -658,8 +659,8 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
           ) : (
             round.matches.map((m) => {
               const finished = m.status === 'FINISHED';
-              const aWin = finished && m.winnerTeamId === m.teamA.id;
-              const bWin = finished && m.winnerTeamId === m.teamB.id;
+              const aWin = finished && m.winnerTeamId === m.teamA?.id;
+              const bWin = finished && m.winnerTeamId === m.teamB?.id;
               return (
                 <div
                   key={m.id}
@@ -668,17 +669,13 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                   <div
                     className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''}`}
                   >
-                    <span className="truncate">
-                      {m.teamA.name} [{m.teamA.tag}]
-                    </span>
+                    <span className="truncate">{teamLabel(m.teamA)}</span>
                     <span className="font-mono">{m.scoreA}</span>
                   </div>
                   <div
                     className={`flex justify-between ${bWin ? 'font-semibold text-green-700' : ''}`}
                   >
-                    <span className="truncate">
-                      {m.teamB.name} [{m.teamB.tag}]
-                    </span>
+                    <span className="truncate">{teamLabel(m.teamB)}</span>
                     <span className="font-mono">{m.scoreB}</span>
                   </div>
                   <div className="pt-1 text-xs text-muted-foreground">

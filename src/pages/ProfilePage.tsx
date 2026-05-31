@@ -14,6 +14,7 @@ import {
   AvatarImage,
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { NicknameHistory } from '@/components/NicknameHistory';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -301,6 +302,8 @@ export default function ProfilePage() {
               (≤ 2MB).
             </div>
           </div>
+
+          <NicknameHistory current={profile.nickname} history={profile.nicknameHistory} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
