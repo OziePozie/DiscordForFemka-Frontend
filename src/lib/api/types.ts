@@ -112,7 +112,12 @@ export type Region =
   | 'CHILE'
   | 'INDIA';
 
+// How a match result was produced. Mirrors backend MatchResultType.
+export type MatchResultType = 'NORMAL' | 'TECH_WIN' | 'TECH_LOSS' | 'CANCELLED';
+
 export type MatchDto = S['MatchDto'] & {
+  // TODO: regenerate openapi — resultType (NORMAL/TECH_WIN/TECH_LOSS/CANCELLED).
+  resultType?: MatchResultType | null;
   teamAReadyAt?: string | null;
   teamBReadyAt?: string | null;
   lobbyId?: string | null;
@@ -147,6 +152,21 @@ export interface UpdateMatchRequest {
   // Null clears the corresponding ready timestamp.
   teamAReadyAt?: string | null;
   teamBReadyAt?: string | null;
+}
+
+// Manual bracket-management admin payloads.
+export interface TechResultRequest {
+  winnerTeamId: string;
+  resultType: 'TECH_WIN' | 'TECH_LOSS';
+}
+
+export interface MoveTeamsRequest {
+  teamAId?: string | null;
+  teamBId?: string | null;
+}
+
+export interface ChangeFormatRequest {
+  format: MatchFormat;
 }
 
 // TODO: regenerate openapi — archive DTOs (Stage 9).
@@ -294,6 +314,13 @@ export interface CreateTournamentRequest {
   defaultCoinToss?: boolean | null;
   defaultAutoLaunch?: boolean | null;
   dotaLeagueId?: number | null;
+  broadcasterAccountIds?: number[] | null;
+  matchFormatDefault?: MatchFormat | null;
+  grandFinalFormat?: MatchFormat | null;
+  // Регламент: создаётся вместе с турниром. Пустая строка → поле пустое.
+  regulationsUrl?: string | null;
+  regulationsContent?: string | null;
+  regulationsVersion?: string | null;
 }
 
 export interface UpdateTournamentRequest {
@@ -313,6 +340,13 @@ export interface UpdateTournamentRequest {
   defaultCoinToss?: boolean | null;
   defaultAutoLaunch?: boolean | null;
   dotaLeagueId?: number | null;
+  broadcasterAccountIds?: number[] | null;
+  matchFormatDefault?: MatchFormat | null;
+  grandFinalFormat?: MatchFormat | null;
+  // Регламент: null/отсутствие = не менять; пустая строка = очистить.
+  regulationsUrl?: string | null;
+  regulationsContent?: string | null;
+  regulationsVersion?: string | null;
 }
 
 // Enums (as union types)
@@ -399,6 +433,15 @@ export const MATCH_FORMAT_LABEL: Record<MatchFormat, string> = {
   BO1: 'BO1',
   BO3: 'BO3',
   BO5: 'BO5',
+};
+
+export const MATCH_FORMATS: MatchFormat[] = ['BO1', 'BO3', 'BO5'];
+
+export const MATCH_RESULT_TYPE_LABEL: Record<MatchResultType, string> = {
+  NORMAL: 'Обычный',
+  TECH_WIN: 'Техвин',
+  TECH_LOSS: 'Техлуз',
+  CANCELLED: 'Отменён',
 };
 
 export const MATCH_KIND_LABEL: Record<MatchKind, string> = {

@@ -3105,6 +3105,11 @@ export interface components {
              *     пустой = кастеров нет.
              */
             broadcasterAccountIds: number[];
+            regulationsUrl?: string | null;
+            regulationsContent?: string | null;
+            regulationsVersion?: string | null;
+            /** Format: date-time */
+            regulationsUpdatedAt?: string | null;
         };
         CreateTournamentRequest: {
             name: string;
@@ -3165,6 +3170,9 @@ export interface components {
              *     непустой массив = заменить (с нормализацией: дубли отбрасываются, ≤ 50).
              */
             broadcasterAccountIds?: number[];
+            regulationsUrl?: string;
+            regulationsContent?: string;
+            regulationsVersion?: string;
         };
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];
