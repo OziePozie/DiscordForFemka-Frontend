@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
+import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import {
   useCancelTeamInvite,
   useCreateTeamInvite,
@@ -443,10 +444,15 @@ export default function TeamDetailsPage() {
                   return (
                     <tr key={m.player.id} className="border-t">
                       <td className="px-4 py-2">
-                        <PlayerNameLink
-                          playerId={m.player.id}
-                          nickname={m.player.nickname ?? 'Без ника'}
-                        />
+                        <span className="inline-flex items-center gap-1.5">
+                          <PlayerNameLink
+                            playerId={m.player.id}
+                            nickname={m.player.nickname ?? 'Без ника'}
+                          />
+                          <VerifiedFemaleBadge
+                            verified={m.player.femaleVerified}
+                          />
+                        </span>
                       </td>
                       <td className="px-4 py-2">
                         <Badge variant="outline">

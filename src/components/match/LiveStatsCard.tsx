@@ -5,6 +5,7 @@ import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { formatGameTime } from '@/lib/dota/format';
+import { teamName } from '@/lib/format';
 import type {
   MatchDto,
   MatchLiveSnapshotDto,
@@ -52,12 +53,12 @@ export function LiveStatsCard({ match, snapshot, meId }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         <TeamSection
-          label={`${match.teamA.name} (Radiant)`}
+          label={`${teamName(match.teamA)} (Radiant)`}
           team={snapshot.radiant}
           meId={meId}
         />
         <TeamSection
-          label={`${match.teamB.name} (Dire)`}
+          label={`${teamName(match.teamB)} (Dire)`}
           team={snapshot.dire}
           meId={meId}
         />

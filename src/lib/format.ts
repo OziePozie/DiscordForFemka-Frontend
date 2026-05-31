@@ -1,3 +1,19 @@
+/**
+ * Display name for a match team slot. Tournament bracket shells have null
+ * team slots until an upstream result fills them (or after that result is
+ * cancelled), so callers must render a placeholder instead of crashing.
+ */
+export function teamName(team: { name: string } | null | undefined): string {
+  return team?.name ?? 'TBD';
+}
+
+/** "Name [TAG]" for a team slot, or "TBD" when the slot is empty. */
+export function teamLabel(
+  team: { name: string; tag: string } | null | undefined,
+): string {
+  return team ? `${team.name} [${team.tag}]` : 'TBD';
+}
+
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;

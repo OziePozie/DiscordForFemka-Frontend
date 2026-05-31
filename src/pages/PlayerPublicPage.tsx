@@ -3,6 +3,8 @@ import { TeamNameLink } from '@/components/TeamNameLink';
 import { PlayerRatingCard } from '@/components/PlayerRatingCard';
 import { PlayerStats } from '@/components/PlayerStats';
 import { PlayerMatchesTab } from '@/components/PlayerMatchesTab';
+import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
+import { NicknameHistory } from '@/components/NicknameHistory';
 import { usePlayer, usePlayerHistory } from '@/lib/queries';
 import {
   Avatar,
@@ -100,8 +102,9 @@ export default function PlayerPublicPage() {
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">
+              <CardTitle className="flex items-center gap-2 text-2xl">
                 {p.nickname ?? 'Без ника'}
+                <VerifiedFemaleBadge verified={p.femaleVerified} withLabel />
               </CardTitle>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 {p.country && <Badge variant="outline">{p.country}</Badge>}
@@ -142,6 +145,8 @@ export default function PlayerPublicPage() {
               Присоединился: {timeAgo(p.createdAt)}
             </div>
           )}
+
+          <NicknameHistory current={p.nickname} history={p.nicknameHistory} />
         </CardContent>
       </Card>
 

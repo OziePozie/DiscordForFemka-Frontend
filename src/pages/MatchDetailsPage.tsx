@@ -465,16 +465,40 @@ export default function MatchDetailsPage() {
   }
 
   const m = q.data;
+
+  if (!m.teamA || !m.teamB) {
+    // Bracket shell: this match's slot(s) aren't filled yet — it's awaiting an
+    // upstream result, or that result was just cancelled. Nothing team-specific
+    // to render until the bracket propagates teams in.
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant(m.status)}>
+            {MATCH_STATUS_LABEL[m.status]}
+          </Badge>
+          <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
+          <Badge variant="secondary">{MATCH_KIND_LABEL[m.kind]}</Badge>
+        </div>
+        <Card>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            Команды ещё не определены — матч ожидает результатов предыдущего
+            раунда.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const finished = m.status === 'FINISHED';
   const aWin = finished && m.winnerTeamId === m.teamA.id;
   const bWin = finished && m.winnerTeamId === m.teamB.id;
 
   const isAdmin = !!session?.roles?.includes('ADMIN');
   const captainOfA = !!me.data?.teams?.some(
-    (t) => t.role === 'CAPTAIN' && t.teamId === m.teamA.id,
+    (t) => t.role === 'CAPTAIN' && t.teamId === m.teamA?.id,
   );
   const captainOfB = !!me.data?.teams?.some(
-    (t) => t.role === 'CAPTAIN' && t.teamId === m.teamB.id,
+    (t) => t.role === 'CAPTAIN' && t.teamId === m.teamB?.id,
   );
 
   const canToggleReady =

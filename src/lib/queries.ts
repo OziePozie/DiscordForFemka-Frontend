@@ -74,6 +74,7 @@ import {
   updateAdminPlayer,
   banAdminPlayer,
   unbanAdminPlayer,
+  setAdminPlayerFemaleVerified,
   getAdminAuditPage,
   listAdminBots,
   adminBotLeaveLobby,
@@ -164,7 +165,8 @@ export const qk = {
   seasonCurrent: ['seasonCurrent'] as const,
   season: (slug: string) => ['season', slug] as const,
   tournament: (slug: string) => ['tournament', slug] as const,
-  tournamentTeams: (id: string) => ['tournament', id, 'teams'] as const,
+  tournamentTeams: (id: string, verifiedOnly = false) =>
+    ['tournament', id, 'teams', { verifiedOnly }] as const,
   tournamentMatches: (id: string, params: TournamentMatchesParams) =>
     ['tournament', id, 'matches', params] as const,
   bracket: (id: string) => ['tournament', id, 'bracket'] as const,
@@ -304,10 +306,15 @@ export function useTournament(slug: string | undefined) {
   });
 }
 
-export function useTournamentTeams(id: string | undefined) {
+export function useTournamentTeams(
+  id: string | undefined,
+  verifiedOnly = false,
+) {
   return useQuery({
-    queryKey: id ? qk.tournamentTeams(id) : ['tournament', 'none', 'teams'],
-    queryFn: () => getTournamentTeams(id!),
+    queryKey: id
+      ? qk.tournamentTeams(id, verifiedOnly)
+      : ['tournament', 'none', 'teams', { verifiedOnly }],
+    queryFn: () => getTournamentTeams(id!, verifiedOnly),
     enabled: Boolean(id),
   });
 }
@@ -973,6 +980,22 @@ export function useUnbanAdminPlayer() {
     mutationFn: unbanAdminPlayer,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.adminPlayers });
+    },
+  });
+}
+
+export function useSetAdminPlayerFemaleVerified() {
+  const qc = useQueryClient();
+  return useMutation<
+    PlayerAdminDto,
+    Error,
+    { id: string; verified: boolean }
+  >({
+    mutationFn: ({ id, verified }) =>
+      setAdminPlayerFemaleVerified(id, verified),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: qk.adminPlayers });
+      qc.invalidateQueries({ queryKey: qk.player(vars.id) });
     },
   });
 }

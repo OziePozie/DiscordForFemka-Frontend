@@ -5,6 +5,7 @@ type S = components['schemas'];
 // DTOs
 export type SessionDto = S['SessionDto'];
 export type PlayerPublicDto = S['PlayerPublicDto'];
+export type NicknameHistoryEntryDto = S['NicknameHistoryEntryDto'];
 export type UpdateMeRequest = S['UpdateMeRequest'];
 export type MeDto = Omit<S['MeDto'], 'profile'> & { profile: PlayerPublicDto };
 export type PlayerMmrPublicDto = S['PlayerMmrPublicDto'];
@@ -115,7 +116,13 @@ export type Region =
 // How a match result was produced. Mirrors backend MatchResultType.
 export type MatchResultType = 'NORMAL' | 'TECH_WIN' | 'TECH_LOSS' | 'CANCELLED';
 
-export type MatchDto = S['MatchDto'] & {
+export type MatchDto = Omit<S['MatchDto'], 'teamA' | 'teamB'> & {
+  // Bracket shells: downstream tournament matches exist before their teams are
+  // known (and revert to null when an upstream result is cancelled). The
+  // generated type marks these non-null, but the backend sends null — render
+  // sites MUST treat them as nullable.
+  teamA: TeamPublicDto | null;
+  teamB: TeamPublicDto | null;
   // TODO: regenerate openapi — resultType (NORMAL/TECH_WIN/TECH_LOSS/CANCELLED).
   resultType?: MatchResultType | null;
   teamAReadyAt?: string | null;

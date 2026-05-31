@@ -4,6 +4,7 @@ import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { formatGameTime, heroName } from '@/lib/dota/format';
+import { teamName } from '@/lib/format';
 import type {
   MatchDto,
   MatchPlayerStatDto,
@@ -17,8 +18,8 @@ interface Props {
 }
 
 export function ResultStatsCard({ match, result, meId }: Props) {
-  const radiantWon = result.winnerTeamId === match.teamA.id;
-  const winnerName = radiantWon ? match.teamA.name : match.teamB.name;
+  const radiantWon = result.winnerTeamId === match.teamA?.id;
+  const winnerName = radiantWon ? teamName(match.teamA) : teamName(match.teamB);
   const mvpId = result.mvpSteamAccountId ?? null;
 
   return (
@@ -59,7 +60,7 @@ export function ResultStatsCard({ match, result, meId }: Props) {
       </Card>
 
       <ResultSide
-        teamName={match.teamA.name}
+        teamName={teamName(match.teamA)}
         sideLabel="Radiant"
         rows={result.radiant}
         won={radiantWon}
@@ -67,7 +68,7 @@ export function ResultStatsCard({ match, result, meId }: Props) {
         mvpId={mvpId}
       />
       <ResultSide
-        teamName={match.teamB.name}
+        teamName={teamName(match.teamB)}
         sideLabel="Dire"
         rows={result.dire}
         won={!radiantWon}

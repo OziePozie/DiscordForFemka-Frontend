@@ -44,6 +44,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
+import { teamLabel, teamName } from '@/lib/format';
 import {
   GAME_MODES,
   GAME_MODE_LABEL,
@@ -346,7 +347,8 @@ export default function AdminMatchesPage() {
     }
     const m = dialog.match;
     const winnerTeamId =
-      finishForm.winner === 'A' ? m.teamA.id : m.teamB.id;
+      finishForm.winner === 'A' ? m.teamA?.id : m.teamB?.id;
+    if (!winnerTeamId) return;
     try {
       await finishMut.mutateAsync({
         id: m.id,
@@ -394,7 +396,8 @@ export default function AdminMatchesPage() {
     const chosenIsA = techForm.side === 'A';
     const winnerSideIsA =
       techForm.mode === 'TECH_WIN' ? chosenIsA : !chosenIsA;
-    const winnerTeamId = winnerSideIsA ? m.teamA.id : m.teamB.id;
+    const winnerTeamId = winnerSideIsA ? m.teamA?.id : m.teamB?.id;
+    if (!winnerTeamId) return;
     try {
       await techMut.mutateAsync({
         id: m.id,
@@ -593,16 +596,28 @@ export default function AdminMatchesPage() {
                     onClick={() => navigate(`/matches/${m.id}`)}
                   >
                     <td className="px-4 py-3">
-                      {m.teamA.name}{' '}
-                      <span className="text-muted-foreground">
-                        [{m.teamA.tag}]
-                      </span>
+                      {m.teamA ? (
+                        <>
+                          {m.teamA.name}{' '}
+                          <span className="text-muted-foreground">
+                            [{m.teamA.tag}]
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">TBD</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      {m.teamB.name}{' '}
-                      <span className="text-muted-foreground">
-                        [{m.teamB.tag}]
-                      </span>
+                      {m.teamB ? (
+                        <>
+                          {m.teamB.name}{' '}
+                          <span className="text-muted-foreground">
+                            [{m.teamB.tag}]
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">TBD</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={statusVariant(m.status)}>
@@ -770,7 +785,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Настройки лобби</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'settings'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -950,7 +965,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Завершить матч?</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'finish'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -967,10 +982,7 @@ export default function AdminMatchesPage() {
                       checked={finishForm.winner === 'A'}
                       onChange={() => setFinishForm(defaultFinishForm('A'))}
                     />
-                    {dialog.match.teamA.name}{' '}
-                    <span className="text-muted-foreground">
-                      [{dialog.match.teamA.tag}]
-                    </span>
+                    {teamLabel(dialog.match.teamA)}
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -980,10 +992,7 @@ export default function AdminMatchesPage() {
                       checked={finishForm.winner === 'B'}
                       onChange={() => setFinishForm(defaultFinishForm('B'))}
                     />
-                    {dialog.match.teamB.name}{' '}
-                    <span className="text-muted-foreground">
-                      [{dialog.match.teamB.tag}]
-                    </span>
+                    {teamLabel(dialog.match.teamB)}
                   </label>
                 </div>
               </div>
@@ -1052,7 +1061,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Перепровести победителя в сетку?</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'repropagate'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -1085,7 +1094,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Технический результат</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'tech'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -1131,10 +1140,7 @@ export default function AdminMatchesPage() {
                       checked={techForm.side === 'A'}
                       onChange={() => setTechForm({ ...techForm, side: 'A' })}
                     />
-                    {dialog.match.teamA.name}{' '}
-                    <span className="text-muted-foreground">
-                      [{dialog.match.teamA.tag}]
-                    </span>
+                    {teamLabel(dialog.match.teamA)}
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -1144,10 +1150,7 @@ export default function AdminMatchesPage() {
                       checked={techForm.side === 'B'}
                       onChange={() => setTechForm({ ...techForm, side: 'B' })}
                     />
-                    {dialog.match.teamB.name}{' '}
-                    <span className="text-muted-foreground">
-                      [{dialog.match.teamB.tag}]
-                    </span>
+                    {teamLabel(dialog.match.teamB)}
                   </label>
                 </div>
               </div>
@@ -1185,7 +1188,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Отменить результат матча?</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'cancel'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -1221,7 +1224,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Переставить команды</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'move'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
@@ -1238,8 +1241,8 @@ export default function AdminMatchesPage() {
                   checked={moveSwap}
                   onChange={(e) => setMoveSwap(e.target.checked)}
                 />
-                Поменять A ↔ B: {dialog.match.teamB.name} vs{' '}
-                {dialog.match.teamA.name}
+                Поменять A ↔ B: {teamName(dialog.match.teamB)} vs{' '}
+                {teamName(dialog.match.teamA)}
               </label>
             </div>
           )}
@@ -1266,7 +1269,7 @@ export default function AdminMatchesPage() {
             <DialogTitle>Формат серии</DialogTitle>
             <DialogDescription>
               {dialog?.kind === 'format'
-                ? `${dialog.match.teamA.name} vs ${dialog.match.teamB.name}`
+                ? `${teamName(dialog.match.teamA)} vs ${teamName(dialog.match.teamB)}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
