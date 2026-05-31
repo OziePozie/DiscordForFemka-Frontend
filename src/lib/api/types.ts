@@ -5,6 +5,7 @@ type S = components['schemas'];
 // DTOs
 export type SessionDto = S['SessionDto'];
 export type PlayerPublicDto = S['PlayerPublicDto'];
+export type NicknameHistoryEntryDto = S['NicknameHistoryEntryDto'];
 export type UpdateMeRequest = S['UpdateMeRequest'];
 export type MeDto = Omit<S['MeDto'], 'profile'> & { profile: PlayerPublicDto };
 export type PlayerMmrPublicDto = S['PlayerMmrPublicDto'];
