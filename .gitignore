@@ -5,6 +5,7 @@ dist
 .env
 .env.*
 !.env.example
+!.env.staging
 
 # TypeScript incremental build & vite emit artifacts (not source)
 *.tsbuildinfo
