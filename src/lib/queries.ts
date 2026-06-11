@@ -846,6 +846,7 @@ export function useRecreateLobby() {
     onSuccess: (m) => {
       qc.setQueryData(qk.match(m.id), m);
       qc.invalidateQueries({ queryKey: qk.match(m.id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
     },
   });
 }
@@ -857,6 +858,7 @@ export function useLaunchLobby() {
     onSuccess: (m) => {
       qc.setQueryData(qk.match(m.id), m);
       qc.invalidateQueries({ queryKey: qk.match(m.id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
     },
   });
 }
