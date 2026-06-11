@@ -4889,7 +4889,26 @@ export interface components {
             section: components["schemas"]["BracketSection"];
             roundIndex: number;
             title: string;
-            matches: components["schemas"]["MatchDto"][];
+            matches: components["schemas"]["BracketCellDto"][];
+        };
+        /** @enum {string} */
+        SlotSourceType: "WINNER" | "LOSER" | "TEAM" | "BYE";
+        SlotSourceDto: {
+            type: components["schemas"]["SlotSourceType"];
+            section?: components["schemas"]["BracketSection"];
+            round?: number | null;
+            matchIndex?: number | null;
+            team?: components["schemas"]["TeamPublicDto"];
+            label: string;
+        };
+        BracketCellDto: {
+            section: components["schemas"]["BracketSection"];
+            roundIndex: number;
+            matchIndex: number;
+            placeholder: boolean;
+            match?: components["schemas"]["MatchDto"];
+            slotA: components["schemas"]["SlotSourceDto"];
+            slotB: components["schemas"]["SlotSourceDto"];
         };
         MatchDto: {
             /** Format: uuid */

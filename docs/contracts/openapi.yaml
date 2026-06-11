@@ -2632,7 +2632,37 @@ components:
         section:    { $ref: "#/components/schemas/BracketSection" }
         roundIndex: { type: integer }
         title:      { type: string }
-        matches:    { type: array, items: { $ref: "#/components/schemas/MatchDto" } }
+        matches:    { type: array, items: { $ref: "#/components/schemas/BracketCellDto" } }
+
+    # Source of a bracket cell slot: a winner/loser of another match, a seeded
+    # team (R1 bye cell), or an empty BYE pass. `label` is render-ready text.
+    SlotSourceType:
+      type: string
+      enum: [WINNER, LOSER, TEAM, BYE]
+    SlotSourceDto:
+      type: object
+      required: [type, label]
+      properties:
+        type:       { $ref: "#/components/schemas/SlotSourceType" }
+        section:    { $ref: "#/components/schemas/BracketSection" }
+        round:      { type: integer, nullable: true }
+        matchIndex: { type: integer, nullable: true }
+        team:       { $ref: "#/components/schemas/TeamPublicDto" }
+        label:      { type: string }
+
+    # One bracket cell. `match` is the real materialized match (or absent for a
+    # placeholder); slotA/slotB always carry the slot provenance for empty slots.
+    BracketCellDto:
+      type: object
+      required: [section, roundIndex, matchIndex, placeholder, slotA, slotB]
+      properties:
+        section:     { $ref: "#/components/schemas/BracketSection" }
+        roundIndex:  { type: integer }
+        matchIndex:  { type: integer }
+        placeholder: { type: boolean }
+        match:       { $ref: "#/components/schemas/MatchDto" }
+        slotA:       { $ref: "#/components/schemas/SlotSourceDto" }
+        slotB:       { $ref: "#/components/schemas/SlotSourceDto" }
 
     # ---- Match ----
     MatchDto:
