@@ -657,30 +657,42 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
               Нет матчей
             </div>
           ) : (
-            round.matches.map((m) => {
-              const finished = m.status === 'FINISHED';
-              const aWin = finished && m.winnerTeamId === m.teamA?.id;
-              const bWin = finished && m.winnerTeamId === m.teamB?.id;
+            round.matches.map((cell) => {
+              // A cell is either a real materialized match (cell.match) or a
+              // placeholder. A slot shows its team when known, otherwise the
+              // source label ("Winner of WB R1 M2", "BYE", ...).
+              const m = cell.match;
+              const teamA = m?.teamA ?? cell.slotA.team ?? null;
+              const teamB = m?.teamB ?? cell.slotB.team ?? null;
+              const aWin =
+                m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamA?.id;
+              const bWin =
+                m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamB?.id;
               return (
                 <div
-                  key={m.id}
+                  key={`${cell.section}-${cell.roundIndex}-${cell.matchIndex}`}
                   className="space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm"
                 >
                   <div
-                    className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''}`}
+                    className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'}`}
                   >
-                    <span className="truncate">{teamLabel(m.teamA)}</span>
-                    <span className="font-mono">{m.scoreA}</span>
+                    <span className="truncate">
+                      {teamA ? teamLabel(teamA) : cell.slotA.label}
+                    </span>
+                    {m ? <span className="font-mono">{m.scoreA}</span> : null}
                   </div>
                   <div
-                    className={`flex justify-between ${bWin ? 'font-semibold text-green-700' : ''}`}
+                    className={`flex justify-between ${bWin ? 'font-semibold text-green-700' : ''} ${teamB ? '' : 'text-muted-foreground'}`}
                   >
-                    <span className="truncate">{teamLabel(m.teamB)}</span>
-                    <span className="font-mono">{m.scoreB}</span>
+                    <span className="truncate">
+                      {teamB ? teamLabel(teamB) : cell.slotB.label}
+                    </span>
+                    {m ? <span className="font-mono">{m.scoreB}</span> : null}
                   </div>
                   <div className="pt-1 text-xs text-muted-foreground">
-                    {MATCH_STATUS_LABEL[m.status]} ·{' '}
-                    {fmtDateTime(m.scheduledAt)}
+                    {m
+                      ? `${MATCH_STATUS_LABEL[m.status]} · ${fmtDateTime(m.scheduledAt)}`
+                      : '—'}
                   </div>
                 </div>
               );
