@@ -163,10 +163,10 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
   const tournamentTeams = (teamsQ.data ?? []).filter((t) => !t.withdrawn);
 
   // Derived state for dropdown visibility (mirrors AdminMatchesPage logic).
-  const finished = match.status === 'FINISHED';
+  const finished = match.status === 'FINISHED' || match.status === 'CANCELLED';
   const aReady = !!match.teamAReadyAt;
   const bReady = !!match.teamBReadyAt;
-  const canRepropagate = finished && !!match.winnerTeamId;
+  const canRepropagate = match.status === 'FINISHED' && match.kind === 'TOURNAMENT' && !!match.winnerTeamId;
   const canCancel = match.status === 'FINISHED';
   const showActions = !finished || canRepropagate || canCancel;
 
