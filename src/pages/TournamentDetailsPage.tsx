@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
@@ -649,6 +650,9 @@ type BracketRound = NonNullable<
 >['rounds'][number];
 
 function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
+  const me = useMe();
+  const isStaff =
+    me.data?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR') ?? false;
   return (
     <div className="flex gap-4 overflow-x-auto pb-2">
       {rounds.map((round) => (
@@ -676,10 +680,15 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
               return (
                 <div
                   key={`${cell.section}-${cell.roundIndex}-${cell.matchIndex}`}
-                  className="space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm"
+                  className="relative space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm"
                 >
+                  {isStaff && cell.match ? (
+                    <div className="absolute right-1 top-1">
+                      <MatchAdminMenu match={cell.match} />
+                    </div>
+                  ) : null}
                   <div
-                    className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'}`}
+                    className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'} pr-6`}
                   >
                     <span className="truncate">
                       {teamA ? teamLabel(teamA) : cell.slotA.label}
