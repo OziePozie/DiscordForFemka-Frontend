@@ -606,29 +606,34 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
   const isDoubleElim = bracket.format === 'DOUBLE_ELIM';
 
   if (!isDoubleElim) {
-    return <RoundColumns rounds={wbRounds} />;
+    return (
+      <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+        <RoundColumns rounds={wbRounds} />
+      </div>
+    );
   }
 
+  // Вся сетка в одном прокручиваемом контейнере: секции сложены вертикально,
+  // контейнер скроллится по вертикали (и по горизонтали для широких раундов),
+  // вместо того чтобы растягиваться на весь экран.
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_auto]">
-      <div className="space-y-6">
+    <div className="max-h-[70vh] space-y-6 overflow-auto rounded-md border p-4">
+      <section>
+        <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
+          Верхняя сетка
+        </h3>
+        <RoundColumns rounds={wbRounds} />
+      </section>
+      {lbRounds.length > 0 && (
         <section>
           <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Верхняя сетка
+            Нижняя сетка
           </h3>
-          <RoundColumns rounds={wbRounds} />
+          <RoundColumns rounds={lbRounds} />
         </section>
-        {lbRounds.length > 0 && (
-          <section>
-            <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-              Нижняя сетка
-            </h3>
-            <RoundColumns rounds={lbRounds} />
-          </section>
-        )}
-      </div>
+      )}
       {gfRounds.length > 0 && (
-        <section className="lg:w-72">
+        <section>
           <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
             Grand Final
           </h3>
