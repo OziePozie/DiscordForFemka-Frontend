@@ -683,12 +683,12 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                   className="relative space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm"
                 >
                   {isStaff && cell.match ? (
-                    <div className="absolute right-1 top-1">
+                    <div className="absolute bottom-1 right-1">
                       <MatchAdminMenu match={cell.match} />
                     </div>
                   ) : null}
                   <div
-                    className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'} pr-6`}
+                    className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'}`}
                   >
                     <span className="truncate">
                       {teamA ? teamLabel(teamA) : cell.slotA.label}
@@ -703,7 +703,7 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                     </span>
                     {m ? <span className="font-mono">{m.scoreB}</span> : null}
                   </div>
-                  <div className="pt-1 text-xs text-muted-foreground">
+                  <div className="pt-1 pr-7 text-xs text-muted-foreground">
                     {m
                       ? `${MATCH_STATUS_LABEL[m.status]} · ${fmtDateTime(m.scheduledAt)}`
                       : '—'}
