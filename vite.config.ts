@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
   const proxy = {
     target: apiTarget,
     changeOrigin: !apiTarget.includes('localhost'),
+    secure: false,
   };
 
   return {

@@ -1,0 +1,81 @@
+.card {
+  background: #1a1d28;
+  border: 1px solid #2d3252;
+  border-radius: 5px;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.card.live   { border-color: #e63946; }
+.card.highlight { border-color: #f5c518; box-shadow: 0 0 12px #f5c51828; }
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  background: #13151f;
+  border-bottom: 1px solid #2d3252;
+  box-sizing: border-box;
+}
+
+.format {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #444;
+  text-transform: uppercase;
+}
+
+.live {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #e63946;
+}
+
+.date, .pending {
+  font-size: 9px;
+  color: #444;
+  margin-left: auto;
+}
+
+.team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  gap: 8px;
+}
+
+.name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #7a80a0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.score {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7a80a0;
+  min-width: 14px;
+  text-align: right;
+}
+
+.team.won .name  { color: #ffffff; }
+.team.won .score { color: #4ade80; }
+.team.lost .name  { color: #363952; }
+.team.lost .score { color: #363952; }
+
+.sep {
+  height: 1px;
+  background: #2d3252;
+}

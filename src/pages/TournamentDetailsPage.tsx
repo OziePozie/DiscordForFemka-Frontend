@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import TournamentCanvas from '@/components/bracket/TournamentCanvas';
+import { adaptBracketDto } from '@/components/bracket/bracketAdapter';
 import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
@@ -145,7 +147,7 @@ export default function TournamentDetailsPage() {
         </TabsContent>
 
         <TabsContent value="bracket">
-          <BracketTab tournamentId={tournament.id} />
+          <BracketTab tournamentId={tournament.id} tournamentName={tournament.name} />
         </TabsContent>
       </Tabs>
     </div>
@@ -582,7 +584,7 @@ function MatchRow({ m }: { m: MatchDto }) {
   );
 }
 
-function BracketTab({ tournamentId }: { tournamentId: string }) {
+function BracketTab({ tournamentId, tournamentName }: { tournamentId: string; tournamentName: string }) {
   const q = useBracket(tournamentId);
 
   if (q.isLoading) return <Skeleton className="h-60 w-full" />;
@@ -601,46 +603,21 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
       </div>
     );
 
-  const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
-  const lbRounds = bracket.rounds.filter((r) => r.section === 'LB');
-  const gfRounds = bracket.rounds.filter((r) => r.section === 'GF');
   const isDoubleElim = bracket.format === 'DOUBLE_ELIM';
 
-  if (!isDoubleElim) {
+  if (isDoubleElim) {
+    const tournamentData = adaptBracketDto(bracket, tournamentName);
     return (
-      <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
-        <RoundColumns rounds={wbRounds} />
+      <div className="overflow-auto rounded-md border p-4">
+        <TournamentCanvas tournament={tournamentData} />
       </div>
     );
   }
 
-  // Вся сетка в одном прокручиваемом контейнере: секции сложены вертикально,
-  // контейнер скроллится по вертикали (и по горизонтали для широких раундов),
-  // вместо того чтобы растягиваться на весь экран.
+  const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
   return (
-    <div className="max-h-[70vh] space-y-6 overflow-auto rounded-md border p-4">
-      <section>
-        <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-          Верхняя сетка
-        </h3>
-        <RoundColumns rounds={wbRounds} />
-      </section>
-      {lbRounds.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Нижняя сетка
-          </h3>
-          <RoundColumns rounds={lbRounds} />
-        </section>
-      )}
-      {gfRounds.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Grand Final
-          </h3>
-          <RoundColumns rounds={gfRounds} />
-        </section>
-      )}
+    <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+      <RoundColumns rounds={wbRounds} />
     </div>
   );
 }

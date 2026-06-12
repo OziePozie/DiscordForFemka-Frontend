@@ -1,0 +1,70 @@
+.scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0 0 24px;
+}
+
+.canvas {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.card {
+  position: absolute;
+}
+
+.bracketLabel {
+  position: absolute;
+  line-height: 1;
+}
+
+.ubBadge,
+.lbBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.ubBadge {
+  color: #60a5fa;
+  background: #60a5fa14;
+  border: 1px solid #60a5fa28;
+}
+
+.lbBadge {
+  color: #fb923c;
+  background: #fb923c14;
+  border: 1px solid #fb923c28;
+}
+
+.roundName {
+  position: absolute;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #363a52;
+  box-sizing: border-box;
+}
+
+.gfLabel {
+  position: absolute;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f5c518;
+  box-sizing: border-box;
+}
