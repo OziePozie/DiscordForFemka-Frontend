@@ -653,9 +653,13 @@ export async function getMatchLive(
   return data ?? null;
 }
 
-export function getMatchResult(id: string): Promise<MatchResultDto> {
+export function getMatchResult(
+  id: string,
+  gameNumber?: number,
+): Promise<MatchResultDto> {
+  const q = gameNumber != null ? `?gameNumber=${gameNumber}` : '';
   return api<MatchResultDto>(
-    `/api/v1/matches/${encodeURIComponent(id)}/result`,
+    `/api/v1/matches/${encodeURIComponent(id)}/result${q}`,
   );
 }
 
