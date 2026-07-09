@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import {
@@ -419,6 +420,33 @@ function LobbyFailedBanner({ match }: LobbyFailedBannerProps) {
   );
 }
 
+interface GameResultCardProps {
+  matchId: string;
+  match: MatchDto;
+  gameNumber: number;
+  meId?: string;
+}
+
+function GameResultCard({
+  matchId,
+  match,
+  gameNumber,
+  meId,
+}: GameResultCardProps) {
+  const q = useMatchResult(matchId, true, gameNumber);
+  if (q.isLoading) return <Skeleton className="h-60 w-full" />;
+  if (q.isError || !q.data) {
+    return (
+      <Card>
+        <CardContent className="pt-6 text-sm text-muted-foreground">
+          Результат этой игры недоступен.
+        </CardContent>
+      </Card>
+    );
+  }
+  return <ResultStatsCard match={match} result={q.data} meId={meId} />;
+}
+
 export default function MatchDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const { session } = useAuth();
@@ -596,13 +624,68 @@ export default function MatchDetailsPage() {
         </CardContent>
       </Card>
 
-      {m.status === 'LIVE' && curGameOfM?.lobbyId && (
-        <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
-      )}
+      {(() => {
+        const isSeries = m.format === 'BO3' || m.format === 'BO5';
+        const games = m.games ?? [];
 
-      {m.status === 'FINISHED' && result.data && (
-        <ResultStatsCard match={m} result={result.data} meId={meId} />
-      )}
+        if (!isSeries || games.length === 0) {
+          // BO1 (и вырожденный случай без каток) — прежнее поведение.
+          return (
+            <>
+              {m.status === 'LIVE' && curGameOfM?.lobbyId && (
+                <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
+              )}
+              {m.status === 'FINISHED' && result.data && (
+                <ResultStatsCard match={m} result={result.data} meId={meId} />
+              )}
+            </>
+          );
+        }
+
+        const defaultTab = String(
+          curGameOfM?.gameNumber ?? games[games.length - 1].gameNumber,
+        );
+
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Счёт серии:</span>
+              <span className="font-semibold tabular-nums">
+                {m.scoreA} : {m.scoreB}
+              </span>
+            </div>
+            <Tabs defaultValue={defaultTab}>
+              <TabsList>
+                {games.map((g) => (
+                  <TabsTrigger key={g.gameNumber} value={String(g.gameNumber)}>
+                    Игра {g.gameNumber}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {games.map((g) => (
+                <TabsContent key={g.gameNumber} value={String(g.gameNumber)}>
+                  {g.status === 'LIVE' ? (
+                    <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
+                  ) : g.status === 'FINISHED' ? (
+                    <GameResultCard
+                      matchId={m.id}
+                      match={m}
+                      gameNumber={g.gameNumber}
+                      meId={meId}
+                    />
+                  ) : (
+                    <Card>
+                      <CardContent className="pt-6 text-sm text-muted-foreground">
+                        Игра ещё не началась.
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+              ))}
+            </Tabs>
+          </div>
+        );
+      })()}
 
       {showPending && <LobbyPendingCard match={m} isAdmin={isAdmin} />}
 

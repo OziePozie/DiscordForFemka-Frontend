@@ -808,11 +808,12 @@ export function useMatchLive(
 export function useMatchResult(
   id: string | undefined,
   enabled: boolean,
+  gameNumber?: number,
 ): UseQueryResult<MatchResultDto> {
   return useQuery({
-    queryKey: ['match-result', id],
+    queryKey: ['match-result', id, gameNumber ?? 'latest'],
     enabled: !!id && enabled,
-    queryFn: () => getMatchResult(id!),
+    queryFn: () => getMatchResult(id!, gameNumber),
     staleTime: Infinity,
   });
 }
