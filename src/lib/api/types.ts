@@ -116,6 +116,19 @@ export type Region =
 // How a match result was produced. Mirrors backend MatchResultType.
 export type MatchResultType = 'NORMAL' | 'TECH_WIN' | 'TECH_LOSS' | 'CANCELLED';
 
+// Backend MatchGameDto — one game (map) within a match series (last = current).
+export interface MatchGameDto {
+  gameNumber: number;
+  status: MatchStatus;
+  winnerTeamId?: string | null;
+  teamAKills: number;
+  teamBKills: number;
+  lobbyId?: string | null;
+  dotaMatchId?: number | null;
+  createdAt?: string | null;
+  finishedAt?: string | null;
+}
+
 export type MatchDto = Omit<S['MatchDto'], 'teamA' | 'teamB'> & {
   // Bracket shells: downstream tournament matches exist before their teams are
   // known (and revert to null when an upstream result is cancelled). The
@@ -141,7 +154,17 @@ export type MatchDto = Omit<S['MatchDto'], 'teamA' | 'teamB'> & {
   // TODO: regenerate openapi — backend exposes tournament slug on MatchDto for
   // building clickable tournament badges.
   tournamentSlug?: string | null;
+  // Match series: one entry per game, ordered by ascending gameNumber.
+  // The "current" game is the last element. lobbyId/lobbyCreatedAt are no
+  // longer sent on MatchDto itself — read them from games (see currentGame
+  // helper below).
+  games?: MatchGameDto[] | null;
 };
+
+/** Current (last) game of the series, or undefined if no games exist yet. */
+export function currentGame(m: Pick<MatchDto, 'games'>): MatchGameDto | undefined {
+  return m.games && m.games.length > 0 ? m.games[m.games.length - 1] : undefined;
+}
 
 // Match live snapshot + final result
 export type MatchLiveSnapshotDto = S['MatchLiveSnapshotDto'];

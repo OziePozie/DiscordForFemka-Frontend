@@ -38,6 +38,7 @@ import {
   MATCH_KIND_LABEL,
   MATCH_STATUS_LABEL,
   REGION_LABEL,
+  currentGame,
   type GameMode,
   type MatchDto,
   type MatchStatus,
@@ -189,7 +190,8 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const lobbyId = match.lobbyId!;
+  const lobbyId = currentGame(match)?.lobbyId ?? '';
+  const createdAt = currentGame(match)?.createdAt;
   const gameMode = match.gameMode as GameMode | null | undefined;
   const region = match.region as Region | null | undefined;
 
@@ -250,9 +252,9 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
               {copied ? 'Скопировано' : 'Копировать'}
             </Button>
           </div>
-          {match.lobbyCreatedAt && (
+          {createdAt && (
             <div className="mt-1 text-xs text-muted-foreground">
-              Создано: {fmtDateTime(match.lobbyCreatedAt)}
+              Создано: {fmtDateTime(createdAt)}
             </div>
           )}
         </div>
@@ -432,7 +434,7 @@ export default function MatchDetailsPage() {
   const cur = q.data;
   const isLobbyPending =
     !!cur &&
-    !cur.lobbyId &&
+    !currentGame(cur)?.lobbyId &&
     !!cur.lobbyCreateStartedAt &&
     !cur.lobbyCreateFailedAt &&
     cur.status === 'SCHEDULED';
@@ -443,7 +445,10 @@ export default function MatchDetailsPage() {
     setPollMs(isLobbyPending || isLive ? 5000 : undefined);
   }, [isLobbyPending, isLive]);
 
-  const live = useMatchLive(id, q.data?.status === 'LIVE' && !!q.data?.lobbyId);
+  const live = useMatchLive(
+    id,
+    q.data?.status === 'LIVE' && !!currentGame(q.data)?.lobbyId,
+  );
   const result = useMatchResult(id, q.data?.status === 'FINISHED');
   const meId = me.data?.profile.id;
 
@@ -501,8 +506,11 @@ export default function MatchDetailsPage() {
     (t) => t.role === 'CAPTAIN' && t.teamId === m.teamB?.id,
   );
 
+  const curGameOfM = currentGame(m);
   const canToggleReady =
-    m.status === 'SCHEDULED' && !m.lobbyId && (captainOfA || captainOfB);
+    m.status === 'SCHEDULED' &&
+    !curGameOfM?.lobbyId &&
+    (captainOfA || captainOfB);
 
   async function handleToggle(side: 'A' | 'B') {
     if (!m) return;
@@ -524,18 +532,19 @@ export default function MatchDetailsPage() {
     }
   }
 
-  const showLobby = !!m.lobbyId;
+  const showLobby = !!curGameOfM?.lobbyId;
   const showPending =
     m.status === 'SCHEDULED' &&
-    !m.lobbyId &&
+    !curGameOfM?.lobbyId &&
     !!m.lobbyCreateStartedAt &&
     !m.lobbyCreateFailedAt;
   const showFailed =
-    m.status === 'SCHEDULED' && !m.lobbyId && !!m.lobbyCreateFailedAt;
+    m.status === 'SCHEDULED' && !curGameOfM?.lobbyId && !!m.lobbyCreateFailedAt;
   // Hide readiness card while the «creating lobby…» card is showing — captains
   // can't toggle ready during that window anyway, and the buttons are
   // visually replaced by the pending card.
-  const showReadiness = m.status === 'SCHEDULED' && !m.lobbyId && !showPending;
+  const showReadiness =
+    m.status === 'SCHEDULED' && !curGameOfM?.lobbyId && !showPending;
 
   return (
     <div className="space-y-6">
@@ -587,7 +596,7 @@ export default function MatchDetailsPage() {
         </CardContent>
       </Card>
 
-      {m.status === 'LIVE' && m.lobbyId && (
+      {m.status === 'LIVE' && curGameOfM?.lobbyId && (
         <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
       )}
 
