@@ -20,6 +20,7 @@ import {
 import {
   MATCH_FORMAT_LABEL,
   MATCH_STATUS_LABEL,
+  currentGame,
   type MatchDto,
   type MatchStatus,
   type SeasonDto,
@@ -259,7 +260,7 @@ export default function AdminMatchesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                      {m.lobbyId ?? '—'}
+                      {currentGame(m)?.lobbyId ?? '—'}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
                       {finished

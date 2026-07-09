@@ -47,6 +47,7 @@ import {
   MATCH_RESULT_TYPE_LABEL,
   REGIONS,
   REGION_LABEL,
+  currentGame,
   type GameMode,
   type MatchDto,
   type MatchFormat,
@@ -454,7 +455,7 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
               {isAdmin && (
                 <DropdownMenuItem
                   onClick={() => setDialog({ kind: 'launch' })}
-                  disabled={!match.lobbyId}
+                  disabled={!currentGame(match)?.lobbyId}
                 >
                   Принудительно стартовать в Dota
                 </DropdownMenuItem>
