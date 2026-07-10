@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/use-toast';
+import { AddBotDialog } from '@/components/admin/AddBotDialog';
 import {
   useAdminBots,
   useAdminBotGcRehello,
@@ -51,6 +53,7 @@ export default function AdminBotsPage() {
   const leave = useAdminBotLeaveLobby();
   const rehello = useAdminBotGcRehello();
   const reconnect = useAdminBotSteamReconnect();
+  const [addOpen, setAddOpen] = useState(false);
 
   function run(
     title: string,
@@ -72,10 +75,17 @@ export default function AdminBotsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Боты Dota 2</h1>
-        <div className="text-sm text-muted-foreground">
-          {q.data?.length ?? 0} ботов · обновляется каждые 5 с
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            {q.data?.length ?? 0} ботов · обновляется каждые 5 с
+          </div>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            Добавить бота
+          </Button>
         </div>
       </div>
+
+      <AddBotDialog open={addOpen} onOpenChange={setAddOpen} />
 
       {q.isLoading && <Skeleton className="h-80 w-full" />}
 
