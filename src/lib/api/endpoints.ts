@@ -38,6 +38,7 @@ import type {
   AdminUpdatePlayerRequest,
   AuditLogDto,
   BotStatusDto,
+  CreateBotRequest,
   ActivityStatus,
   PlayerRole,
   UpdateMatchRequest,
@@ -849,6 +850,13 @@ export function getAdminAuditPage(
 
 export function listAdminBots(): Promise<BotStatusDto[]> {
   return api<BotStatusDto[]>('/api/v1/admin/bots');
+}
+
+export function createAdminBot(body: CreateBotRequest): Promise<BotStatusDto> {
+  return api<BotStatusDto>('/api/v1/admin/bots', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function adminBotLeaveLobby(username: string): Promise<void> {

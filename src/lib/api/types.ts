@@ -72,6 +72,11 @@ export interface BotStatusDto {
   healthy: boolean;
 }
 
+export interface CreateBotRequest {
+  username: string;
+  password: string;
+}
+
 // Seasons / Tournaments / Matches
 export type SeasonDto = S['SeasonDto'];
 export type SeasonDetailsDto = S['SeasonDetailsDto'];
