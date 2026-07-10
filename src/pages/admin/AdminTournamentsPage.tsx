@@ -7,6 +7,8 @@ import {
   useCloseTournamentRegistration,
   useStartTournament,
   useFinishTournament,
+  useHideTournament,
+  useUnhideTournament,
   useGenerateBracket,
   useTournamentEligibility,
   useUpdateTournamentEligibility,
@@ -213,6 +215,8 @@ export default function AdminTournamentsPage() {
   const closeRegMut = useCloseTournamentRegistration();
   const startMut = useStartTournament();
   const finishMut = useFinishTournament();
+  const hideMut = useHideTournament();
+  const unhideMut = useUnhideTournament();
   const bracketMut = useGenerateBracket();
 
   const mutating =
@@ -222,6 +226,8 @@ export default function AdminTournamentsPage() {
     closeRegMut.isPending ||
     startMut.isPending ||
     finishMut.isPending ||
+    hideMut.isPending ||
+    unhideMut.isPending ||
     bracketMut.isPending;
 
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -456,6 +462,24 @@ export default function AdminTournamentsPage() {
     }
   }
 
+  async function handleToggleHidden(t: TournamentDto) {
+    try {
+      if (t.hidden) {
+        await unhideMut.mutateAsync(t.id);
+        toast({ title: 'Турнир показан' });
+      } else {
+        await hideMut.mutateAsync(t.id);
+        toast({ title: 'Турнир скрыт' });
+      }
+    } catch (e) {
+      toast({
+        title: 'Не удалось изменить видимость',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   async function runTransition(
     t: TournamentDto,
     action: 'open' | 'close' | 'start',
@@ -563,6 +587,7 @@ export default function AdminTournamentsPage() {
                   }
                   onStart={() => runTransition(t, 'start')}
                   onFinish={() => setDialog({ kind: 'finish', tournament: t })}
+                  onToggleHidden={() => handleToggleHidden(t)}
                 />
               ))}
             </tbody>
@@ -1324,6 +1349,7 @@ interface TournamentRowProps {
   onGenerateBracket: () => void;
   onStart: () => void;
   onFinish: () => void;
+  onToggleHidden: () => void;
 }
 
 function TournamentRow({
@@ -1336,6 +1362,7 @@ function TournamentRow({
   onGenerateBracket,
   onStart,
   onFinish,
+  onToggleHidden,
 }: TournamentRowProps) {
   const canOpen = t.status === 'ANNOUNCED';
   const canClose = t.status === 'REGISTRATION_OPEN';
@@ -1354,9 +1381,12 @@ function TournamentRow({
         <Badge variant="outline">{TOURNAMENT_FORMAT_LABEL[t.format]}</Badge>
       </td>
       <td className="px-4 py-3">
-        <Badge variant={statusVariant(t.status)}>
-          {TOURNAMENT_STATUS_LABEL[t.status]}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={statusVariant(t.status)}>
+            {TOURNAMENT_STATUS_LABEL[t.status]}
+          </Badge>
+          {t.hidden && <Badge variant="secondary">Скрыт</Badge>}
+        </div>
       </td>
       <td className="px-4 py-3 text-muted-foreground">{t.maxTeams ?? '—'}</td>
       <td className="px-4 py-3 text-right">
@@ -1415,6 +1445,9 @@ function TournamentRow({
               title={canFinish ? undefined : 'Доступно только для LIVE'}
             >
               Финиш
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onToggleHidden}>
+              {t.hidden ? 'Показать' : 'Скрыть'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
