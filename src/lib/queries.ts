@@ -44,6 +44,8 @@ import {
   closeTournamentRegistration,
   startTournament,
   finishTournament,
+  hideTournament,
+  unhideTournament,
   generateBracket,
   getTournamentEligibility,
   putTournamentEligibility,
@@ -71,6 +73,9 @@ import {
   moveMatchTeams,
   changeMatchFormat,
   getAdminPlayersPage,
+  getAdminTeamsPage,
+  hideTeam,
+  unhideTeam,
   updateAdminPlayer,
   banAdminPlayer,
   unbanAdminPlayer,
@@ -105,6 +110,7 @@ import {
   type LobbiesPageParams,
   type MyInvitesPageParams,
   type AdminPlayersPageParams,
+  type AdminTeamsPageParams,
   type AdminAuditPageParams,
   type PlayersPageParams,
   type OpenLobbiesPageParams,
@@ -182,6 +188,8 @@ export const qk = {
   adminPlayers: ['adminPlayers'] as const,
   adminPlayersPage: (params: AdminPlayersPageParams) =>
     ['adminPlayers', params] as const,
+  adminTeams: (params: AdminTeamsPageParams) =>
+    ['admin-teams', params] as const,
   adminAudit: (params: AdminAuditPageParams) =>
     ['adminAudit', params] as const,
   adminBots: ['adminBots'] as const,
@@ -625,6 +633,22 @@ export function useFinishTournament() {
   });
 }
 
+export function useHideTournament() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: hideTournament,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useUnhideTournament() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: unhideTournament,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
 export function useGenerateBracket() {
   const qc = useQueryClient();
   return useMutation<BracketDto, Error, string>({
@@ -1000,6 +1024,37 @@ export function useSetAdminPlayerFemaleVerified() {
       qc.invalidateQueries({ queryKey: qk.adminPlayers });
       qc.invalidateQueries({ queryKey: qk.player(vars.id) });
     },
+  });
+}
+
+// ──────────────── Admin teams ────────────────
+
+function invalidateAdminTeamCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['teams'] });
+  qc.invalidateQueries({ queryKey: ['team'] });
+  qc.invalidateQueries({ queryKey: ['admin-teams'] });
+}
+
+export function useAdminTeams(params: AdminTeamsPageParams = {}) {
+  return useQuery({
+    queryKey: qk.adminTeams(params),
+    queryFn: () => getAdminTeamsPage(params),
+  });
+}
+
+export function useHideTeam() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, string>({
+    mutationFn: hideTeam,
+    onSuccess: () => invalidateAdminTeamCaches(qc),
+  });
+}
+
+export function useUnhideTeam() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, string>({
+    mutationFn: unhideTeam,
+    onSuccess: () => invalidateAdminTeamCaches(qc),
   });
 }
 

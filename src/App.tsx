@@ -19,6 +19,7 @@ import AdminMmrPage from '@/pages/admin/AdminMmrPage';
 import AdminSeasonsPage from '@/pages/admin/AdminSeasonsPage';
 import AdminTournamentsPage from '@/pages/admin/AdminTournamentsPage';
 import AdminPlayersPage from '@/pages/admin/AdminPlayersPage';
+import AdminTeamsPage from '@/pages/admin/AdminTeamsPage';
 import AdminMatchesPage from '@/pages/admin/AdminMatchesPage';
 import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 import AdminBotsPage from '@/pages/admin/AdminBotsPage';
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="tournaments" element={<AdminTournamentsPage />} />
           <Route path="matches" element={<AdminMatchesPage />} />
           <Route path="players" element={<AdminPlayersPage />} />
+          <Route path="teams" element={<AdminTeamsPage />} />
           <Route path="audit" element={<AdminAuditPage />} />
           <Route path="bots" element={<AdminBotsPage />} />
         </Route>

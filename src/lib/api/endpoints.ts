@@ -16,6 +16,7 @@ import type {
   MatchDto,
   TeamDto,
   TeamPublicDto,
+  TeamStatus,
   MmrChangeRequestAdminDto,
   MmrChangeRequestDto,
   CreateMmrChangeRequest,
@@ -493,6 +494,20 @@ export function finishTournament(
   );
 }
 
+export function hideTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/hide`,
+    { method: 'POST' },
+  );
+}
+
+export function unhideTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/unhide`,
+    { method: 'POST' },
+  );
+}
+
 export function getTournamentEligibility(
   id: string,
 ): Promise<TournamentEligibilityDto> {
@@ -822,6 +837,39 @@ export function setAdminPlayerFemaleVerified(
       method: 'POST',
       body: JSON.stringify({ verified }),
     },
+  );
+}
+
+// ──────────────── Admin Teams ────────────────
+
+export interface AdminTeamsPageParams {
+  q?: string;
+  status?: TeamStatus;
+  hidden?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
+export function getAdminTeamsPage(
+  params: AdminTeamsPageParams = {},
+): Promise<PagedResponse<TeamPublicDto>> {
+  return api<PagedResponse<TeamPublicDto>>(
+    `/api/v1/admin/teams${buildQuery(params)}`,
+  );
+}
+
+export function hideTeam(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/admin/teams/${encodeURIComponent(id)}/hide`,
+    { method: 'POST' },
+  );
+}
+
+export function unhideTeam(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/admin/teams/${encodeURIComponent(id)}/unhide`,
+    { method: 'POST' },
   );
 }
 
