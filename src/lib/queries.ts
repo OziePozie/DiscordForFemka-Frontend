@@ -77,6 +77,7 @@ import {
   setAdminPlayerFemaleVerified,
   getAdminAuditPage,
   listAdminBots,
+  createAdminBot,
   adminBotLeaveLobby,
   adminBotGcRehello,
   adminBotSteamReconnect,
@@ -152,6 +153,7 @@ import type {
   OpenLobbyDto,
   CreateOpenLobbyRequest,
   BotStatusDto,
+  CreateBotRequest,
   LeaderboardEntryDto,
   PlayerRatingDto,
   PlayerStatsDto,
@@ -1020,6 +1022,14 @@ export function useAdminBots() {
     queryFn: listAdminBots,
     refetchInterval: 5000,
     refetchIntervalInBackground: false,
+  });
+}
+
+export function useCreateAdminBot() {
+  const qc = useQueryClient();
+  return useMutation<BotStatusDto, Error, CreateBotRequest>({
+    mutationFn: createAdminBot,
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminBots }),
   });
 }
 
