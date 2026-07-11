@@ -22,6 +22,10 @@ export type CreateMmrChangeRequest = S['CreateMmrChangeRequest'];
 export type MmrChangeRequestDto = S['MmrChangeRequestDto'];
 export type MmrChangeRequestAdminDto = S['MmrChangeRequestAdminDto'];
 
+// Notifications
+export type NotificationDto = S['NotificationDto'];
+export type NotificationType = S['NotificationType'];
+
 // Internal platform rating
 export type RankTier = S['RankTier'];
 export type PlayerRatingDto = S['PlayerRatingDto'];

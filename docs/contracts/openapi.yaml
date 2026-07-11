@@ -21,6 +21,7 @@ tags:
   - { name: Tournament,     description: "Турниры" }
   - { name: Match,          description: "Матчи и открытые лобби (КВ/шоу-матчи)" }
   - { name: Admin,          description: "Админ-панель: модерация, аудит" }
+  - { name: Notification,   description: "Уведомления игрока (колокольчик, SSE)" }
 
 security:
   - cookieAuth: []
@@ -984,6 +985,11 @@ paths:
           required: false
           description: Фильтр по подстроке имени (case-insensitive).
           schema: { type: string }
+        - in: query
+          name: hidden
+          required: false
+          description: Фильтр по признаку скрытости.
+          schema: { type: boolean }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - in: query
@@ -1107,6 +1113,34 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/admin/tournaments/{id}/hide:
+    post:
+      tags: [Admin, Tournament]
+      summary: Скрыть турнир с публичной части.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/unhide:
+    post:
+      tags: [Admin, Tournament]
+      summary: Вернуть турнир на публичную часть.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/v1/admin/tournaments/{id}/bracket/generate:
     post:
       tags: [Admin, Tournament]
@@ -1205,6 +1239,75 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/teams:
+    get:
+      tags: [Admin, Team]
+      summary: Админский листинг команд с фильтрами и пагинацией.
+      parameters:
+        - in: query
+          name: q
+          required: false
+          description: Фильтр по подстроке имени/тега (case-insensitive).
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { $ref: "#/components/schemas/TeamStatus" }
+        - in: query
+          name: hidden
+          required: false
+          description: Фильтр по признаку скрытости.
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - in: query
+          name: sort
+          required: false
+          description: "field[,asc|desc]; default createdAt,desc"
+          schema: { type: string }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/TeamPublicDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/teams/{id}/hide:
+    post:
+      tags: [Admin, Team]
+      summary: Скрыть команду с публичной части.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/teams/{id}/unhide:
+    post:
+      tags: [Admin, Team]
+      summary: Вернуть команду на публичную часть.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # =================== MATCH ===================
   /api/v1/matches/{id}:
@@ -2016,6 +2119,76 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/v1/notifications:
+    get:
+      tags: [Notification]
+      summary: Список уведомлений текущего игрока (новые сверху)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/NotificationDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [Notification]
+      summary: Количество непрочитанных уведомлений
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer, format: int64 }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/{id}/read:
+    post:
+      tags: [Notification]
+      summary: Отметить уведомление прочитанным
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+      responses:
+        "204": { description: отмечено }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notification]
+      summary: Отметить все уведомления прочитанными
+      responses:
+        "204": { description: отмечено }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/stream:
+    get:
+      tags: [Notification]
+      summary: Поток уведомлений (SSE)
+      description: >-
+        Server-Sent Events. Каждое событие notification несёт в data JSON одного NotificationDto.
+      responses:
+        "200":
+          description: поток
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -2360,7 +2533,7 @@ components:
     # ---- Team ----
     TeamPublicDto:
       type: object
-      required: [id, name, tag, captain, status, memberCount, createdAt]
+      required: [id, name, tag, captain, status, hidden, memberCount, createdAt]
       properties:
         id:           { type: string, format: uuid }
         name:         { type: string }
@@ -2369,6 +2542,10 @@ components:
         captain:      { $ref: "#/components/schemas/PlayerPublicDto" }
         avgMmr:       { type: integer, nullable: true }
         status:       { $ref: "#/components/schemas/TeamStatus" }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         memberCount:  { type: integer }
         createdAt:    { type: string, format: date-time }
     TeamMemberDto:
@@ -2381,7 +2558,7 @@ components:
         joinedAt:  { type: string, format: date-time }
     TeamDto:
       type: object
-      required: [id, name, tag, captain, status, members, createdAt, updatedAt]
+      required: [id, name, tag, captain, status, hidden, members, createdAt, updatedAt]
       properties:
         id:               { type: string, format: uuid }
         name:             { type: string }
@@ -2390,6 +2567,10 @@ components:
         captain:          { $ref: "#/components/schemas/PlayerPublicDto" }
         avgMmr:           { type: integer, nullable: true }
         status:           { $ref: "#/components/schemas/TeamStatus" }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         inactiveReasons:  { type: array, items: { $ref: "#/components/schemas/InactiveReason" } }
         members:          { type: array, items: { $ref: "#/components/schemas/TeamMemberDto" } }
         frozenUntil:      { type: string, format: date-time, nullable: true }
@@ -2527,13 +2708,17 @@ components:
     # ---- Tournament ----
     TournamentDto:
       type: object
-      required: [id, name, slug, format, status, defaultCoinToss, defaultAutoLaunch, broadcasterAccountIds]
+      required: [id, name, slug, format, status, hidden, defaultCoinToss, defaultAutoLaunch, broadcasterAccountIds]
       properties:
         id:                     { type: string, format: uuid }
         seasonId:               { type: string, format: uuid, nullable: true }
         winnerTeamId:           { type: string, format: uuid, nullable: true }
         name:                   { type: string }
         slug:                   { type: string }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         format:                 { $ref: "#/components/schemas/TournamentFormat" }
         description:            { type: string, nullable: true }
         prizePoolText:          { type: string, nullable: true }
@@ -2760,6 +2945,8 @@ components:
         gameState:      { type: integer, description: "Dota internal game state enum (e.g. 5 = playing)" }
         radiant:        { $ref: "#/components/schemas/TeamLiveDto" }
         dire:           { $ref: "#/components/schemas/TeamLiveDto" }
+        radiantTeamId:  { type: string, format: uuid, nullable: true, description: "Id of the platform team (teamA or teamB) currently on Radiant; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed." }
+        direTeamId:     { type: string, format: uuid, nullable: true, description: "Id of the platform team (teamA or teamB) currently on Dire; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed." }
         fetchedAt:      { type: string, format: date-time, description: "When the backend last polled Dota2API for this snapshot" }
     TeamLiveDto:
       type: object
@@ -3116,3 +3303,19 @@ components:
         inLobby:         { type: boolean }
         currentLobbyId:  { type: integer, format: int64, nullable: true }
         healthy:         { type: boolean }
+
+    # --- Notification ---
+    NotificationType:
+      type: string
+      enum: [MATCH_READY_CHECK, MATCH_LIVE]
+    NotificationDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/NotificationType" }
+        title: { type: string }
+        body: { type: string }
+        link: { type: string, nullable: true }
+        matchId: { type: string, format: uuid, nullable: true }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }

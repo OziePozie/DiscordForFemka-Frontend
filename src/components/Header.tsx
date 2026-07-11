@@ -6,7 +6,6 @@ import {
   AvatarImage,
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +17,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { useLogout, useMyInvites } from '@/lib/queries';
 import { steamLoginUrl } from '@/lib/api/endpoints';
+import { NotificationBell } from './NotificationBell';
 
 export default function Header() {
   const { session, isAuthenticated, isLoading } = useAuth();
@@ -52,9 +52,18 @@ export default function Header() {
 
   const initials = (session?.nickname ?? '?').slice(0, 2).toUpperCase();
 
+  const navLink = (to: string, exact = false) => {
+    const active = exact
+      ? location.pathname === to
+      : location.pathname === to || location.pathname.startsWith(`${to}/`);
+    return active
+      ? 'font-bold text-ink'
+      : 'font-medium text-ink-muted transition-colors hover:text-ink';
+  };
+
   return (
-    <header className="border-b">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
+    <header className="border-b border-line bg-background">
+      <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between px-6">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center" aria-label="Play Stage — на главную">
             <img
@@ -63,29 +72,29 @@ export default function Header() {
               className="h-10 w-auto object-contain"
             />
           </Link>
-          <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
-            <Link to="/" className="hover:text-foreground">
+          <nav className="hidden gap-6 text-sm sm:flex">
+            <Link to="/" className={navLink('/', true)}>
               Главная
             </Link>
-            <Link to="/scenes" className="hover:text-foreground">
+            <Link to="/scenes" className={navLink('/scenes')}>
               Сцены
             </Link>
-            <Link to="/teams" className="hover:text-foreground">
+            <Link to="/teams" className={navLink('/teams')}>
               Команды
             </Link>
-            <Link to="/leaderboard" className="hover:text-foreground">
+            <Link to="/leaderboard" className={navLink('/leaderboard')}>
               Рейтинг
             </Link>
-            <Link to="/archive" className="hover:text-foreground">
+            <Link to="/archive" className={navLink('/archive')}>
               Архив
             </Link>
-            <Link to="/lobbies" className="hover:text-foreground">
+            <Link to="/lobbies" className={navLink('/lobbies')}>
               Лобби
             </Link>
             {isAuthenticated && pendingInviteCount > 0 && (
               <Link
                 to="/me/invites"
-                className="flex items-center gap-1.5 hover:text-foreground"
+                className={`flex items-center gap-1.5 ${navLink('/me/invites')}`}
               >
                 Приглашения
                 <Badge variant="default" className="h-5 px-1.5 text-xs">
@@ -94,12 +103,12 @@ export default function Header() {
               </Link>
             )}
             {isAuthenticated && (
-              <Link to="/profile" className="hover:text-foreground">
+              <Link to="/profile" className={navLink('/profile')}>
                 Профиль
               </Link>
             )}
             {isStaff && (
-              <Link to="/admin/mmr" className="hover:text-foreground">
+              <Link to="/admin/mmr" className={navLink('/admin')}>
                 Админка
               </Link>
             )}
@@ -107,6 +116,7 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
           {isLoading ? (
             <div className="h-10 w-24 animate-pulse rounded-md bg-muted" />
           ) : isAuthenticated && session ? (
@@ -157,7 +167,13 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={handleLogin}>Войти через Steam</Button>
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="ec-btn ec-btn-dark"
+            >
+              Войти через Steam
+            </button>
           )}
         </div>
       </div>

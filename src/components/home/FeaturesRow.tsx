@@ -18,23 +18,28 @@ const FEATURES = [
 ] as const;
 
 /**
- * Нижний маркетинговый блок: 4 карточки с градиентной иконкой и статичным
- * описанием. Никакой логики — чистая презентация.
+ * Нижний маркетинговый блок в стиле «Editorial Clean»: четыре колонки,
+ * разделённые тонкими линиями, нумерация JetBrains Mono, без заливок.
  */
 export default function FeaturesRow() {
   return (
-    <section className="relative z-10 px-10 pb-20">
-      <div className="mx-auto grid max-w-7xl gap-5 md:grid-cols-4">
-        {FEATURES.map(({ title, desc }) => (
-          <div
-            key={title}
-            className="rounded-[1.75rem] border border-white/60 bg-white/55 p-6 shadow-[0_0.625rem_2.5rem_rgba(120,100,255,0.06)] backdrop-blur-xl"
-          >
-            <div className="mb-5 h-12 w-12 rounded-2xl bg-gradient-to-br from-purple-300 to-blue-300" />
-            <h3 className="mb-3 text-xl font-bold text-[#141938]">{title}</h3>
-            <p className="text-sm leading-relaxed text-[#6a7191]">{desc}</p>
-          </div>
-        ))}
+    <section className="px-10 py-16">
+      <div className="mx-auto max-w-7xl">
+        <div className="grid border-t border-line divide-y divide-line md:grid-cols-4 md:divide-x md:divide-y-0 md:[&>*:first-child]:pl-0">
+          {FEATURES.map(({ title, desc }, i) => (
+            <div key={title} className="py-7 md:px-8">
+              <span className="ec-num text-[0.75rem] text-ink-faint">
+                {String(i + 1).padStart(2, '0')}
+              </span>
+              <h3 className="ec-display mt-3 text-[1.125rem] leading-tight text-ink">
+                {title}
+              </h3>
+              <p className="mt-3 text-[0.875rem] leading-relaxed text-ink-muted">
+                {desc}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

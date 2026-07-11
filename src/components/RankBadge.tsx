@@ -1,31 +1,12 @@
 import { cn } from '@/lib/utils';
 import type { RankTier } from '@/lib/api/types';
 
-const RANK_META: Record<
-  RankTier,
-  { label: string; className: string }
-> = {
-  BLOSSOM: {
-    label: 'Blossom',
-    className: 'bg-pink-100 text-pink-700 ring-1 ring-pink-200',
-  },
-  SAPPHIRE: {
-    label: 'Sapphire',
-    className: 'bg-sky-100 text-sky-700 ring-1 ring-sky-200',
-  },
-  DIAMOND: {
-    label: 'Diamond',
-    className: 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200',
-  },
-  IMMORTAL: {
-    label: 'Immortal',
-    className: 'bg-amber-100 text-amber-700 ring-1 ring-amber-200',
-  },
-  CELESTIAL: {
-    label: 'Celestial',
-    className:
-      'bg-gradient-to-br from-purple-500 to-blue-500 text-white shadow-[0_4px_12px_rgba(126,91,255,0.25)]',
-  },
+const RANK_META: Record<RankTier, { label: string; dot: string }> = {
+  BLOSSOM: { label: 'Blossom', dot: '#db6fa1' },
+  SAPPHIRE: { label: 'Sapphire', dot: '#3b82f6' },
+  DIAMOND: { label: 'Diamond', dot: '#22b8cf' },
+  IMMORTAL: { label: 'Immortal', dot: '#d19a3a' },
+  CELESTIAL: { label: 'Celestial', dot: '#7c5cff' },
 };
 
 export function rankLabel(tier: RankTier): string {
@@ -37,19 +18,20 @@ type Props = {
   className?: string;
 };
 
+/**
+ * Ранг-тир в стиле «Editorial Clean»: цветная точка + подпись вместо
+ * цветной таблетки. Точка сохраняет узнаваемость тира, текст нейтрален.
+ */
 export function RankBadge({ tier, className }: Props) {
-  const meta = RANK_META[tier] ?? {
-    label: tier,
-    className: 'bg-slate-200 text-slate-700',
-  };
+  const meta = RANK_META[tier] ?? { label: tier, dot: '#9a9eb3' };
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
-        meta.className,
+        'ec-kicker inline-flex items-center gap-1.5 text-[0.6875rem] text-ink-muted [letter-spacing:0.08em]',
         className,
       )}
     >
+      <span className="ec-dot" style={{ backgroundColor: meta.dot }} />
       {meta.label}
     </span>
   );

@@ -44,6 +44,8 @@ import {
   closeTournamentRegistration,
   startTournament,
   finishTournament,
+  hideTournament,
+  unhideTournament,
   generateBracket,
   getTournamentEligibility,
   putTournamentEligibility,
@@ -72,6 +74,9 @@ import {
   moveMatchTeams,
   changeMatchFormat,
   getAdminPlayersPage,
+  getAdminTeamsPage,
+  hideTeam,
+  unhideTeam,
   updateAdminPlayer,
   banAdminPlayer,
   unbanAdminPlayer,
@@ -97,6 +102,10 @@ import {
   getPlayerRating,
   getPlayerMatches,
   getPlayerStats,
+  getNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
   type LeaderboardPageParams,
   type PlayerMatchesPageParams,
   type SeasonsPageParams,
@@ -106,6 +115,7 @@ import {
   type LobbiesPageParams,
   type MyInvitesPageParams,
   type AdminPlayersPageParams,
+  type AdminTeamsPageParams,
   type AdminAuditPageParams,
   type PlayersPageParams,
   type OpenLobbiesPageParams,
@@ -184,6 +194,8 @@ export const qk = {
   adminPlayers: ['adminPlayers'] as const,
   adminPlayersPage: (params: AdminPlayersPageParams) =>
     ['adminPlayers', params] as const,
+  adminTeams: (params: AdminTeamsPageParams) =>
+    ['admin-teams', params] as const,
   adminAudit: (params: AdminAuditPageParams) =>
     ['adminAudit', params] as const,
   adminBots: ['adminBots'] as const,
@@ -202,6 +214,9 @@ export const qk = {
   playerMatches: (id: string, params: PlayerMatchesPageParams) =>
     ['player', id, 'matches', params] as const,
   playerStats: (id: string) => ['player', id, 'stats'] as const,
+  notificationsUnread: ['notifications', 'unread'] as const,
+  notificationsList: (page: number, size: number) =>
+    ['notifications', 'list', page, size] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -627,6 +642,22 @@ export function useFinishTournament() {
   });
 }
 
+export function useHideTournament() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: hideTournament,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
+export function useUnhideTournament() {
+  const qc = useQueryClient();
+  return useMutation<TournamentDto, Error, string>({
+    mutationFn: unhideTournament,
+    onSuccess: () => invalidateTournamentCaches(qc),
+  });
+}
+
 export function useGenerateBracket() {
   const qc = useQueryClient();
   return useMutation<BracketDto, Error, string>({
@@ -1013,6 +1044,37 @@ export function useSetAdminPlayerFemaleVerified() {
   });
 }
 
+// ──────────────── Admin teams ────────────────
+
+function invalidateAdminTeamCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['teams'] });
+  qc.invalidateQueries({ queryKey: ['team'] });
+  qc.invalidateQueries({ queryKey: ['admin-teams'] });
+}
+
+export function useAdminTeams(params: AdminTeamsPageParams = {}) {
+  return useQuery({
+    queryKey: qk.adminTeams(params),
+    queryFn: () => getAdminTeamsPage(params),
+  });
+}
+
+export function useHideTeam() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, string>({
+    mutationFn: hideTeam,
+    onSuccess: () => invalidateAdminTeamCaches(qc),
+  });
+}
+
+export function useUnhideTeam() {
+  const qc = useQueryClient();
+  return useMutation<TeamDto, Error, string>({
+    mutationFn: unhideTeam,
+    onSuccess: () => invalidateAdminTeamCaches(qc),
+  });
+}
+
 // ──────────────── Admin audit ────────────────
 
 export function useAdminAudit(params: AdminAuditPageParams = {}) {
@@ -1244,6 +1306,47 @@ export function usePlayerStats(
     queryFn: () => getPlayerStats(id!),
     enabled: Boolean(id),
     staleTime: 60_000,
+  });
+}
+
+// ──────────────── Notifications ────────────────
+
+export function useUnreadCount(enabled = true) {
+  return useQuery({
+    queryKey: qk.notificationsUnread,
+    queryFn: getUnreadCount,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useNotifications(page = 0, size = 20, enabled = true) {
+  return useQuery({
+    queryKey: qk.notificationsList(page, size),
+    queryFn: () => getNotifications(page, size),
+    enabled,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.notificationsUnread });
+      qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.notificationsUnread });
+      qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    },
   });
 }
 

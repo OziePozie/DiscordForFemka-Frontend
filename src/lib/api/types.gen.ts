@@ -2049,6 +2049,8 @@ export interface paths {
                     status?: components["schemas"]["TournamentStatus"];
                     /** @description Фильтр по подстроке имени (case-insensitive). */
                     q?: string;
+                    /** @description Фильтр по признаку скрытости. */
+                    hidden?: boolean;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                     /** @description field[,asc|desc]; default createdAt,desc */
@@ -2319,6 +2321,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tournaments/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Скрыть турнир с публичной части. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть турнир на публичную часть. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tournaments/{id}/bracket/generate": {
         parameters: {
             query?: never;
@@ -2544,6 +2626,135 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Админский листинг команд с фильтрами и пагинацией. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Фильтр по подстроке имени/тега (case-insensitive). */
+                    q?: string;
+                    status?: components["schemas"]["TeamStatus"];
+                    /** @description Фильтр по признаку скрытости. */
+                    hidden?: boolean;
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                    /** @description field[,asc|desc]; default createdAt,desc */
+                    sort?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["TeamPublicDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Скрыть команду с публичной части. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams/{id}/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть команду на публичную часть. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
             };
         };
         delete?: never;
@@ -4354,6 +4565,201 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список уведомлений текущего игрока (новые сверху) */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["NotificationDto"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Количество непрочитанных уведомлений */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: int64 */
+                            count?: number;
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметить уведомление прочитанным */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description отмечено */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметить все уведомления прочитанными */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description отмечено */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Поток уведомлений (SSE)
+         * @description Server-Sent Events. Каждое событие notification несёт в data JSON одного NotificationDto.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description поток */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/event-stream": string;
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4662,6 +5068,11 @@ export interface components {
             captain: components["schemas"]["PlayerPublicDto"];
             avgMmr?: number | null;
             status: components["schemas"]["TeamStatus"];
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             memberCount: number;
             /** Format: date-time */
             createdAt: string;
@@ -4682,6 +5093,11 @@ export interface components {
             captain: components["schemas"]["PlayerPublicDto"];
             avgMmr?: number | null;
             status: components["schemas"]["TeamStatus"];
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             inactiveReasons?: components["schemas"]["InactiveReason"][];
             members: components["schemas"]["TeamMemberDto"][];
             /** Format: date-time */
@@ -4820,6 +5236,11 @@ export interface components {
             winnerTeamId?: string | null;
             name: string;
             slug: string;
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             format: components["schemas"]["TournamentFormat"];
             description?: string | null;
             prizePoolText?: string | null;
@@ -5021,6 +5442,16 @@ export interface components {
             gameState: number;
             radiant: components["schemas"]["TeamLiveDto"];
             dire: components["schemas"]["TeamLiveDto"];
+            /**
+             * Format: uuid
+             * @description Id of the platform team (teamA or teamB) currently on Radiant; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed.
+             */
+            radiantTeamId?: string | null;
+            /**
+             * Format: uuid
+             * @description Id of the platform team (teamA or teamB) currently on Dire; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed.
+             */
+            direTeamId?: string | null;
             /**
              * Format: date-time
              * @description When the backend last polled Dota2API for this snapshot
@@ -5387,6 +5818,21 @@ export interface components {
             /** Format: int64 */
             currentLobbyId?: number | null;
             healthy?: boolean;
+        };
+        /** @enum {string} */
+        NotificationType: "MATCH_READY_CHECK" | "MATCH_LIVE";
+        NotificationDto: {
+            /** Format: uuid */
+            id?: string;
+            type?: components["schemas"]["NotificationType"];
+            title?: string;
+            body?: string;
+            link?: string | null;
+            /** Format: uuid */
+            matchId?: string | null;
+            read?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
         };
     };
     responses: {

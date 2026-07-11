@@ -10,25 +10,28 @@
   }
 
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Editorial Clean — светлый минимализм, один фиолетовый акцент.
+       Значения выведены из палитры: фон #fdfcfa, текст #10142d,
+       границы #ecebe7, акцент #7c5cff, успех #0d9464, live #d43a3a. */
+    --background: 40 43% 99%;
+    --foreground: 231.7 47.5% 12%;
+    --card: 40 43% 99%;
+    --card-foreground: 231.7 47.5% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --popover-foreground: 231.7 47.5% 12%;
+    --primary: 231.7 47.5% 12%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 48 12% 92%;
+    --secondary-foreground: 231.7 47.5% 12%;
+    --muted: 48 12% 92%;
+    --muted-foreground: 230.8 10.8% 47%;
+    --accent: 48 20% 95%;
+    --accent-foreground: 231.7 47.5% 12%;
+    --destructive: 0 64% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 48 12% 92%;
+    --input: 48 12% 92%;
+    --ring: 251.8 100% 68%;
     --radius: 0.5rem;
   }
 }
@@ -38,11 +41,11 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
-    /* HomePage v2 использует full-bleed (w-screen + ml-[calc(50%-50vw)]),
+    /* HomePage использует full-bleed (w-screen + ml-[calc(50%-50vw)]),
        чтобы фон лился до края viewport'a. w-screen == 100vw включает
        скроллбар, поэтому без overflow-x: hidden появляется горизонтальная
        полоса прокрутки в ~8px. */
@@ -51,124 +54,78 @@
 }
 
 @layer components {
-  .ps-gradient-text {
-    background: linear-gradient(135deg, #9c5cff 0%, #5ea8ff 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
+  /* ── Типографика ─────────────────────────────────────────── */
+  .ec-display {
+    font-family: 'Unbounded', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
 
-  .ps-main-button {
-    background: linear-gradient(135deg, #8f5cff 0%, #5ea8ff 100%);
-    color: white;
-    border-radius: 1.25rem;
-    padding: 1rem 2.125rem;
-    font-weight: 700;
-    box-shadow: 0 0.9375rem 2.5rem rgba(126, 91, 255, 0.25);
-    transition: all 0.4s ease;
+  .ec-num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
   }
-  .ps-main-button:hover:not(:disabled) {
-    transform: translateY(-0.125rem) scale(1.02);
-    box-shadow: 0 1.25rem 3.125rem rgba(126, 91, 255, 0.35);
+
+  /* Кикер / надзаголовок — разрядка + акцентный цвет */
+  .ec-kicker {
+    font-family: 'Golos Text', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
   }
-  .ps-main-button:disabled {
-    opacity: 0.55;
+
+  /* ── Кнопки-таблетки ─────────────────────────────────────── */
+  .ec-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.75rem 1.75rem;
+    font-family: 'Golos Text', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    line-height: 1;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease,
+      opacity 0.2s ease;
+  }
+
+  /* Основная — чёрная таблетка */
+  .ec-btn-dark {
+    background: #10142d;
+    color: #ffffff;
+  }
+  .ec-btn-dark:hover:not(:disabled) {
+    background: #23284a;
+  }
+  .ec-btn-dark:disabled {
+    opacity: 0.45;
     cursor: not-allowed;
   }
 
-  .ps-secondary-button {
-    border-radius: 1.25rem;
-    padding: 1rem 2.125rem;
-    font-weight: 700;
-    border: 1px solid rgba(130, 110, 255, 0.15);
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(20px);
-    transition: all 0.4s ease;
+  /* Вторичная — обводка */
+  .ec-btn-outline {
+    background: transparent;
+    color: #10142d;
+    border: 1.5px solid #10142d;
   }
-  .ps-secondary-button:hover {
-    transform: translateY(-0.125rem);
-    border-color: rgba(130, 110, 255, 0.35);
+  .ec-btn-outline:hover:not(:disabled) {
+    background: #10142d;
+    color: #ffffff;
   }
-
-  .ps-sphere {
-    position: absolute;
-    border-radius: 9999px;
-    background: radial-gradient(
-      circle at 30% 30%,
-      rgba(255, 255, 255, 0.95),
-      rgba(200, 120, 255, 0.8),
-      rgba(94, 168, 255, 0.75)
-    );
-    box-shadow:
-      0 0 2.5rem rgba(170, 120, 255, 0.25),
-      inset 0 0 1.25rem rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(10px);
+  .ec-btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
-  .ps-lava-shape {
-    position: absolute;
-    border-radius: 45% 55% 60% 40% / 50% 40% 60% 50%;
-    background: radial-gradient(
-      circle at 30% 30%,
-      rgba(255, 255, 255, 0.95),
-      rgba(213, 115, 255, 0.95) 35%,
-      rgba(122, 87, 255, 0.95) 65%,
-      rgba(94, 168, 255, 0.95)
-    );
-    box-shadow:
-      0 0 5rem rgba(190, 120, 255, 0.25),
-      inset 0 0 2.5rem rgba(255, 255, 255, 0.4);
+  /* ── Статус-строка с цветной точкой ──────────────────────── */
+  .ec-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    flex: none;
   }
-  .ps-lava-shape-1 { width: 20rem;    height: 26.25rem; left: 7.5rem; top: 2.5rem;  }
-  .ps-lava-shape-2 { width: 11.25rem; height: 11.25rem; left: 2.5rem; top: 11.25rem; }
-  .ps-lava-shape-3 { width: 9.375rem; height: 9.375rem; right: 2.5rem; top: 3.75rem; }
-  .ps-lava-shape-4 { width: 8.75rem;  height: 8.75rem;  right: 3.75rem; bottom: 2.5rem; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .ps-sphere {
-    animation: ps-float 8s ease-in-out infinite;
-  }
-  .ps-lava-shape-1 { animation: ps-morph-1 12s ease-in-out infinite; }
-  .ps-lava-shape-2 { animation: ps-morph-2 10s ease-in-out infinite; }
-  .ps-lava-shape-3 { animation: ps-morph-3 14s ease-in-out infinite; }
-  .ps-lava-shape-4 { animation: ps-morph-4 11s ease-in-out infinite; }
-}
-
-@keyframes ps-float {
-  0%, 100% { transform: translateY(0px); }
-  50%      { transform: translateY(-18px); }
-}
-
-@keyframes ps-morph-1 {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg) scale(1);
-    border-radius: 45% 55% 60% 40% / 50% 40% 60% 50%;
-  }
-  50% {
-    transform: translateY(-20px) rotate(12deg) scale(1.06);
-    border-radius: 60% 40% 35% 65% / 55% 60% 40% 45%;
-  }
-}
-
-@keyframes ps-morph-2 {
-  0%, 100% {
-    transform: translateY(0px) scale(1);
-    border-radius: 55% 45% 40% 60% / 45% 60% 40% 55%;
-  }
-  50% {
-    transform: translateY(18px) scale(1.08);
-    border-radius: 40% 60% 60% 40% / 60% 40% 55% 45%;
-  }
-}
-
-@keyframes ps-morph-3 {
-  0%, 100% { transform: translateX(0px) scale(1); }
-  50%      { transform: translateX(-20px) scale(1.12); }
-}
-
-@keyframes ps-morph-4 {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50%      { transform: translateY(-15px) rotate(-12deg); }
 }

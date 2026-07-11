@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
-import HeroBlob from './HeroBlob';
 import type { SeasonDto } from '@/lib/api/types';
+import { SEASON_STATUS_LABEL } from '@/lib/api/types';
 
 interface HomeHeroProps {
   season?: SeasonDto;
@@ -9,39 +9,40 @@ interface HomeHeroProps {
 }
 
 /**
- * Hero-секция главной. Левая колонка — текст + CTA, правая — анимированный
- * блоб с вертикальной подписью. CTA "Открыть сцену" уходит в /scenes/{slug};
- * если сцена ещё не загружена — показываем Skeleton; если сцены нет —
- * disabled "Скоро".
+ * Hero-секция главной в стиле «Editorial Clean»: кикер + крупный заголовок,
+ * под ним строка «подзаголовок слева / CTA справа». Никакого декора —
+ * только типографика на чистом фоне, снизу отделяется тонкой линией.
  */
 export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
   const navigate = useNavigate();
 
+  const kicker = season
+    ? `${season.name} · ${SEASON_STATUS_LABEL[season.status]}`
+    : 'Play Stage · Киберспорт';
+
   return (
-    <section className="relative z-10 px-10 pb-20 pt-12">
-      <div className="mx-auto grid min-h-[70vh] max-w-7xl items-center gap-10 lg:grid-cols-2">
-        {/* LEFT */}
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/70 px-4 py-2 text-xs font-semibold tracking-wide text-purple-700 shadow-sm backdrop-blur-xl">
-            ПЛАТФОРМА ДЛЯ ТУРНИРОВ И КИБЕРСПОРТА
-          </div>
+    <section className="border-b border-line px-10 pb-16 pt-14">
+      <div className="mx-auto max-w-7xl">
+        <div className="ec-kicker text-[0.8125rem] text-brand">{kicker}</div>
 
-          <h1 className="mt-8 text-6xl font-black leading-[0.95] tracking-[-3px] text-[#0f1533] md:text-7xl">
-            Твоя сцена.
-            <br />
-            <span className="ps-gradient-text">Твоя победа.</span>
-          </h1>
+        <h1 className="ec-display mt-6 text-[4rem] leading-[0.98] text-ink [letter-spacing:-0.03em] md:text-[4.75rem]">
+          Твоя сцена.
+          <br />
+          Твоя <span className="text-brand">победа.</span>
+        </h1>
 
-          <p className="mt-8 max-w-xl text-xl leading-relaxed text-[#5b6284]">
+        <div className="mt-10 flex flex-wrap items-end justify-between gap-8">
+          <p className="max-w-[27.5rem] text-[1.1875rem] leading-relaxed text-ink-muted">
             Создавай турниры, собирай команды, соревнуйся и сияй.
           </p>
 
-          <div className="mt-10 flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3">
             {seasonLoading ? (
-              <Skeleton className="h-[3.375rem] w-[12.5rem] rounded-[1.25rem]" />
+              <Skeleton className="h-[3rem] w-[11.25rem] rounded-pill" />
             ) : (
               <button
-                className="ps-main-button"
+                type="button"
+                className="ec-btn ec-btn-dark"
                 disabled={!season}
                 onClick={() => navigate(`/scenes/${season!.slug}`)}
               >
@@ -50,26 +51,12 @@ export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
             )}
 
             <button
-              className="ps-secondary-button"
+              type="button"
+              className="ec-btn ec-btn-outline"
               onClick={() => navigate('/scenes')}
             >
               К турнирам
             </button>
-          </div>
-        </div>
-
-        {/* RIGHT */}
-        <div className="relative flex items-center justify-center">
-          <HeroBlob />
-          <div
-            aria-hidden="true"
-            className="absolute right-0 top-1/2 -translate-y-1/2 text-right text-sm font-medium uppercase leading-8 tracking-[0.3em] text-purple-500/80"
-          >
-            Организуй.
-            <br />
-            Соревнуйся.
-            <br />
-            Сияй.
           </div>
         </div>
       </div>

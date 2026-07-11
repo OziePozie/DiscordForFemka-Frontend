@@ -16,6 +16,7 @@ import type {
   MatchDto,
   TeamDto,
   TeamPublicDto,
+  TeamStatus,
   MmrChangeRequestAdminDto,
   MmrChangeRequestDto,
   CreateMmrChangeRequest,
@@ -56,6 +57,7 @@ import type {
   PlayerMatchSummaryDto,
   PlayerStatsDto,
   InviteResultDto,
+  NotificationDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -494,6 +496,20 @@ export function finishTournament(
   );
 }
 
+export function hideTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/hide`,
+    { method: 'POST' },
+  );
+}
+
+export function unhideTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/unhide`,
+    { method: 'POST' },
+  );
+}
+
 export function getTournamentEligibility(
   id: string,
 ): Promise<TournamentEligibilityDto> {
@@ -833,6 +849,39 @@ export function setAdminPlayerFemaleVerified(
   );
 }
 
+// ──────────────── Admin Teams ────────────────
+
+export interface AdminTeamsPageParams {
+  q?: string;
+  status?: TeamStatus;
+  hidden?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
+export function getAdminTeamsPage(
+  params: AdminTeamsPageParams = {},
+): Promise<PagedResponse<TeamPublicDto>> {
+  return api<PagedResponse<TeamPublicDto>>(
+    `/api/v1/admin/teams${buildQuery(params)}`,
+  );
+}
+
+export function hideTeam(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/admin/teams/${encodeURIComponent(id)}/hide`,
+    { method: 'POST' },
+  );
+}
+
+export function unhideTeam(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/admin/teams/${encodeURIComponent(id)}/unhide`,
+    { method: 'POST' },
+  );
+}
+
 // ──────────────── Admin Audit ────────────────
 
 export interface AdminAuditPageParams {
@@ -968,4 +1017,27 @@ export function cancelOpenLobby(id: string): Promise<void> {
   return api<void>(`/api/v1/open-lobbies/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+// ──────────────── Notifications ────────────────
+
+export async function getNotifications(
+  page = 0,
+  size = 20,
+): Promise<PagedResponse<NotificationDto>> {
+  return api<PagedResponse<NotificationDto>>(
+    `/api/v1/notifications?page=${page}&size=${size}`,
+  );
+}
+
+export async function getUnreadCount(): Promise<{ count: number }> {
+  return api<{ count: number }>('/api/v1/notifications/unread-count');
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await api<void>(`/api/v1/notifications/${id}/read`, { method: 'POST' });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api<void>('/api/v1/notifications/read-all', { method: 'POST' });
 }
