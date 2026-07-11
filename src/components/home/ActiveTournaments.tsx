@@ -19,9 +19,9 @@ const ACTIVE_STATUSES: TournamentStatus[] = [
 const MAX_CARDS = 3;
 
 /**
- * Секция "Активные турниры" — стеклянная панель с заголовком, кнопкой
- * "Смотреть все" и сеткой из ровно 3 карточек. Если активных < 3, добиваем
- * TournamentPlaceholderCard. Loading-состояние — 3 Skeleton-карточки.
+ * Секция "Активные турниры" в стиле «Editorial Clean» — заголовок,
+ * текстовая ссылка «Все турниры» и редакционная сетка из ровно 3 ячеек,
+ * разделённых тонкими линиями. Если активных < 3, добиваем плейсхолдерами.
  */
 export default function ActiveTournaments({
   tournaments,
@@ -37,34 +37,36 @@ export default function ActiveTournaments({
   const placeholders = Math.max(0, MAX_CARDS - active.length);
 
   return (
-    <section className="relative z-10 px-10 pb-12">
-      <div className="mx-auto max-w-7xl rounded-[2.5rem] border border-white/50 bg-white/55 p-8 shadow-[0_1.25rem_5rem_rgba(120,100,255,0.08)] backdrop-blur-2xl">
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-[#141938]">
+    <section className="border-b border-line px-10 py-14">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8 flex items-end justify-between">
+          <h2 className="ec-display text-[1.625rem] text-ink">
             Активные турниры
           </h2>
           <button
-            className="font-semibold text-purple-600 transition-opacity hover:opacity-70"
+            className="text-[0.9375rem] font-semibold text-brand transition-opacity hover:opacity-70 [text-decoration-line:underline] [text-decoration-thickness:1.5px] [text-underline-offset:4px]"
             onClick={() => navigate(target)}
           >
-            Смотреть все <span aria-hidden="true">→</span>
+            Все турниры
           </button>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid border-t border-line divide-y divide-line md:grid-cols-3 md:divide-x md:divide-y-0 md:[&>*:first-child]:pl-0">
           {loading
             ? Array.from({ length: MAX_CARDS }).map((_, i) => (
-                <Skeleton key={i} className="h-[14.375rem] rounded-[2rem]" />
+                <div key={i} className="py-7 md:px-8">
+                  <Skeleton className="h-[10rem] w-full rounded-md" />
+                </div>
               ))
             : (
               <>
-                {active.map((t) => (
-                  <TournamentCard key={t.id} tournament={t} />
+                {active.map((t, i) => (
+                  <TournamentCard key={t.id} tournament={t} index={i} />
                 ))}
                 {Array.from({ length: placeholders }).map((_, i) => (
                   <TournamentPlaceholderCard
                     key={`placeholder-${i}`}
-                    seasonSlug={seasonSlug}
+                    index={active.length + i}
                   />
                 ))}
               </>

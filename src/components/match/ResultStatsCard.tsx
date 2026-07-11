@@ -1,5 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import type { ReactNode } from 'react';
 import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
@@ -17,47 +16,48 @@ interface Props {
   meId?: string;
 }
 
+/**
+ * Общий шаблон колонок для шапки и всех строк ОБЕИХ команд — единая
+ * grid-раскладка чинит расползание таблицы из-за длинных ников (колонка
+ * игрока фиксирована, ник обрезается по ellipsis).
+ *
+ * герой · игрок · LVL · K/D/A · LH/DN · GPM · XPM · NW · HD · TD · HH · items
+ */
+const GRID_COLS =
+  'grid grid-cols-[46px_140px_40px_64px_56px_50px_50px_66px_66px_54px_44px_1fr] [column-gap:8px] items-center';
+
 export function ResultStatsCard({ match, result, meId }: Props) {
   const radiantWon = result.winnerTeamId === match.teamA?.id;
   const winnerName = radiantWon ? teamName(match.teamA) : teamName(match.teamB);
   const mvpId = result.mvpSteamAccountId ?? null;
 
   return (
-    <div className="space-y-4">
-      {/* Winner banner with score + duration */}
-      <Card className="overflow-hidden border-green-600/40">
-        <div className="bg-gradient-to-r from-green-600/10 via-transparent to-transparent">
-          <CardContent className="flex flex-wrap items-center justify-between gap-4 py-5">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl" aria-hidden>
-                🏆
-              </span>
-              <div>
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                  Победитель
-                </div>
-                <div className="text-2xl font-bold text-green-700">
-                  {winnerName}
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-mono text-3xl font-bold tracking-tight">
-                <span className={radiantWon ? 'text-green-700' : ''}>
-                  {result.radiantScore}
-                </span>
-                <span className="px-2 text-muted-foreground">:</span>
-                <span className={!radiantWon ? 'text-green-700' : ''}>
-                  {result.direScore}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Длительность {formatGameTime(result.durationSec)}
-              </div>
-            </div>
-          </CardContent>
+    <div className="space-y-8">
+      {/* Итог игры — без карточки, без 🏆 */}
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-5">
+        <div>
+          <div className="ec-kicker text-[0.6875rem] text-ink-faint [letter-spacing:0.1em]">
+            Победитель
+          </div>
+          <div className="ec-display mt-1 text-[1.375rem] text-success">
+            {winnerName}
+          </div>
         </div>
-      </Card>
+        <div className="text-right">
+          <div className="ec-num flex items-baseline justify-end gap-2 text-[1.75rem] text-ink">
+            <span className={radiantWon ? 'text-ink' : 'text-ink-disabled'}>
+              {result.radiantScore}
+            </span>
+            <span className="text-line-num">—</span>
+            <span className={!radiantWon ? 'text-ink' : 'text-ink-disabled'}>
+              {result.direScore}
+            </span>
+          </div>
+          <div className="ec-num mt-1 text-[0.75rem] text-ink-faint">
+            Длительность {formatGameTime(result.durationSec)}
+          </div>
+        </div>
+      </div>
 
       <ResultSide
         teamName={teamName(match.teamA)}
@@ -95,155 +95,124 @@ function ResultSide({
   mvpId: number | null;
 }) {
   return (
-    <Card
-      className={
-        won ? 'border-green-600/40' : 'border-red-600/30 opacity-95'
-      }
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className={`text-lg ${won ? 'text-green-700' : ''}`}>
-            {teamName}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              ({sideLabel})
-            </span>
-          </CardTitle>
-          <Badge variant={won ? 'default' : 'destructive'}>
-            {won ? 'Победа' : 'Поражение'}
-          </Badge>
-        </div>
-        {/* Picks row — the heroes this side played, rendered as larger portraits */}
-        <div className="mt-2 flex flex-wrap gap-2">
-          {rows.map((r) => (
-            <div
-              key={`pick-${r.steamAccountId}`}
-              className="relative"
-              title={heroName(r.heroId)}
-            >
-              <HeroIcon
-                heroId={r.heroId}
-                size={48}
-                className="ring-1 ring-border"
-              />
-              {mvpId != null && r.steamAccountId === mvpId && (
-                <span
-                  className="absolute -right-1 -top-1 rounded-full bg-yellow-400 px-1 text-[10px] font-bold text-black shadow"
-                  title="MVP"
-                >
-                  MVP
+    <div>
+      <div className="mb-3 flex items-center gap-3">
+        <h3 className="ec-display text-[1.0625rem] text-ink">{teamName}</h3>
+        <span
+          className="ec-kicker text-[0.75rem] [letter-spacing:0.1em]"
+          style={{ color: won ? '#0d9464' : '#d43a3a' }}
+        >
+          {sideLabel.toUpperCase()}
+          {won ? ' · WIN' : ''}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="min-w-max">
+          {/* Шапка */}
+          <div
+            className={`${GRID_COLS} ec-kicker border-b-[1.5px] border-ink pb-2 text-[0.6875rem] text-ink-faint [letter-spacing:0.1em]`}
+          >
+            <span />
+            <span>Игрок</span>
+            <span className="text-right">LVL</span>
+            <span className="text-right">K/D/A</span>
+            <span className="text-right">LH/DN</span>
+            <span className="text-right">GPM</span>
+            <span className="text-right">XPM</span>
+            <span className="text-right">NW</span>
+            <span className="text-right">HD</span>
+            <span className="text-right">TD</span>
+            <span className="text-right">HH</span>
+            <span>Предметы</span>
+          </div>
+
+          {rows.map((r) => {
+            const isMe = !!meId && r.playerId === meId;
+            const isMvp = mvpId != null && r.steamAccountId === mvpId;
+            return (
+              <div
+                key={r.steamAccountId}
+                className={`${GRID_COLS} border-b border-line py-[9px]`}
+              >
+                {/* Герой 42×24 */}
+                <span title={heroName(r.heroId)} className="inline-flex">
+                  <HeroIcon
+                    heroId={r.heroId}
+                    width={42}
+                    height={24}
+                    className="!rounded-[4px]"
+                  />
                 </span>
-              )}
+                {/* Игрок — фикс 140px, ellipsis */}
+                <div
+                  className="flex min-w-0 items-center gap-1"
+                  title={r.playerName ?? `#${r.steamAccountId}`}
+                >
+                  <PlayerNameLink
+                    playerId={r.playerId}
+                    nickname={r.playerName ?? `#${r.steamAccountId}`}
+                    className={`min-w-0 flex-1 truncate font-semibold ${
+                      isMe ? 'text-brand' : 'text-ink'
+                    }`}
+                  />
+                  {isMvp && (
+                    <span
+                      className="shrink-0 text-brand"
+                      aria-label="MVP"
+                    >
+                      ★
+                    </span>
+                  )}
+                </div>
+                <Num className="text-ink font-semibold">{r.level}</Num>
+                <Num className="text-ink font-semibold">
+                  {r.kills}/{r.deaths}/{r.assists}
+                </Num>
+                <Num>
+                  {r.lastHits}/{r.denies}
+                </Num>
+                <Num>{r.gpm}</Num>
+                <Num>{r.xpm}</Num>
+                <Num className="text-brand font-bold">
+                  {r.netWorth.toLocaleString('ru-RU')}
+                </Num>
+                <Num>{r.heroDamage.toLocaleString('ru-RU')}</Num>
+                <Num>{r.towerDamage.toLocaleString('ru-RU')}</Num>
+                <Num>{r.heroHealing.toLocaleString('ru-RU')}</Num>
+                {/* Предметы 26×19, gap 3px */}
+                <div className="flex flex-wrap gap-[3px]">
+                  {r.items.slice(0, 6).map((id, i) => (
+                    <ItemIcon key={`inv-${i}`} itemId={id} size={26} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {rows.length === 0 && (
+            <div className="py-3 text-center text-sm text-ink-muted">
+              Нет данных
             </div>
-          ))}
+          )}
         </div>
-      </CardHeader>
-      <CardContent>
-        <ResultTable rows={rows} meId={meId} mvpId={mvpId} />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
-function ResultTable({
-  rows,
-  meId,
-  mvpId,
+function Num({
+  children,
+  className,
 }: {
-  rows: MatchPlayerStatDto[];
-  meId?: string;
-  mvpId: number | null;
+  children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="rounded-md border overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-xs uppercase tracking-wider">
-          <tr>
-            <th className="px-2 py-1 text-left">Игрок</th>
-            <th className="px-2 py-1 text-center">Lvl</th>
-            <th className="px-2 py-1 text-center">K/D/A</th>
-            <th className="px-2 py-1 text-center">LH/DN</th>
-            <th className="px-2 py-1 text-center">GPM</th>
-            <th className="px-2 py-1 text-center">XPM</th>
-            <th className="px-2 py-1 text-center">NW</th>
-            <th className="px-2 py-1 text-center">HD</th>
-            <th className="px-2 py-1 text-center">TD</th>
-            <th className="px-2 py-1 text-center">HH</th>
-            <th className="px-2 py-1 text-left">Items</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const isMe = meId && r.playerId === meId;
-            const isMvp = mvpId != null && r.steamAccountId === mvpId;
-            return (
-              <tr
-                key={r.steamAccountId}
-                className={`border-t ${isMe ? 'bg-accent/40' : ''} ${
-                  isMvp ? 'bg-yellow-400/10' : ''
-                }`}
-              >
-                <td className="px-2 py-1">
-                  <div className="flex items-center gap-2">
-                    <HeroIcon heroId={r.heroId} size={32} />
-                    <PlayerNameLink
-                      playerId={r.playerId}
-                      nickname={r.playerName ?? `#${r.steamAccountId}`}
-                      className="truncate max-w-[8.75rem]"
-                    />
-                    {isMvp && (
-                      <span
-                        className="text-yellow-500"
-                        title="MVP"
-                        aria-label="MVP"
-                      >
-                        ★
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-2 py-1 text-center font-mono">{r.level}</td>
-                <td className="px-2 py-1 text-center font-mono">
-                  {r.kills}/{r.deaths}/{r.assists}
-                </td>
-                <td className="px-2 py-1 text-center font-mono">
-                  {r.lastHits}/{r.denies}
-                </td>
-                <td className="px-2 py-1 text-center font-mono">{r.gpm}</td>
-                <td className="px-2 py-1 text-center font-mono">{r.xpm}</td>
-                <td className="px-2 py-1 text-center font-mono">
-                  {r.netWorth.toLocaleString('ru-RU')}
-                </td>
-                <td className="px-2 py-1 text-center font-mono">
-                  {r.heroDamage.toLocaleString('ru-RU')}
-                </td>
-                <td className="px-2 py-1 text-center font-mono">
-                  {r.towerDamage.toLocaleString('ru-RU')}
-                </td>
-                <td className="px-2 py-1 text-center font-mono">
-                  {r.heroHealing.toLocaleString('ru-RU')}
-                </td>
-                <td className="px-2 py-1">
-                  <div className="flex flex-wrap gap-0.5">
-                    {r.items.slice(0, 6).map((id, i) => (
-                      <ItemIcon key={`inv-${i}`} itemId={id} size={22} />
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-          {rows.length === 0 && (
-            <tr>
-              <td
-                colSpan={11}
-                className="px-2 py-3 text-center text-muted-foreground"
-              >
-                Нет данных
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+    <span
+      className={`ec-num text-right text-[0.78125rem] ${className ?? 'text-ink-muted'}`}
+    >
+      {children}
+    </span>
   );
 }
