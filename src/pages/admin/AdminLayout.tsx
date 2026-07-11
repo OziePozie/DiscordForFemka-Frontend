@@ -11,6 +11,7 @@ const NAV: Array<{ to: string; label: string; disabled?: boolean }> = [
   { to: '/admin/tournaments', label: 'Турниры' },
   { to: '/admin/matches', label: 'Матчи' },
   { to: '/admin/players', label: 'Игроки' },
+  { to: '/admin/teams', label: 'Команды' },
   { to: '/admin/audit', label: 'Журнал' },
   { to: '/admin/bots', label: 'Боты' },
 ];

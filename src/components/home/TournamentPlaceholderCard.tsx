@@ -1,42 +1,34 @@
-import { useNavigate } from 'react-router-dom';
-
 interface TournamentPlaceholderCardProps {
-  /** Если есть текущая сцена, кнопка ведёт на неё; иначе — на список сцен. */
-  seasonSlug?: string;
+  index: number;
 }
 
 /**
- * Карточка-заглушка для секции "Активные турниры", когда реальных турниров
- * не хватает до 3. Дословно повторяет демку: ✦ + "Здесь мог быть ваш турнир".
+ * Заглушка редакционной сетки «Активные турниры», когда реальных турниров
+ * меньше трёх. Повторяет структуру ячейки, но приглушёнными цветами и без
+ * интерактива — «Скоро анонс».
  */
 export default function TournamentPlaceholderCard({
-  seasonSlug,
+  index,
 }: TournamentPlaceholderCardProps) {
-  const navigate = useNavigate();
-  const target = seasonSlug ? `/scenes/${seasonSlug}` : '/scenes';
-
   return (
-    <div className="group flex min-h-[14.375rem] flex-col items-center justify-center rounded-[2rem] border border-purple-100 bg-white/60 p-8 text-center backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_1.25rem_3.125rem_rgba(139,92,246,0.12)]">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 text-3xl text-white shadow-lg shadow-purple-300/40">
-        ✦
-      </div>
+    <div className="flex w-full flex-col items-start py-7 md:px-8">
+      <span className="ec-num text-[0.75rem] text-ink-disabled">
+        {String(index + 1).padStart(2, '0')}
+      </span>
 
-      <h3 className="text-2xl font-bold text-[#141938]">
-        Здесь мог быть
-        <br />
-        ваш турнир
+      <h3 className="ec-display mt-3 text-[1.3125rem] leading-tight text-ink-disabled">
+        Скоро анонс
       </h3>
 
-      <p className="mt-4 max-w-[16.25rem] leading-relaxed text-[#6a7191]">
-        Создайте турнир и соберите лучших игроков на своей сцене.
-      </p>
+      <div className="mt-3 space-y-1 text-[0.875rem] leading-snug text-ink-faint">
+        <div>Место для нового турнира</div>
+        <div>Даты уточняются</div>
+      </div>
 
-      <button
-        className="mt-6 rounded-2xl border border-purple-200 bg-white/70 px-5 py-3 text-sm font-semibold text-purple-700 transition-all duration-300 hover:bg-purple-600 hover:text-white"
-        onClick={() => navigate(target)}
-      >
-        Создать турнир
-      </button>
+      <div className="mt-5 flex items-center gap-2 text-[0.8125rem] font-semibold text-ink-faint">
+        <span className="ec-dot" style={{ backgroundColor: '#c3c6d4' }} />
+        <span>Ожидание</span>
+      </div>
     </div>
   );
 }

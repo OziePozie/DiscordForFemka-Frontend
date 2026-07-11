@@ -984,6 +984,11 @@ paths:
           required: false
           description: Фильтр по подстроке имени (case-insensitive).
           schema: { type: string }
+        - in: query
+          name: hidden
+          required: false
+          description: Фильтр по признаку скрытости.
+          schema: { type: boolean }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - in: query
@@ -1107,6 +1112,34 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/admin/tournaments/{id}/hide:
+    post:
+      tags: [Admin, Tournament]
+      summary: Скрыть турнир с публичной части.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/unhide:
+    post:
+      tags: [Admin, Tournament]
+      summary: Вернуть турнир на публичную часть.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/v1/admin/tournaments/{id}/bracket/generate:
     post:
       tags: [Admin, Tournament]
@@ -1205,6 +1238,75 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/teams:
+    get:
+      tags: [Admin, Team]
+      summary: Админский листинг команд с фильтрами и пагинацией.
+      parameters:
+        - in: query
+          name: q
+          required: false
+          description: Фильтр по подстроке имени/тега (case-insensitive).
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { $ref: "#/components/schemas/TeamStatus" }
+        - in: query
+          name: hidden
+          required: false
+          description: Фильтр по признаку скрытости.
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - in: query
+          name: sort
+          required: false
+          description: "field[,asc|desc]; default createdAt,desc"
+          schema: { type: string }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/TeamPublicDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/teams/{id}/hide:
+    post:
+      tags: [Admin, Team]
+      summary: Скрыть команду с публичной части.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/teams/{id}/unhide:
+    post:
+      tags: [Admin, Team]
+      summary: Вернуть команду на публичную часть.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # =================== MATCH ===================
   /api/v1/matches/{id}:
@@ -2338,7 +2440,7 @@ components:
     # ---- Team ----
     TeamPublicDto:
       type: object
-      required: [id, name, tag, captain, status, memberCount, createdAt]
+      required: [id, name, tag, captain, status, hidden, memberCount, createdAt]
       properties:
         id:           { type: string, format: uuid }
         name:         { type: string }
@@ -2347,6 +2449,10 @@ components:
         captain:      { $ref: "#/components/schemas/PlayerPublicDto" }
         avgMmr:       { type: integer, nullable: true }
         status:       { $ref: "#/components/schemas/TeamStatus" }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         memberCount:  { type: integer }
         createdAt:    { type: string, format: date-time }
     TeamMemberDto:
@@ -2359,7 +2465,7 @@ components:
         joinedAt:  { type: string, format: date-time }
     TeamDto:
       type: object
-      required: [id, name, tag, captain, status, members, createdAt, updatedAt]
+      required: [id, name, tag, captain, status, hidden, members, createdAt, updatedAt]
       properties:
         id:               { type: string, format: uuid }
         name:             { type: string }
@@ -2368,6 +2474,10 @@ components:
         captain:          { $ref: "#/components/schemas/PlayerPublicDto" }
         avgMmr:           { type: integer, nullable: true }
         status:           { $ref: "#/components/schemas/TeamStatus" }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         inactiveReasons:  { type: array, items: { $ref: "#/components/schemas/InactiveReason" } }
         members:          { type: array, items: { $ref: "#/components/schemas/TeamMemberDto" } }
         frozenUntil:      { type: string, format: date-time, nullable: true }
@@ -2505,13 +2615,17 @@ components:
     # ---- Tournament ----
     TournamentDto:
       type: object
-      required: [id, name, slug, format, status, defaultCoinToss, defaultAutoLaunch, broadcasterAccountIds]
+      required: [id, name, slug, format, status, hidden, defaultCoinToss, defaultAutoLaunch, broadcasterAccountIds]
       properties:
         id:                     { type: string, format: uuid }
         seasonId:               { type: string, format: uuid, nullable: true }
         winnerTeamId:           { type: string, format: uuid, nullable: true }
         name:                   { type: string }
         slug:                   { type: string }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         format:                 { $ref: "#/components/schemas/TournamentFormat" }
         description:            { type: string, nullable: true }
         prizePoolText:          { type: string, nullable: true }

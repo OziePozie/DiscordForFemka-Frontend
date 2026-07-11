@@ -2049,6 +2049,8 @@ export interface paths {
                     status?: components["schemas"]["TournamentStatus"];
                     /** @description Фильтр по подстроке имени (case-insensitive). */
                     q?: string;
+                    /** @description Фильтр по признаку скрытости. */
+                    hidden?: boolean;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                     /** @description field[,asc|desc]; default createdAt,desc */
@@ -2319,6 +2321,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tournaments/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Скрыть турнир с публичной части. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть турнир на публичную часть. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tournaments/{id}/bracket/generate": {
         parameters: {
             query?: never;
@@ -2544,6 +2626,135 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Админский листинг команд с фильтрами и пагинацией. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Фильтр по подстроке имени/тега (case-insensitive). */
+                    q?: string;
+                    status?: components["schemas"]["TeamStatus"];
+                    /** @description Фильтр по признаку скрытости. */
+                    hidden?: boolean;
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                    /** @description field[,asc|desc]; default createdAt,desc */
+                    sort?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["TeamPublicDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Скрыть команду с публичной части. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams/{id}/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть команду на публичную часть. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
             };
         };
         delete?: never;
@@ -4613,6 +4824,11 @@ export interface components {
             captain: components["schemas"]["PlayerPublicDto"];
             avgMmr?: number | null;
             status: components["schemas"]["TeamStatus"];
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             memberCount: number;
             /** Format: date-time */
             createdAt: string;
@@ -4633,6 +4849,11 @@ export interface components {
             captain: components["schemas"]["PlayerPublicDto"];
             avgMmr?: number | null;
             status: components["schemas"]["TeamStatus"];
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             inactiveReasons?: components["schemas"]["InactiveReason"][];
             members: components["schemas"]["TeamMemberDto"][];
             /** Format: date-time */
@@ -4771,6 +4992,11 @@ export interface components {
             winnerTeamId?: string | null;
             name: string;
             slug: string;
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             format: components["schemas"]["TournamentFormat"];
             description?: string | null;
             prizePoolText?: string | null;

@@ -13,12 +13,32 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['Unbounded', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['"Golos Text"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        // Editorial Clean palette — flat brand tokens (не трогают shadcn-переменные)
+        ink: {
+          DEFAULT: '#10142d',
+          muted: '#6b6f85',
+          faint: '#9a9eb3',
+          disabled: '#c3c6d4',
+        },
+        line: {
+          DEFAULT: '#ecebe7',
+          strong: '#10142d',
+          num: '#d5d7e0',
+        },
+        brand: '#7c5cff',
+        success: '#0d9464',
+        live: '#d43a3a',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
@@ -52,6 +72,7 @@ const config: Config = {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        pill: '999px',
       },
       keyframes: {
         'accordion-down': {
