@@ -36,7 +36,7 @@ export function PlayerRatingCard({ playerId }: Props) {
       <CardContent>
         <div className="flex flex-wrap items-center gap-6">
           <div>
-            <div className="text-4xl font-black text-purple-700">
+            <div className="ec-num text-4xl font-bold text-brand">
               {r.rating}
             </div>
             <div className="mt-1">
@@ -45,8 +45,8 @@ export function PlayerRatingCard({ playerId }: Props) {
           </div>
           <dl className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm sm:grid-cols-4">
             <Stat label="Игр" value={r.gamesPlayed} />
-            <Stat label="Побед" value={r.wins} valueClass="text-emerald-600" />
-            <Stat label="Поражений" value={r.losses} valueClass="text-red-500" />
+            <Stat label="Побед" value={r.wins} valueClass="text-success" />
+            <Stat label="Поражений" value={r.losses} valueClass="text-live" />
             <Stat label="Серия" value={r.currentStreak} />
           </dl>
         </div>

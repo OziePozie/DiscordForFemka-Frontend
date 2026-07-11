@@ -47,17 +47,40 @@ import {
   type TeamPublicDto,
 } from '@/lib/api/types';
 
-function statusVariant(s: MatchStatus) {
-  switch (s) {
-    case 'LIVE':
-      return 'default' as const;
-    case 'SCHEDULED':
-      return 'secondary' as const;
-    case 'FINISHED':
-      return 'outline' as const;
-    case 'CANCELLED':
-      return 'destructive' as const;
-  }
+/**
+ * Хлебокрошка-строка вместо цветных бейджей: СТАТУС / ФОРМАТ / ТУРНИР.
+ * Разделитель «/» — цветом #d5d7e0, турнир — акцентом #7c5cff (ссылка,
+ * если есть slug).
+ */
+function MatchBreadcrumb({ match }: { match: MatchDto }) {
+  const sep = <span className="text-line-num">/</span>;
+  return (
+    <div className="ec-kicker flex flex-wrap items-center gap-2.5 text-[0.75rem] normal-case text-ink-faint [letter-spacing:0.1em]">
+      <span className="uppercase">{MATCH_STATUS_LABEL[match.status]}</span>
+      {sep}
+      <span className="uppercase">{MATCH_FORMAT_LABEL[match.format]}</span>
+      {sep}
+      <span className="uppercase">{MATCH_KIND_LABEL[match.kind]}</span>
+      {match.tournamentId && (
+        <>
+          {sep}
+          {match.tournamentSlug ? (
+            <Link
+              to={`/tournaments/${match.tournamentSlug}`}
+              className="uppercase text-brand hover:underline"
+              title={match.tournamentId}
+            >
+              {match.tournamentSlug}
+            </Link>
+          ) : (
+            <span className="uppercase text-brand" title={match.tournamentId}>
+              Турнир
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function fmtDateTime(iso?: string | null): string {
@@ -85,30 +108,38 @@ function TeamBlock({
   team,
   align,
   highlight,
+  finished,
 }: {
   team: TeamPublicDto;
   align: 'left' | 'right';
   highlight: boolean;
+  finished: boolean;
 }) {
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-col gap-1 ${
+      className={`flex min-w-0 flex-col gap-1 ${
         align === 'right' ? 'items-end text-right' : 'items-start text-left'
       }`}
     >
       <TeamNameLink
         teamId={team.id}
         name={team.name}
-        className={`truncate text-xl font-semibold ${
-          highlight ? 'text-green-700' : ''
-        }`}
+        className="ec-display block max-w-full truncate whitespace-nowrap text-[2.125rem] text-ink"
       />
-      <div className="text-sm text-muted-foreground">[{team.tag}]</div>
-      {team.avgMmr != null && (
-        <div className="text-xs text-muted-foreground">
-          Средний MMR: {team.avgMmr}
+      <div className="ec-num text-[0.8125rem] text-ink-faint">[{team.tag}]</div>
+      {highlight ? (
+        <div className="mt-1 text-[0.8125rem] font-bold text-success">
+          Победа
         </div>
+      ) : (
+        team.avgMmr != null && (
+          <div className="ec-num mt-1 text-[0.75rem] text-ink-faint">
+            MMR {team.avgMmr}
+          </div>
+        )
       )}
+      {/* заглушка, чтобы обе колонки были одной высоты при незавершённом матче */}
+      {!finished && <div className="h-0" aria-hidden />}
     </div>
   );
 }
@@ -505,13 +536,7 @@ export default function MatchDetailsPage() {
     // to render until the bracket propagates teams in.
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant(m.status)}>
-            {MATCH_STATUS_LABEL[m.status]}
-          </Badge>
-          <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
-          <Badge variant="secondary">{MATCH_KIND_LABEL[m.kind]}</Badge>
-        </div>
+        <MatchBreadcrumb match={m} />
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             Команды ещё не определены — матч ожидает результатов предыдущего
@@ -576,53 +601,26 @@ export default function MatchDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={statusVariant(m.status)}>
-          {MATCH_STATUS_LABEL[m.status]}
-        </Badge>
-        <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
-        <Badge variant="secondary">{MATCH_KIND_LABEL[m.kind]}</Badge>
-        {m.tournamentId && (
-          m.tournamentSlug ? (
-            <Link to={`/tournaments/${m.tournamentSlug}`}>
-              <Badge
-                variant="outline"
-                className="cursor-pointer hover:bg-accent"
-                title={m.tournamentId}
-              >
-                Турнир
-              </Badge>
-            </Link>
-          ) : (
-            <Badge variant="outline" title={m.tournamentId}>
-              Турнир
-            </Badge>
-          )
-        )}
-      </div>
+      <MatchBreadcrumb match={m} />
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-6">
-            <TeamBlock team={m.teamA} align="left" highlight={aWin} />
-            <div className="flex flex-col items-center gap-1">
-              <div className="font-mono text-4xl font-bold tracking-tight">
-                <span className={aWin ? 'text-green-700' : ''}>
-                  {m.scoreA}
-                </span>
-                <span className="px-2 text-muted-foreground">:</span>
-                <span className={bWin ? 'text-green-700' : ''}>
-                  {m.scoreB}
-                </span>
-              </div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                {MATCH_FORMAT_LABEL[m.format]}
-              </div>
-            </div>
-            <TeamBlock team={m.teamB} align="right" highlight={bWin} />
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 border-b border-line pb-8">
+        <TeamBlock team={m.teamA} align="left" highlight={aWin} finished={finished} />
+        <div className="flex flex-col items-center">
+          <div className="ec-display flex items-baseline gap-3 text-[4rem] leading-none">
+            <span className={finished && !aWin ? 'text-ink-disabled' : 'text-ink'}>
+              {m.scoreA}
+            </span>
+            <span className="text-line-num">—</span>
+            <span className={finished && !bWin ? 'text-ink-disabled' : 'text-ink'}>
+              {m.scoreB}
+            </span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="ec-num mt-2 text-[0.75rem] uppercase tracking-wider text-ink-faint">
+            {MATCH_FORMAT_LABEL[m.format]}
+          </div>
+        </div>
+        <TeamBlock team={m.teamB} align="right" highlight={bWin} finished={finished} />
+      </div>
 
       {(() => {
         const isSeries = m.format === 'BO3' || m.format === 'BO5';
@@ -649,8 +647,8 @@ export default function MatchDetailsPage() {
         return (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Счёт серии:</span>
-              <span className="font-semibold tabular-nums">
+              <span className="text-ink-muted">Счёт серии:</span>
+              <span className="ec-num font-semibold text-ink">
                 {m.scoreA} : {m.scoreB}
               </span>
             </div>

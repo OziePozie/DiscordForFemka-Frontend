@@ -1,44 +1,84 @@
 import { useNavigate } from 'react-router-dom';
-import type { TournamentDto } from '@/lib/api/types';
-import { TOURNAMENT_STATUS_LABEL } from '@/lib/api/types';
+import type { TournamentDto, TournamentStatus } from '@/lib/api/types';
+import {
+  TOURNAMENT_FORMAT_LABEL,
+  TOURNAMENT_STATUS_LABEL,
+} from '@/lib/api/types';
 
 interface TournamentCardProps {
   tournament: TournamentDto;
+  index: number;
+}
+
+function fmtDate(iso?: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' });
+}
+
+function statusPresentation(status: TournamentStatus): {
+  color: string;
+  text: string;
+} {
+  switch (status) {
+    case 'REGISTRATION_OPEN':
+      return { color: '#0d9464', text: 'Регистрация открыта' };
+    case 'LIVE':
+      return { color: '#d43a3a', text: 'Идёт сейчас' };
+    default:
+      return { color: '#9a9eb3', text: TOURNAMENT_STATUS_LABEL[status] };
+  }
 }
 
 /**
- * Карточка реального турнира. Шаблон тот же, что у плейсхолдера, но контент
- * берётся из TournamentDto. Описание: если есть t.description — обрезаем
- * по первой строке; иначе показываем статус (TOURNAMENT_STATUS_LABEL).
+ * Ячейка редакционной сетки «Активные турниры»: номер · название · две
+ * строки меты · статус-строка с цветной точкой. Без рамок и заливок —
+ * разделение обеспечивают вертикальные линии сетки в родителе.
  */
-export default function TournamentCard({ tournament }: TournamentCardProps) {
+export default function TournamentCard({
+  tournament,
+  index,
+}: TournamentCardProps) {
   const navigate = useNavigate();
+  const { color, text } = statusPresentation(tournament.status);
 
-  const description =
-    tournament.description?.trim() ||
-    TOURNAMENT_STATUS_LABEL[tournament.status];
+  const teamsLine = tournament.maxTeams
+    ? `${TOURNAMENT_FORMAT_LABEL[tournament.format]} · до ${tournament.maxTeams} команд`
+    : TOURNAMENT_FORMAT_LABEL[tournament.format];
+
+  const dateLine = tournament.startsAt
+    ? `Старт ${fmtDate(tournament.startsAt)}${
+        tournament.endsAt ? ` – ${fmtDate(tournament.endsAt)}` : ''
+      }`
+    : tournament.registrationOpensAt
+      ? `Регистрация с ${fmtDate(tournament.registrationOpensAt)}`
+      : 'Даты уточняются';
 
   return (
-    <div className="group flex min-h-[14.375rem] flex-col items-center justify-center rounded-[2rem] border border-purple-100 bg-white/60 p-8 text-center backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_1.25rem_3.125rem_rgba(139,92,246,0.12)]">
-      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-400 to-blue-400 text-3xl text-white shadow-lg shadow-purple-300/40">
-        ✦
-      </div>
+    <button
+      type="button"
+      onClick={() => navigate(`/tournaments/${tournament.slug}`)}
+      aria-label={`К турниру «${tournament.name}»`}
+      className="group flex w-full flex-col items-start py-7 text-left md:px-8"
+    >
+      <span className="ec-num text-[0.75rem] text-ink-faint">
+        {String(index + 1).padStart(2, '0')}
+      </span>
 
-      <h3 className="line-clamp-2 text-2xl font-bold text-[#141938]">
+      <h3 className="ec-display mt-3 line-clamp-2 text-[1.3125rem] leading-tight text-ink transition-colors group-hover:text-brand">
         {tournament.name}
       </h3>
 
-      <p className="mt-4 line-clamp-3 max-w-[16.25rem] leading-relaxed text-[#6a7191]">
-        {description}
-      </p>
+      <div className="mt-3 space-y-1 text-[0.875rem] leading-snug text-ink-muted">
+        <div>{teamsLine}</div>
+        <div className="ec-num text-[0.8125rem]">{dateLine}</div>
+      </div>
 
-      <button
-        aria-label={`К турниру «${tournament.name}»`}
-        className="mt-6 rounded-2xl border border-purple-200 bg-white/70 px-5 py-3 text-sm font-semibold text-purple-700 transition-all duration-300 hover:bg-purple-600 hover:text-white"
-        onClick={() => navigate(`/tournaments/${tournament.slug}`)}
-      >
-        К турниру
-      </button>
-    </div>
+      <div className="mt-5 flex items-center gap-2 text-[0.8125rem] font-semibold">
+        <span className="ec-dot" style={{ backgroundColor: color }} />
+        <span style={{ color }}>{text}</span>
+      </div>
+    </button>
   );
 }
