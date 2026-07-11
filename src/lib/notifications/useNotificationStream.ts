@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { qk } from '@/lib/queries';
@@ -16,6 +16,13 @@ export function useNotificationStream() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  // useToast() returns a fresh `toast` identity every render. Keep it in a ref so
+  // it is NOT an effect dependency — otherwise the EventSource would tear down and
+  // reconnect on every re-render (each badge bump / dropdown toggle), defeating the
+  // persistent stream and hammering the backend.
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -30,7 +37,7 @@ export function useNotificationStream() {
       } catch {
         return;
       }
-      toast({ title: dto.title, description: dto.body ?? undefined });
+      toastRef.current({ title: dto.title, description: dto.body ?? undefined });
       qc.setQueryData<{ count: number }>(qk.notificationsUnread, (prev) => ({
         count: (prev?.count ?? 0) + 1,
       }));
@@ -50,5 +57,5 @@ export function useNotificationStream() {
       es.removeEventListener('notification', onNotification as EventListener);
       es.close();
     };
-  }, [isAuthenticated, qc, toast]);
+  }, [isAuthenticated, qc]);
 }
