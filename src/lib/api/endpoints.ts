@@ -56,6 +56,7 @@ import type {
   PlayerRatingDto,
   PlayerMatchSummaryDto,
   PlayerStatsDto,
+  InviteResultDto,
   NotificationDto,
 } from './types';
 
@@ -689,6 +690,13 @@ export function markMatchReady(matchId: string): Promise<MatchDto> {
 export function markMatchUnready(matchId: string): Promise<MatchDto> {
   return api<MatchDto>(
     `/api/v1/matches/${encodeURIComponent(matchId)}/unready`,
+    { method: 'POST' },
+  );
+}
+
+export function inviteMe(matchId: string): Promise<InviteResultDto> {
+  return api<InviteResultDto>(
+    `/api/v1/matches/${encodeURIComponent(matchId)}/invite-me`,
     { method: 'POST' },
   );
 }

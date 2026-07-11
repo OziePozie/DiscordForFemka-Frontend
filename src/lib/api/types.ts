@@ -180,6 +180,9 @@ export type PlayerMatchSummaryDto = S['PlayerMatchSummaryDto'];
 export type PlayerStatsDto = S['PlayerStatsDto'];
 export type FavoriteHeroDto = S['FavoriteHeroDto'];
 
+// Result of POST /matches/{id}/invite-me.
+export type InviteResultDto = S['InviteResultDto'];
+
 // TODO: regenerate openapi — admin match update payload (Stage 9).
 export interface UpdateMatchRequest {
   gameMode?: GameMode | null;

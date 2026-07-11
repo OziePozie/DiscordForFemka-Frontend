@@ -6,6 +6,7 @@ import {
   useMatch,
   useMarkMatchReady,
   useMarkMatchUnready,
+  useInviteMe,
   useRecreateLobby,
   useMe,
 } from '@/lib/queries';
@@ -216,11 +217,60 @@ interface LobbyCardProps {
   isAdmin: boolean;
 }
 
+// Fallback cooldown (ms) applied when a 429 error carries no explicit remaining
+// time — keeps the button briefly disabled so we don't hammer the endpoint.
+const INVITE_FALLBACK_COOLDOWN_MS = 15_000;
+
 function LobbyCard({ match, isAdmin }: LobbyCardProps) {
   const { toast } = useToast();
   const recreate = useRecreateLobby();
+  const invite = useInviteMe();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Timestamp (ms epoch) until which the invite button stays disabled. 0 = ready.
+  const [inviteCooldownUntil, setInviteCooldownUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  const inviteCoolingDown = inviteCooldownUntil > now;
+  // Tick once a second while cooling down so the button re-enables on time.
+  useEffect(() => {
+    if (!inviteCoolingDown) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [inviteCoolingDown]);
+
+  async function handleInvite() {
+    try {
+      const res = await invite.mutateAsync(match.id);
+      toast({ title: 'Приглашение отправлено' });
+      if (res.cooldownRemainingMs > 0) {
+        setInviteCooldownUntil(Date.now() + res.cooldownRemainingMs);
+        setNow(Date.now());
+      }
+    } catch (e) {
+      if (e instanceof ProblemDetailError) {
+        if (e.status === 429) {
+          toast({ title: 'Подождите перед повторным приглашением' });
+          setInviteCooldownUntil(Date.now() + INVITE_FALLBACK_COOLDOWN_MS);
+          setNow(Date.now());
+          return;
+        }
+        if (e.status === 409) {
+          toast({ title: 'Лобби ещё не создано', variant: 'destructive' });
+          return;
+        }
+        if (e.status === 403) {
+          toast({ title: 'Вы не участник этого матча', variant: 'destructive' });
+          return;
+        }
+      }
+      toast({
+        title: 'Не удалось отправить приглашение',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
 
   const lobbyId = currentGame(match)?.lobbyId ?? '';
   const createdAt = currentGame(match)?.createdAt;
@@ -325,6 +375,21 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
         <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           В клиенте Dota 2 → Custom Lobbies → найди ID или жди приглашения.
         </div>
+
+        {match.viewerCanInvite && (
+          <Button
+            onClick={handleInvite}
+            disabled={invite.isPending || inviteCoolingDown}
+          >
+            {invite.isPending
+              ? 'Отправка…'
+              : inviteCoolingDown
+                ? `Приглашение отправлено (${Math.ceil(
+                    (inviteCooldownUntil - now) / 1000,
+                  )}с)`
+                : 'Пригласить меня в лобби'}
+          </Button>
+        )}
       </CardContent>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
