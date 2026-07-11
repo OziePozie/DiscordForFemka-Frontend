@@ -56,6 +56,7 @@ import type {
   PlayerRatingDto,
   PlayerMatchSummaryDto,
   PlayerStatsDto,
+  NotificationDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -1008,4 +1009,27 @@ export function cancelOpenLobby(id: string): Promise<void> {
   return api<void>(`/api/v1/open-lobbies/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+// ──────────────── Notifications ────────────────
+
+export async function getNotifications(
+  page = 0,
+  size = 20,
+): Promise<PagedResponse<NotificationDto>> {
+  return api<PagedResponse<NotificationDto>>(
+    `/api/v1/notifications?page=${page}&size=${size}`,
+  );
+}
+
+export async function getUnreadCount(): Promise<{ count: number }> {
+  return api<{ count: number }>('/api/v1/notifications/unread-count');
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await api<void>(`/api/v1/notifications/${id}/read`, { method: 'POST' });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api<void>('/api/v1/notifications/read-all', { method: 'POST' });
 }
