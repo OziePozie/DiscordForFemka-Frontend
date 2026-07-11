@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
@@ -87,9 +87,44 @@ function fmtDate(iso?: string | null): string {
   });
 }
 
+const TOURNAMENT_TABS = [
+  'overview',
+  'regulations',
+  'teams',
+  'matches',
+  'bracket',
+] as const;
+type TournamentTab = (typeof TOURNAMENT_TABS)[number];
+
 export default function TournamentDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
   const q = useTournament(slug);
+
+  // Активная вкладка живёт в URL (?tab=…), чтобы возврат назад со страницы матча
+  // (или любой другой страницы) восстанавливал ту же вкладку, а не сбрасывал на
+  // «Обзор». replace: true — переключение вкладок не плодит записи в истории.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const activeTab: TournamentTab = TOURNAMENT_TABS.includes(
+    rawTab as TournamentTab,
+  )
+    ? (rawTab as TournamentTab)
+    : 'overview';
+
+  function handleTabChange(value: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'overview') {
+          next.delete('tab');
+        } else {
+          next.set('tab', value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   if (q.isLoading) {
     return (
@@ -115,7 +150,11 @@ export default function TournamentDetailsPage() {
     <div className="space-y-6">
       <Header tournament={tournament} canRegister={canRegister} />
 
-      <Tabs defaultValue="overview">
+      <Tabs
+        defaultValue="overview"
+        value={activeTab}
+        onValueChange={handleTabChange}
+      >
         <TabsList>
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="regulations">Регламент</TabsTrigger>
