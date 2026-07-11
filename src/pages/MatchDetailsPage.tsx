@@ -272,14 +272,14 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
     }
   }
 
-  const lobbyId = currentGame(match)?.lobbyId ?? '';
+  const lobbyName = currentGame(match)?.lobbyName ?? '';
   const createdAt = currentGame(match)?.createdAt;
   const gameMode = match.gameMode as GameMode | null | undefined;
   const region = match.region as Region | null | undefined;
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(lobbyId);
+      await navigator.clipboard.writeText(lobbyName);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -324,11 +324,11 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
       <CardContent className="space-y-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            ID лобби
+            Название лобби
           </div>
           <div className="mt-1 flex items-center gap-2">
-            <code className="rounded-md bg-muted px-3 py-2 font-mono text-2xl font-bold tracking-wider">
-              {lobbyId}
+            <code className="break-all rounded-md bg-muted px-3 py-2 font-mono text-lg font-bold tracking-wider">
+              {lobbyName}
             </code>
             <Button size="sm" variant="outline" onClick={handleCopy}>
               {copied ? 'Скопировано' : 'Копировать'}
@@ -558,7 +558,7 @@ export default function MatchDetailsPage() {
   const cur = q.data;
   const isLobbyPending =
     !!cur &&
-    !currentGame(cur)?.lobbyId &&
+    !currentGame(cur)?.lobbyName &&
     !!cur.lobbyCreateStartedAt &&
     !cur.lobbyCreateFailedAt &&
     cur.status === 'SCHEDULED';
@@ -572,7 +572,7 @@ export default function MatchDetailsPage() {
   const curGameForLive = cur ? currentGame(cur) : undefined;
   const live = useMatchLive(
     id,
-    curGameForLive?.status === 'LIVE' && !!curGameForLive?.lobbyId,
+    curGameForLive?.status === 'LIVE' && !!curGameForLive?.lobbyName,
   );
   const result = useMatchResult(id, q.data?.status === 'FINISHED');
   const meId = me.data?.profile.id;
@@ -658,7 +658,7 @@ export default function MatchDetailsPage() {
 
   // Лобби показываем только для реально идущей катки (статус катки LIVE), а не
   // для только что завершившейся катки серии, у которой lobbyId ещё висит.
-  const showLobby = curGameOfM?.status === 'LIVE' && !!curGameOfM?.lobbyId;
+  const showLobby = curGameOfM?.status === 'LIVE' && !!curGameOfM?.lobbyName;
   const showPending =
     awaitingNextGame &&
     !!m.lobbyCreateStartedAt &&
@@ -700,7 +700,7 @@ export default function MatchDetailsPage() {
           // BO1 (и вырожденный случай без каток) — прежнее поведение.
           return (
             <>
-              {m.status === 'LIVE' && curGameOfM?.lobbyId && (
+              {m.status === 'LIVE' && curGameOfM?.lobbyName && (
                 <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
               )}
               {m.status === 'FINISHED' && result.data && (

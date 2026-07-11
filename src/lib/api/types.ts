@@ -127,7 +127,9 @@ export interface MatchGameDto {
   winnerTeamId?: string | null;
   teamAKills: number;
   teamBKills: number;
-  lobbyId?: string | null;
+  // Human-readable Dota lobby name players search for (was lobbyId; the raw id
+  // is no longer exposed by the backend).
+  lobbyName?: string | null;
   dotaMatchId?: number | null;
   createdAt?: string | null;
   finishedAt?: string | null;

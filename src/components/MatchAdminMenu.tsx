@@ -487,7 +487,7 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
               {isAdmin && (
                 <DropdownMenuItem
                   onClick={() => setDialog({ kind: 'launch' })}
-                  disabled={!currentGame(match)?.lobbyId}
+                  disabled={!currentGame(match)?.lobbyName}
                 >
                   Принудительно стартовать в Dota
                 </DropdownMenuItem>
