@@ -62,6 +62,7 @@ import {
   getMatchResult,
   markMatchReady,
   markMatchUnready,
+  inviteMe,
   recreateLobby,
   launchLobby,
   finishMatch,
@@ -136,6 +137,7 @@ import type {
   TeamInviteDto,
   CreateInviteRequest,
   MatchDto,
+  InviteResultDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
   MatchRequestDto,
@@ -837,6 +839,14 @@ export function useMarkMatchUnready() {
       qc.setQueryData(qk.match(m.id), m);
       qc.invalidateQueries({ queryKey: qk.match(m.id) });
     },
+  });
+}
+
+export function useInviteMe() {
+  // Returns an InviteResultDto (invited + cooldownRemainingMs) rather than the
+  // match itself — no query cache to update. Errors surface via ProblemDetailError.
+  return useMutation<InviteResultDto, Error, string>({
+    mutationFn: (matchId) => inviteMe(matchId),
   });
 }
 
