@@ -677,13 +677,19 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                 m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamA?.id;
               const bWin =
                 m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamB?.id;
-              return (
-                <div
-                  key={`${cell.section}-${cell.roundIndex}-${cell.matchIndex}`}
-                  className="relative space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm"
-                >
+              const isLive = m?.status === 'LIVE';
+              const key = `${cell.section}-${cell.roundIndex}-${cell.matchIndex}`;
+              // Materialized cells (cell.match) link to the match page; live ones
+              // get a red pulsing marker + ring so they stand out in the bracket.
+              const cardClass = `relative block space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm ${isLive ? 'border-red-500/60 ring-1 ring-red-500/40' : ''}`;
+              const cardBody = (
+                <>
                   {isStaff && cell.match ? (
-                    <div className="absolute bottom-1 right-1">
+                    // Keep the admin dropdown's clicks from triggering the card link.
+                    <div
+                      className="absolute bottom-1 right-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MatchAdminMenu match={cell.match} />
                     </div>
                   ) : null}
@@ -703,11 +709,41 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                     </span>
                     {m ? <span className="font-mono">{m.scoreB}</span> : null}
                   </div>
-                  <div className="pt-1 pr-7 text-xs text-muted-foreground">
-                    {m
-                      ? `${MATCH_STATUS_LABEL[m.status]} · ${fmtDateTime(m.scheduledAt)}`
-                      : '—'}
+                  <div className="flex items-center gap-1.5 pt-1 pr-7 text-xs text-muted-foreground">
+                    {m ? (
+                      <>
+                        {isLive ? (
+                          <span
+                            className="relative flex h-2 w-2 shrink-0"
+                            aria-hidden
+                          >
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                          </span>
+                        ) : null}
+                        <span
+                          className={`truncate ${isLive ? 'font-medium text-red-600' : ''}`}
+                        >
+                          {MATCH_STATUS_LABEL[m.status]} · {fmtDateTime(m.scheduledAt)}
+                        </span>
+                      </>
+                    ) : (
+                      '—'
+                    )}
                   </div>
+                </>
+              );
+              return m ? (
+                <Link
+                  key={key}
+                  to={`/matches/${m.id}`}
+                  className={`${cardClass} transition-colors hover:bg-muted/50`}
+                >
+                  {cardBody}
+                </Link>
+              ) : (
+                <div key={key} className={cardClass}>
+                  {cardBody}
                 </div>
               );
             })
