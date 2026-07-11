@@ -182,6 +182,9 @@ export type FavoriteHeroDto = S['FavoriteHeroDto'];
 
 // TODO: regenerate openapi — admin match update payload (Stage 9).
 export interface UpdateMatchRequest {
+  // Планируемое время начала (ISO-UTC). Бэкенд применяет только не-null:
+  // очистить время этим PATCH нельзя.
+  scheduledAt?: string | null;
   gameMode?: GameMode | null;
   region?: Region | null;
   coinToss?: boolean | null;

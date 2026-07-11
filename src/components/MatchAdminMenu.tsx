@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
+import { formatDateTimeLocal, parseLocalDateTime } from '@/lib/utils';
 import { teamLabel, teamName } from '@/lib/format';
 import {
   GAME_MODES,
@@ -70,6 +71,7 @@ function describeError(e: unknown): string {
 
 type DialogState =
   | { kind: 'settings' }
+  | { kind: 'schedule' }
   | { kind: 'recreate' }
   | { kind: 'launch' }
   | { kind: 'reset-ready' }
@@ -159,6 +161,8 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
   const [moveA, setMoveA] = useState<string>(NONE);
   const [moveB, setMoveB] = useState<string>(NONE);
   const [formatValue, setFormatValue] = useState<MatchFormat>('BO1');
+  // datetime-local value (local TZ, minute precision); '' when unscheduled.
+  const [scheduleValue, setScheduleValue] = useState<string>('');
 
   const teamsQ = useTournamentTeams(match.tournamentId ?? undefined);
   const tournamentTeams = (teamsQ.data ?? []).filter((t) => !t.withdrawn);
@@ -203,6 +207,31 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
     } catch (e) {
       toast({
         title: 'Не удалось сохранить',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  function openSchedule() {
+    setScheduleValue(formatDateTimeLocal(match.scheduledAt));
+    setDialog({ kind: 'schedule' });
+  }
+
+  async function handleSchedule() {
+    if (!dialog || dialog.kind !== 'schedule') return;
+    const scheduledAt = parseLocalDateTime(scheduleValue);
+    // Save is disabled when empty, but guard anyway: sending null is a silent
+    // no-op on the backend (it only applies non-null scheduledAt).
+    if (!scheduledAt) return;
+    try {
+      await updateMut.mutateAsync({ id: match.id, patch: { scheduledAt } });
+      toast({ title: 'Время начала обновлено' });
+      await refetchMatches();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось обновить время',
         description: describeError(e),
         variant: 'destructive',
       });
@@ -445,6 +474,9 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
               <DropdownMenuItem onClick={() => openSettings()}>
                 Настройки лобби
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openSchedule()}>
+                Изменить время начала
+              </DropdownMenuItem>
               {isAdmin && (
                 <DropdownMenuItem
                   onClick={() => setDialog({ kind: 'recreate' })}
@@ -586,6 +618,48 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
               Отмена
             </Button>
             <Button onClick={handleSaveSettings} disabled={mutating}>
+              {updateMut.isPending ? 'Сохранение…' : 'Сохранить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Start-time dialog */}
+      <Dialog
+        open={dialog?.kind === 'schedule'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Время начала матча</DialogTitle>
+            <DialogDescription>
+              {`${teamName(match.teamA)} vs ${teamName(match.teamB)}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label htmlFor="m-scheduled-at">Начало</Label>
+            <input
+              id="m-scheduled-at"
+              type="datetime-local"
+              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={scheduleValue}
+              onChange={(e) => setScheduleValue(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Время в вашем часовом поясе. Очистить нельзя — только задать или
+              изменить.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleSchedule}
+              disabled={mutating || !scheduleValue}
+            >
               {updateMut.isPending ? 'Сохранение…' : 'Сохранить'}
             </Button>
           </DialogFooter>
