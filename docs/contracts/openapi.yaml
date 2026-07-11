@@ -1258,6 +1258,28 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/matches/{id}/invite-me:
+    post:
+      tags: [Match]
+      summary: Roster member asks the bot to invite them to the active lobby.
+      description: |
+        Caller must be a roster member of `teamA` or `teamB` and the match must
+        have an active (LIVE) Dota lobby. The bot sends a Steam lobby invite to
+        the caller. Rate-limited per player — repeat calls within the cooldown
+        window return 429 with the remaining cooldown.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InviteResultDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
   /api/v1/matches/{id}/live:
     get:
       tags: [Match]
@@ -2717,6 +2739,18 @@ components:
         bracketSection: { $ref: "#/components/schemas/BracketSection", nullable: true }
         roundIndex:     { type: integer, nullable: true }
         matchIndex:     { type: integer, nullable: true }
+        # True only when the authenticated viewer is a roster member of teamA or
+        # teamB AND the match has an active (LIVE) lobby. Always false for
+        # anonymous requests. Gates the «Пригласить меня в лобби» button.
+        viewerCanInvite: { type: boolean, default: false }
+    InviteResultDto:
+      type: object
+      required: [invited, cooldownRemainingMs]
+      properties:
+        # Whether an invite was actually dispatched this call.
+        invited:             { type: boolean }
+        # Milliseconds the caller must wait before requesting another invite.
+        cooldownRemainingMs: { type: integer, format: int64 }
     MatchLiveSnapshotDto:
       type: object
       required: [gameTime, startTimestamp, gameState, radiant, dire, fetchedAt]

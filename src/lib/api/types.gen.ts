@@ -2682,6 +2682,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/matches/{id}/invite-me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roster member asks the bot to invite them to the active lobby.
+         * @description Caller must be a roster member of `teamA` or `teamB` and the match must
+         *     have an active (LIVE) Dota lobby. The bot sends a Steam lobby invite to
+         *     the caller. Rate-limited per player — repeat calls within the cooldown
+         *     window return 429 with the remaining cooldown.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InviteResultDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                429: components["responses"]["RateLimited"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/matches/{id}/live": {
         parameters: {
             query?: never;
@@ -4952,6 +5001,13 @@ export interface components {
             bracketSection?: components["schemas"]["BracketSection"];
             roundIndex?: number | null;
             matchIndex?: number | null;
+            /** @default false */
+            viewerCanInvite: boolean;
+        };
+        InviteResultDto: {
+            invited: boolean;
+            /** Format: int64 */
+            cooldownRemainingMs: number;
         };
         MatchLiveSnapshotDto: {
             /** @description Seconds since game clock started (may be negative during pick phase) */
