@@ -101,6 +101,10 @@ import {
   getPlayerRating,
   getPlayerMatches,
   getPlayerStats,
+  getNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
   type LeaderboardPageParams,
   type PlayerMatchesPageParams,
   type SeasonsPageParams,
@@ -208,6 +212,9 @@ export const qk = {
   playerMatches: (id: string, params: PlayerMatchesPageParams) =>
     ['player', id, 'matches', params] as const,
   playerStats: (id: string) => ['player', id, 'stats'] as const,
+  notificationsUnread: ['notifications', 'unread'] as const,
+  notificationsList: (page: number, size: number) =>
+    ['notifications', 'list', page, size] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -1289,6 +1296,47 @@ export function usePlayerStats(
     queryFn: () => getPlayerStats(id!),
     enabled: Boolean(id),
     staleTime: 60_000,
+  });
+}
+
+// ──────────────── Notifications ────────────────
+
+export function useUnreadCount(enabled = true) {
+  return useQuery({
+    queryKey: qk.notificationsUnread,
+    queryFn: getUnreadCount,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useNotifications(page = 0, size = 20, enabled = true) {
+  return useQuery({
+    queryKey: qk.notificationsList(page, size),
+    queryFn: () => getNotifications(page, size),
+    enabled,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.notificationsUnread });
+      qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.notificationsUnread });
+      qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    },
   });
 }
 
