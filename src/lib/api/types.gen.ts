@@ -4966,6 +4966,16 @@ export interface components {
             radiant: components["schemas"]["TeamLiveDto"];
             dire: components["schemas"]["TeamLiveDto"];
             /**
+             * Format: uuid
+             * @description Id of the platform team (teamA or teamB) currently on Radiant; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed.
+             */
+            radiantTeamId?: string | null;
+            /**
+             * Format: uuid
+             * @description Id of the platform team (teamA or teamB) currently on Dire; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed.
+             */
+            direTeamId?: string | null;
+            /**
              * Format: date-time
              * @description When the backend last polled Dota2API for this snapshot
              */
