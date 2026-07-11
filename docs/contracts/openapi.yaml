@@ -21,6 +21,7 @@ tags:
   - { name: Tournament,     description: "Турниры" }
   - { name: Match,          description: "Матчи и открытые лобби (КВ/шоу-матчи)" }
   - { name: Admin,          description: "Админ-панель: модерация, аудит" }
+  - { name: Notification,   description: "Уведомления игрока (колокольчик, SSE)" }
 
 security:
   - cookieAuth: []
@@ -2096,6 +2097,76 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/v1/notifications:
+    get:
+      tags: [Notification]
+      summary: Список уведомлений текущего игрока (новые сверху)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/NotificationDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [Notification]
+      summary: Количество непрочитанных уведомлений
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer, format: int64 }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/{id}/read:
+    post:
+      tags: [Notification]
+      summary: Отметить уведомление прочитанным
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+      responses:
+        "204": { description: отмечено }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notification]
+      summary: Отметить все уведомления прочитанными
+      responses:
+        "204": { description: отмечено }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/stream:
+    get:
+      tags: [Notification]
+      summary: Поток уведомлений (SSE)
+      description: >-
+        Server-Sent Events. Каждое событие notification несёт в data JSON одного NotificationDto.
+      responses:
+        "200":
+          description: поток
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -3198,3 +3269,19 @@ components:
         inLobby:         { type: boolean }
         currentLobbyId:  { type: integer, format: int64, nullable: true }
         healthy:         { type: boolean }
+
+    # --- Notification ---
+    NotificationType:
+      type: string
+      enum: [MATCH_READY_CHECK, MATCH_LIVE]
+    NotificationDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/NotificationType" }
+        title: { type: string }
+        body: { type: string }
+        link: { type: string, nullable: true }
+        matchId: { type: string, format: uuid, nullable: true }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }

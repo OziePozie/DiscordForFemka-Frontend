@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { useLogout, useMyInvites } from '@/lib/queries';
 import { steamLoginUrl } from '@/lib/api/endpoints';
+import { NotificationBell } from './NotificationBell';
 
 export default function Header() {
   const { session, isAuthenticated, isLoading } = useAuth();
@@ -115,6 +116,7 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
           {isLoading ? (
             <div className="h-10 w-24 animate-pulse rounded-md bg-muted" />
           ) : isAuthenticated && session ? (
