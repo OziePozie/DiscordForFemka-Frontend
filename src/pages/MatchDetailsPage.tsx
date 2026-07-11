@@ -473,9 +473,10 @@ export default function MatchDetailsPage() {
     setPollMs(isLobbyPending || isLive ? 5000 : undefined);
   }, [isLobbyPending, isLive]);
 
+  const curGameForLive = cur ? currentGame(cur) : undefined;
   const live = useMatchLive(
     id,
-    q.data?.status === 'LIVE' && !!currentGame(q.data)?.lobbyId,
+    curGameForLive?.status === 'LIVE' && !!curGameForLive?.lobbyId,
   );
   const result = useMatchResult(id, q.data?.status === 'FINISHED');
   const meId = me.data?.profile.id;
@@ -535,10 +536,15 @@ export default function MatchDetailsPage() {
   );
 
   const curGameOfM = currentGame(m);
-  const canToggleReady =
-    m.status === 'SCHEDULED' &&
-    !curGameOfM?.lobbyId &&
-    (captainOfA || captainOfB);
+  // «Окно готовности»: серия ещё идёт (SCHEDULED до первой катки либо LIVE между
+  // катками BO3/BO5) и прямо сейчас нет живой катки. Между катками статус серии —
+  // LIVE (не SCHEDULED), а последняя катка уже FINISHED, поэтому опираемся на
+  // статус текущей катки, а не на статус серии и не на наличие её lobbyId
+  // (у только что завершившейся катки lobbyId ещё висит).
+  const awaitingNextGame =
+    (m.status === 'SCHEDULED' || m.status === 'LIVE') &&
+    curGameOfM?.status !== 'LIVE';
+  const canToggleReady = awaitingNextGame && (captainOfA || captainOfB);
 
   async function handleToggle(side: 'A' | 'B') {
     if (!m) return;
@@ -560,19 +566,18 @@ export default function MatchDetailsPage() {
     }
   }
 
-  const showLobby = !!curGameOfM?.lobbyId;
+  // Лобби показываем только для реально идущей катки (статус катки LIVE), а не
+  // для только что завершившейся катки серии, у которой lobbyId ещё висит.
+  const showLobby = curGameOfM?.status === 'LIVE' && !!curGameOfM?.lobbyId;
   const showPending =
-    m.status === 'SCHEDULED' &&
-    !curGameOfM?.lobbyId &&
+    awaitingNextGame &&
     !!m.lobbyCreateStartedAt &&
     !m.lobbyCreateFailedAt;
-  const showFailed =
-    m.status === 'SCHEDULED' && !curGameOfM?.lobbyId && !!m.lobbyCreateFailedAt;
+  const showFailed = awaitingNextGame && !!m.lobbyCreateFailedAt;
   // Hide readiness card while the «creating lobby…» card is showing — captains
   // can't toggle ready during that window anyway, and the buttons are
   // visually replaced by the pending card.
-  const showReadiness =
-    m.status === 'SCHEDULED' && !curGameOfM?.lobbyId && !showPending;
+  const showReadiness = awaitingNextGame && !showPending;
 
   return (
     <div className="space-y-6">
