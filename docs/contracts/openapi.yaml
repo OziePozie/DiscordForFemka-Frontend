@@ -2840,6 +2840,8 @@ components:
         gameState:      { type: integer, description: "Dota internal game state enum (e.g. 5 = playing)" }
         radiant:        { $ref: "#/components/schemas/TeamLiveDto" }
         dire:           { $ref: "#/components/schemas/TeamLiveDto" }
+        radiantTeamId:  { type: string, format: uuid, nullable: true, description: "Id of the platform team (teamA or teamB) currently on Radiant; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed." }
+        direTeamId:     { type: string, format: uuid, nullable: true, description: "Id of the platform team (teamA or teamB) currently on Dire; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed." }
         fetchedAt:      { type: string, format: date-time, description: "When the backend last polled Dota2API for this snapshot" }
     TeamLiveDto:
       type: object

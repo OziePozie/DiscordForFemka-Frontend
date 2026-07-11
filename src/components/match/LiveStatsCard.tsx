@@ -21,6 +21,24 @@ interface Props {
 const GRID_COLS =
   'grid grid-cols-[46px_140px_40px_64px_56px_66px_1fr] [column-gap:8px] items-center';
 
+/**
+ * Resolve which platform team is on a given Dota side. The backend attributes each
+ * side to teamA/teamB via {@code radiantTeamId}/{@code direTeamId}, which stays correct
+ * even when a coin toss flips sides mid-lobby. Falls back to the historical static
+ * mapping (Radiant = teamA, Dire = teamB) when the id is absent or unrecognised.
+ */
+function sideTeam(
+  match: MatchDto,
+  teamId: string | null | undefined,
+  side: 'radiant' | 'dire',
+) {
+  if (teamId) {
+    if (match.teamA?.id === teamId) return match.teamA;
+    if (match.teamB?.id === teamId) return match.teamB;
+  }
+  return side === 'radiant' ? match.teamA : match.teamB;
+}
+
 export function LiveStatsCard({ match, snapshot, meId }: Props) {
   if (!snapshot) {
     return (
@@ -55,13 +73,13 @@ export function LiveStatsCard({ match, snapshot, meId }: Props) {
       </div>
 
       <TeamSection
-        teamName={teamName(match.teamA)}
+        teamName={teamName(sideTeam(match, snapshot.radiantTeamId, 'radiant'))}
         sideLabel="Radiant"
         team={snapshot.radiant}
         meId={meId}
       />
       <TeamSection
-        teamName={teamName(match.teamB)}
+        teamName={teamName(sideTeam(match, snapshot.direTeamId, 'dire'))}
         sideLabel="Dire"
         team={snapshot.dire}
         meId={meId}
