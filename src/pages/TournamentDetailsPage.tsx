@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
@@ -648,38 +648,21 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
   if (!isDoubleElim) {
     return (
       <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
-        <RoundColumns rounds={wbRounds} />
+        <ConnectedRounds rounds={wbRounds} />
       </div>
     );
   }
 
-  // Вся сетка в одном прокручиваемом контейнере: секции сложены вертикально,
-  // контейнер скроллится по вертикали (и по горизонтали для широких раундов),
-  // вместо того чтобы растягиваться на весь экран.
+  // Вся сетка в одном прокручиваемом контейнере: верхняя и нижняя сетки сложены
+  // одна над другой, а Grand Final стоит справа от их финалов — именно туда
+  // приходят победители обеих веток, и к нему тянутся линии от WB- и LB-финала.
   return (
-    <div className="max-h-[70vh] space-y-6 overflow-auto rounded-md border p-4">
-      <section>
-        <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-          Верхняя сетка
-        </h3>
-        <RoundColumns rounds={wbRounds} />
-      </section>
-      {lbRounds.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Нижняя сетка
-          </h3>
-          <RoundColumns rounds={lbRounds} />
-        </section>
-      )}
-      {gfRounds.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Grand Final
-          </h3>
-          <RoundColumns rounds={gfRounds} />
-        </section>
-      )}
+    <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+      <DoubleElimBracket
+        wbRounds={wbRounds}
+        lbRounds={lbRounds}
+        gfRounds={gfRounds}
+      />
     </div>
   );
 }
@@ -688,24 +671,259 @@ type BracketRound = NonNullable<
   ReturnType<typeof useBracket>['data']
 >['rounds'][number];
 
-function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
+const cellKey = (
+  section: string,
+  roundIndex: number,
+  matchIndex: number,
+): string => `${section}-${roundIndex}-${matchIndex}`;
+
+function useRegisterCell() {
+  const cellsRef = useRef(new Map<string, HTMLElement>());
+  const registerCell = useCallback((key: string, el: HTMLElement | null) => {
+    if (el) cellsRef.current.set(key, el);
+    else cellsRef.current.delete(key);
+  }, []);
+  return { cellsRef, registerCell };
+}
+
+// Считает соединительные линии между ячейками сетки: от правого края
+// матча-источника к левому краю матча, куда проходит его победитель.
+//
+// Внутри одной сетки соединяем WB→WB и LB→LB. Переход проигравшего из WB в LB
+// НЕ рисуем — он пересекал бы всю сетку. Единственное исключение — Grand Final:
+// в него линии идут из обеих веток (победители WB-финала и LB-финала).
+function computeConnectorPaths(
+  container: HTMLElement,
+  cells: Map<string, HTMLElement>,
+  rounds: BracketRound[],
+): string[] {
+  const cRect = container.getBoundingClientRect();
+  const next: string[] = [];
+  for (const round of rounds) {
+    for (const cell of round.matches) {
+      const targetEl = cells.get(
+        cellKey(cell.section, cell.roundIndex, cell.matchIndex),
+      );
+      if (!targetEl) continue;
+      for (const slot of [cell.slotA, cell.slotB]) {
+        if (!slot.section) continue;
+        const sameSection = slot.section === cell.section;
+        // Между сетками соединяем только вход в Grand Final.
+        if (!sameSection && cell.section !== 'GF') continue;
+        if (slot.round == null || slot.matchIndex == null) continue;
+        // `slot.round` может быть 0- или 1-индексным относительно
+        // `roundIndex`; пробуем оба варианта. Внутри своей сетки источник
+        // всегда в предыдущем раунде — этим и отсекаем неверный кандидат.
+        let srcEl: HTMLElement | undefined;
+        for (const cand of [slot.round, slot.round - 1]) {
+          if (sameSection && cand >= cell.roundIndex) continue;
+          srcEl = cells.get(cellKey(slot.section, cand, slot.matchIndex));
+          if (srcEl) break;
+        }
+        if (!srcEl) continue;
+        const s = srcEl.getBoundingClientRect();
+        const t = targetEl.getBoundingClientRect();
+        const x1 = s.right - cRect.left;
+        const y1 = s.top + s.height / 2 - cRect.top;
+        const x2 = t.left - cRect.left;
+        const y2 = t.top + t.height / 2 - cRect.top;
+        const midX = x1 + (x2 - x1) / 2;
+        next.push(`M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`);
+      }
+    }
+  }
+  return next;
+}
+
+// `next` идентичен предыдущему набору путей? Нужно, чтобы не гонять setState в
+// цикле (`rounds` — новый массив на каждый рендер).
+const samePaths = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((p, i) => p === b[i]);
+
+function useConnectorPaths(
+  containerRef: React.RefObject<HTMLElement>,
+  cellsRef: React.MutableRefObject<Map<string, HTMLElement>>,
+  rounds: BracketRound[],
+): string[] {
+  const [paths, setPaths] = useState<string[]>([]);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const compute = () => {
+      const next = computeConnectorPaths(container, cellsRef.current, rounds);
+      setPaths((prev) => (samePaths(prev, next) ? prev : next));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(container);
+    window.addEventListener('resize', compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
+  }, [containerRef, cellsRef, rounds]);
+
+  return paths;
+}
+
+function ConnectorOverlay({ paths }: { paths: string[] }) {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full text-muted-foreground/50"
+      aria-hidden
+    >
+      {paths.map((d, i) => (
+        <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth={2} />
+      ))}
+    </svg>
+  );
+}
+
+// Single-elim (или любая одиночная сетка): одна лента раундов со связями.
+function ConnectedRounds({ rounds }: { rounds: BracketRound[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { cellsRef, registerCell } = useRegisterCell();
+  const paths = useConnectorPaths(containerRef, cellsRef, rounds);
+
+  return (
+    <div ref={containerRef} className="relative w-max min-w-full">
+      <ConnectorOverlay paths={paths} />
+      <RoundColumns rounds={rounds} registerCell={registerCell} />
+    </div>
+  );
+}
+
+const finalCellKey = (rounds: BracketRound[]): string | null => {
+  for (let i = rounds.length - 1; i >= 0; i--) {
+    const last = rounds[i].matches[rounds[i].matches.length - 1];
+    if (last) return cellKey(last.section, last.roundIndex, last.matchIndex);
+  }
+  return null;
+};
+
+// Double-elim: WB сверху, LB снизу; обе ленты прижаты вправо, поэтому WB-финал и
+// LB-финал стоят в одной колонке. Grand Final — правее их, и его сдвигаем ровно
+// на середину между двумя финалами, чтобы линии к нему были симметричны.
+function DoubleElimBracket({
+  wbRounds,
+  lbRounds,
+  gfRounds,
+}: {
+  wbRounds: BracketRound[];
+  lbRounds: BracketRound[];
+  gfRounds: BracketRound[];
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { cellsRef, registerCell } = useRegisterCell();
+  const [paths, setPaths] = useState<string[]>([]);
+  // Вертикальный сдвиг ячейки Grand Final, чтобы она встала по центру между
+  // WB- и LB-финалом (высоты веток разные, поэтому центр контейнера не подходит).
+  const [gfShift, setGfShift] = useState(0);
+
+  const allRounds = [...wbRounds, ...lbRounds, ...gfRounds];
+  const wbFinalKey = finalCellKey(wbRounds);
+  const lbFinalKey = finalCellKey(lbRounds);
+  const gfCellKey = finalCellKey(gfRounds);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cyOf = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    };
+    const recompute = () => {
+      const cells = cellsRef.current;
+      const wbEl = wbFinalKey ? cells.get(wbFinalKey) : null;
+      const lbEl = lbFinalKey ? cells.get(lbFinalKey) : null;
+      const gfEl = gfCellKey ? cells.get(gfCellKey) : null;
+      if (wbEl && lbEl && gfEl) {
+        const delta = (cyOf(wbEl) + cyOf(lbEl)) / 2 - cyOf(gfEl);
+        if (Math.abs(delta) > 0.5) {
+          // Двигаем GF и ждём перерисовки — линии посчитаем на осевшей позиции.
+          setGfShift((prev) => prev + delta);
+          return;
+        }
+      }
+      const next = computeConnectorPaths(container, cells, allRounds);
+      setPaths((prev) => (samePaths(prev, next) ? prev : next));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(container);
+    window.addEventListener('resize', recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', recompute);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRounds, gfShift, wbFinalKey, lbFinalKey, gfCellKey]);
+
+  const heading = 'text-sm font-semibold uppercase text-muted-foreground';
+
+  return (
+    <div ref={containerRef} className="relative w-max min-w-full pb-2">
+      <ConnectorOverlay paths={paths} />
+      <div className="flex items-stretch gap-10">
+        <div className="flex flex-col gap-6">
+          <section>
+            <h3 className={`mb-2 ${heading}`}>Верхняя сетка</h3>
+            <RoundColumns rounds={wbRounds} registerCell={registerCell} alignEnd />
+          </section>
+          {lbRounds.length > 0 && (
+            <section>
+              <h3 className={`mb-2 ${heading}`}>Нижняя сетка</h3>
+              <RoundColumns rounds={lbRounds} registerCell={registerCell} alignEnd />
+            </section>
+          )}
+        </div>
+        {gfRounds.length > 0 && (
+          <section
+            className="flex shrink-0 flex-col justify-center"
+            style={{ transform: `translateY(${gfShift}px)` }}
+          >
+            <h3 className={`mb-2 text-center ${heading}`}>Grand Final</h3>
+            <RoundColumns rounds={gfRounds} registerCell={registerCell} />
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RoundColumns({
+  rounds,
+  registerCell,
+  alignEnd,
+}: {
+  rounds: BracketRound[];
+  registerCell?: (key: string, el: HTMLElement | null) => void;
+  // Прижать раунды к правому краю: так финалы WB и LB встают в одну колонку,
+  // даже если у веток разное число раундов.
+  alignEnd?: boolean;
+}) {
   const me = useMe();
   const isStaff =
     me.data?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR') ?? false;
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <div className={`flex gap-4 ${alignEnd ? 'justify-end' : ''}`}>
       {rounds.map((round) => (
         <div
           key={`${round.section}-${round.roundIndex}`}
           className="flex w-72 shrink-0 flex-col gap-2"
         >
           <div className="text-sm font-medium">{round.title}</div>
-          {round.matches.length === 0 ? (
-            <div className="rounded-md border px-3 py-4 text-center text-xs text-muted-foreground">
-              Нет матчей
-            </div>
-          ) : (
-            round.matches.map((cell) => {
+          {/* justify-around раздвигает матчи по высоте так, чтобы матч
+              следующего раунда вставал по центру между своими источниками —
+              тогда соединительные линии образуют аккуратное «дерево». */}
+          <div className="flex flex-1 flex-col justify-around gap-2">
+            {round.matches.length === 0 ? (
+              <div className="rounded-md border px-3 py-4 text-center text-xs text-muted-foreground">
+                Нет матчей
+              </div>
+            ) : (
+              round.matches.map((cell) => {
               // A cell is either a real materialized match (cell.match) or a
               // placeholder. A slot shows its team when known, otherwise the
               // source label ("Winner of WB R1 M2", "BYE", ...).
@@ -775,18 +993,24 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
               return m ? (
                 <Link
                   key={key}
+                  ref={(el) => registerCell?.(key, el)}
                   to={`/matches/${m.id}`}
                   className={`${cardClass} transition-colors hover:bg-muted/50`}
                 >
                   {cardBody}
                 </Link>
               ) : (
-                <div key={key} className={cardClass}>
+                <div
+                  key={key}
+                  ref={(el) => registerCell?.(key, el)}
+                  className={cardClass}
+                >
                   {cardBody}
                 </div>
               );
             })
           )}
+          </div>
         </div>
       ))}
     </div>
