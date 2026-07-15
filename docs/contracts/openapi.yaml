@@ -394,6 +394,27 @@ paths:
                         type: array
                         items: { $ref: "#/components/schemas/PlayerAdminDto" }
         "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin, Player]
+      summary: Создать профиль-заглушку игрока (steamId + ник + MMR).
+      description: |
+        Создаёт админский профиль-заглушку для игрока, который ещё не входил.
+        Первый реальный вход через Steam с этим steamId «подхватывает» профиль
+        вместо создания дубликата. Только ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminCreatePlayerRequest" }
+      responses:
+        "201":
+          description: Заглушка создана
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerAdminDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/admin/players/{id}:
     patch:
@@ -2463,7 +2484,7 @@ components:
         stratzUrl:      { type: string }
     PlayerAdminDto:
       type: object
-      required: [profile, steamId, banned, roles, mmr, activity]
+      required: [profile, steamId, banned, roles, mmr, activity, stub]
       properties:
         profile:     { $ref: "#/components/schemas/PlayerPublicDto" }
         steamId:     { type: string, format: int64, pattern: '^[0-9]+$' }
@@ -2474,6 +2495,15 @@ components:
         roles:       { type: array, items: { $ref: "#/components/schemas/PlayerRole" } }
         mmr:         { $ref: "#/components/schemas/PlayerMmrDto" }
         activity:    { $ref: "#/components/schemas/PlayerActivityDto" }
+        stub:        { type: boolean, description: "Admin-created stub profile not yet claimed by a real login." }
+        claimedAt:   { type: string, format: date-time, nullable: true, description: "When the real player first logged in and claimed this stub; null if unclaimed or not a stub." }
+    AdminCreatePlayerRequest:
+      type: object
+      required: [steamId, nickname, mmr]
+      properties:
+        steamId:  { type: string, description: "SteamID64 or 32-bit Dota account/friend id; normalized to SteamID64 server-side." }
+        nickname: { type: string, maxLength: 64 }
+        mmr:      { type: integer, minimum: 0 }
     AdminUpdatePlayerRequest:
       type: object
       properties:

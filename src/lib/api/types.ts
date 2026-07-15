@@ -46,6 +46,7 @@ export type CreateMatchRequestDto = S['CreateMatchRequestDto'];
 // Admin: players
 export type PlayerAdminDto = S['PlayerAdminDto'];
 export type AdminUpdatePlayerRequest = S['AdminUpdatePlayerRequest'];
+export type AdminCreatePlayerRequest = S['AdminCreatePlayerRequest'];
 
 // Admin: audit log
 // TODO: replace with types.gen.ts once openapi.yaml is regenerated to expose AuditLogDto.
