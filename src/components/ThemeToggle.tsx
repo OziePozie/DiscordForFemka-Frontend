@@ -1,13 +1,19 @@
 import { useTheme } from '@/lib/theme';
 
-const HERO_CDN =
-  'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/';
+const ABILITY_CDN =
+  'https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/abilities/';
 
-// Phoenix — «солнечная» птица для перехода в светлую тему,
-// Night Stalker — «ночной» герой для перехода в тёмную.
+// Ульты героев: Phoenix Supernova — «вспышка света» для светлой темы,
+// Night Stalker Darkness — «тьма» для тёмной.
 const HERO = {
-  toLight: { name: 'phoenix', label: 'Включить светлую тему (Phoenix)' },
-  toDark: { name: 'night_stalker', label: 'Включить тёмную тему (Night Stalker)' },
+  toLight: {
+    name: 'phoenix_supernova',
+    label: 'Включить светлую тему (Phoenix — Supernova)',
+  },
+  toDark: {
+    name: 'night_stalker_darkness',
+    label: 'Включить тёмную тему (Night Stalker — Darkness)',
+  },
 } as const;
 
 /**
@@ -29,7 +35,7 @@ export function ThemeToggle() {
       className="group inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full ring-2 ring-line transition hover:ring-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <img
-        src={`${HERO_CDN}${hero.name}.png`}
+        src={`${ABILITY_CDN}${hero.name}.png`}
         alt=""
         width={40}
         height={40}
