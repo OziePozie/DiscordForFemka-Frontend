@@ -8,7 +8,6 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import SeasonsListPage from '@/pages/SeasonsListPage';
 import SeasonDetailsPage from '@/pages/SeasonDetailsPage';
 import TournamentDetailsPage from '@/pages/TournamentDetailsPage';
-import TeamsListPage from '@/pages/TeamsListPage';
 import TeamDetailsPage from '@/pages/TeamDetailsPage';
 import TeamCreatePage from '@/pages/TeamCreatePage';
 import LobbiesPage from '@/pages/LobbiesPage';
@@ -44,7 +43,6 @@ export default function App() {
         <Route path="/scenes" element={<SeasonsListPage />} />
         <Route path="/scenes/:slug" element={<SeasonDetailsPage />} />
         <Route path="/tournaments/:slug" element={<TournamentDetailsPage />} />
-        <Route path="/teams" element={<TeamsListPage />} />
         <Route
           path="/teams/new"
           element={

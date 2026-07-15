@@ -79,9 +79,6 @@ export default function Header() {
             <Link to="/scenes" className={navLink('/scenes')}>
               Сцены
             </Link>
-            <Link to="/teams" className={navLink('/teams')}>
-              Команды
-            </Link>
             <Link to="/leaderboard" className={navLink('/leaderboard')}>
               Рейтинг
             </Link>
