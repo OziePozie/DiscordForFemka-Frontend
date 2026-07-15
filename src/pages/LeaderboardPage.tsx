@@ -1,22 +1,59 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Trophy } from 'lucide-react';
 
-import { useLeaderboard } from '@/lib/queries';
+import {
+  useCurrentSeason,
+  useLeaderboard,
+  useSeasonsList,
+} from '@/lib/queries';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { RankBadge } from '@/components/RankBadge';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
-import type { LeaderboardEntryDto } from '@/lib/api/types';
+import type { LeaderboardEntryDto, SeasonDto } from '@/lib/api/types';
 import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 25;
 
 export default function LeaderboardPage() {
   const [page, setPage] = useState(0);
-  const q = useLeaderboard({ page, size: PAGE_SIZE });
+  const [selectedSlug, setSelectedSlug] = useState<string>('');
+
+  const seasonsQ = useSeasonsList({ size: 50 });
+  const seasons: SeasonDto[] = seasonsQ.data?.items ?? [];
+  const currentQ = useCurrentSeason();
+
+  // Default to the current (ACTIVE) season, else the most recent one.
+  useEffect(() => {
+    if (selectedSlug) return;
+    const fallback = currentQ.data?.slug ?? seasons[0]?.slug;
+    if (fallback) setSelectedSlug(fallback);
+  }, [currentQ.data, seasons, selectedSlug]);
+
+  const q = useLeaderboard({
+    season: selectedSlug || undefined,
+    page,
+    size: PAGE_SIZE,
+  });
 
   const items = q.data?.items ?? [];
   const totalPages = q.data?.totalPages ?? 0;
+
+  const seasonsResolved = seasonsQ.isFetched && currentQ.isFetched;
+  const noSeasons = seasonsResolved && !selectedSlug && seasons.length === 0;
+  const resolvingSeason = !selectedSlug && !noSeasons;
+
+  function changeSeason(slug: string) {
+    setSelectedSlug(slug);
+    setPage(0);
+  }
 
   return (
     <div className="relative -my-8 ml-[calc(50%-50vw)] w-screen min-h-[calc(100vh-4.25rem)] bg-background text-ink">
@@ -30,20 +67,45 @@ export default function LeaderboardPage() {
               Рейтинг
             </h1>
             <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-muted">
-              Внутренний рейтинг игроков платформы. Каждый стартует с 1000 очков —
-              побеждай на матчах платформы, чтобы подняться выше.
+              Внутренний рейтинг игроков в рамках выбранной сцены. Каждый стартует
+              с 1000 очков — побеждай на турнирных матчах сцены, чтобы подняться
+              выше.
             </p>
           </div>
-          <div className="ec-num text-sm text-ink-faint">
-            {q.data?.totalItems ?? 0} игроков
+          <div className="flex flex-col gap-2 sm:items-end">
+            <Select
+              value={selectedSlug}
+              onValueChange={changeSeason}
+              disabled={seasons.length === 0}
+            >
+              <SelectTrigger className="w-[220px] rounded-pill">
+                <SelectValue placeholder="Выберите сцену" />
+              </SelectTrigger>
+              <SelectContent>
+                {seasons.map((s) => (
+                  <SelectItem key={s.id} value={s.slug}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="ec-num text-sm text-ink-faint">
+              {q.data?.totalItems ?? 0} игроков
+            </div>
           </div>
         </header>
 
-        {q.isLoading && (
+        {(q.isLoading || resolvingSeason) && !noSeasons && (
           <div className="space-y-2">
             {Array.from({ length: 10 }).map((_, i) => (
               <Skeleton key={i} className="h-14 rounded-md" />
             ))}
+          </div>
+        )}
+
+        {noSeasons && (
+          <div className="rounded-lg border border-line px-4 py-16 text-center text-sm text-ink-muted">
+            Сцен пока нет.
           </div>
         )}
 
@@ -55,7 +117,7 @@ export default function LeaderboardPage() {
 
         {q.data && items.length === 0 && (
           <div className="rounded-lg border border-line px-4 py-16 text-center text-sm text-ink-muted">
-            В рейтинге пока никого нет.
+            В этой сцене пока никто не сыграл ни одного матча.
           </div>
         )}
 

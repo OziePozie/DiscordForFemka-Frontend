@@ -207,7 +207,8 @@ export const qk = {
   openLobby: (id: string) => ['open-lobby', id] as const,
   leaderboard: (params: LeaderboardPageParams) =>
     ['leaderboard', params] as const,
-  playerRating: (id: string) => ['player', id, 'rating'] as const,
+  playerRating: (id: string, season: string) =>
+    ['player', id, 'rating', season] as const,
   playerMatches: (id: string, params: PlayerMatchesPageParams) =>
     ['player', id, 'matches', params] as const,
   playerStats: (id: string) => ['player', id, 'stats'] as const,
@@ -1255,19 +1256,29 @@ export function useCancelOpenLobby() {
 
 // ──────────────── Internal player rating ────────────────
 
-export function useLeaderboard(params: LeaderboardPageParams = {}) {
+export function useLeaderboard(params: {
+  season: string | undefined;
+  page?: number;
+  size?: number;
+}) {
+  const { season, page = 0, size } = params;
   return useQuery({
-    queryKey: qk.leaderboard(params),
-    queryFn: () => getLeaderboardPage(params),
+    queryKey: qk.leaderboard({ season: season ?? '', page, size }),
+    queryFn: () => getLeaderboardPage({ season: season!, page, size }),
+    enabled: Boolean(season),
     staleTime: 60_000,
   });
 }
 
-export function usePlayerRating(id: string | undefined) {
+export function usePlayerRating(
+  id: string | undefined,
+  season: string | undefined,
+) {
   return useQuery({
-    queryKey: id ? qk.playerRating(id) : ['player', 'none', 'rating'],
-    queryFn: () => getPlayerRating(id!),
-    enabled: Boolean(id),
+    queryKey:
+      id && season ? qk.playerRating(id, season) : ['player', 'none', 'rating'],
+    queryFn: () => getPlayerRating(id!, season!),
+    enabled: Boolean(id && season),
     staleTime: 5 * 60_000,
   });
 }
