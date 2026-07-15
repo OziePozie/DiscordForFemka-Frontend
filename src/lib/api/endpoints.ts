@@ -134,21 +134,26 @@ export function logout(): Promise<void> {
 // ──────────────── Internal rating (public) ────────────────
 
 export interface LeaderboardPageParams {
+  /** Slug сцены (сезона) — обязателен: рейтинг посезонный. */
+  season: string;
   page?: number;
   size?: number;
 }
 
 export function getLeaderboardPage(
-  params: LeaderboardPageParams = {},
+  params: LeaderboardPageParams,
 ): Promise<PagedResponse<LeaderboardEntryDto>> {
   return api<PagedResponse<LeaderboardEntryDto>>(
     `/api/v1/ratings/leaderboard${buildQuery(params)}`,
   );
 }
 
-export function getPlayerRating(id: string): Promise<PlayerRatingDto> {
+export function getPlayerRating(
+  id: string,
+  season: string,
+): Promise<PlayerRatingDto> {
   return api<PlayerRatingDto>(
-    `/api/v1/ratings/players/${encodeURIComponent(id)}`,
+    `/api/v1/ratings/players/${encodeURIComponent(id)}${buildQuery({ season })}`,
   );
 }
 

@@ -1,4 +1,4 @@
-import { usePlayerRating } from '@/lib/queries';
+import { useCurrentSeason, usePlayerRating } from '@/lib/queries';
 import {
   Card,
   CardContent,
@@ -13,16 +13,19 @@ type Props = {
 };
 
 /**
- * Self-contained internal-rating widget for a player profile.
- * Renders nothing if the rating cannot be loaded so it never breaks the page.
+ * Self-contained internal-rating widget for a player profile. Shows the player's
+ * rating in the current (ACTIVE) season. Renders nothing if there is no current
+ * season or the rating cannot be loaded, so it never breaks the page.
  */
 export function PlayerRatingCard({ playerId }: Props) {
-  const q = usePlayerRating(playerId);
+  const seasonQ = useCurrentSeason();
+  const season = seasonQ.data;
+  const q = usePlayerRating(playerId, season?.slug);
 
-  if (q.isLoading) {
+  if (seasonQ.isLoading || q.isLoading) {
     return <Skeleton className="h-32 w-full" />;
   }
-  if (q.isError || !q.data) {
+  if (!season || q.isError || !q.data) {
     return null;
   }
 
@@ -31,7 +34,7 @@ export function PlayerRatingCard({ playerId }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Внутренний рейтинг</CardTitle>
+        <CardTitle>Внутренний рейтинг · {season.name}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-center gap-6">
