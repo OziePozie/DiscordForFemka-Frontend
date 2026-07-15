@@ -5,6 +5,7 @@ import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { formatGameTime, heroName } from '@/lib/dota/format';
 import { teamName } from '@/lib/format';
 import type {
+  MatchBanDto,
   MatchDto,
   MatchPlayerStatDto,
   MatchResultDto,
@@ -30,6 +31,14 @@ export function ResultStatsCard({ match, result, meId }: Props) {
   const radiantWon = result.winnerTeamId === match.teamA?.id;
   const winnerName = radiantWon ? teamName(match.teamA) : teamName(match.teamB);
   const mvpId = result.mvpSteamAccountId ?? null;
+
+  const bans = result.bans ?? [];
+  const radiantBans = bans
+    .filter((b) => b.team === 'RADIANT')
+    .sort((a, b) => a.order - b.order);
+  const direBans = bans
+    .filter((b) => b.team === 'DIRE')
+    .sort((a, b) => a.order - b.order);
 
   return (
     <div className="space-y-8">
@@ -58,6 +67,18 @@ export function ResultStatsCard({ match, result, meId }: Props) {
           </div>
         </div>
       </div>
+
+      {bans.length > 0 && (
+        <div className="border-b border-line pb-5">
+          <div className="ec-kicker mb-3 text-[0.6875rem] text-ink-faint [letter-spacing:0.1em]">
+            Баны
+          </div>
+          <div className="space-y-2">
+            <BanRow sideLabel="Radiant" bans={radiantBans} won={radiantWon} />
+            <BanRow sideLabel="Dire" bans={direBans} won={!radiantWon} />
+          </div>
+        </div>
+      )}
 
       <ResultSide
         teamName={teamName(match.teamA)}
@@ -198,6 +219,48 @@ function ResultSide({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function BanRow({
+  sideLabel,
+  bans,
+  won,
+}: {
+  sideLabel: string;
+  bans: MatchBanDto[];
+  won: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={`ec-kicker w-16 shrink-0 text-[0.6875rem] [letter-spacing:0.1em] ${
+          won ? 'text-success' : 'text-live'
+        }`}
+      >
+        {sideLabel.toUpperCase()}
+      </span>
+      {bans.length > 0 ? (
+        <div className="flex flex-wrap gap-[3px]">
+          {bans.map((b) => (
+            <span
+              key={`${b.team}-${b.order}`}
+              title={heroName(b.heroId)}
+              className="inline-flex"
+            >
+              <HeroIcon
+                heroId={b.heroId}
+                width={42}
+                height={24}
+                className="!rounded-[4px] opacity-70 grayscale"
+              />
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="text-ink-faint">—</span>
+      )}
     </div>
   );
 }
