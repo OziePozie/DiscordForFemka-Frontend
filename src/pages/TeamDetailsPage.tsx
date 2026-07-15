@@ -221,7 +221,7 @@ export default function TeamDetailsPage() {
       await leaveMember.mutateAsync({ teamId: id, playerId: leaveOpen.playerId });
       toast({ title: leaveOpen.self ? 'Вы покинули команду' : 'Игрок удалён из команды' });
       setLeaveOpen(null);
-      if (leaveOpen.self) navigate('/teams');
+      if (leaveOpen.self) navigate('/profile');
     } catch (e) {
       toast({ title: 'Ошибка', description: describeError(e), variant: 'destructive' });
     }
@@ -233,7 +233,7 @@ export default function TeamDetailsPage() {
       await disband.mutateAsync(id);
       toast({ title: 'Команда расформирована' });
       setDisbandOpen(false);
-      navigate('/teams');
+      navigate('/profile');
     } catch (e) {
       const msg =
         e instanceof ProblemDetailError

@@ -208,7 +208,7 @@ export default function TeamCreatePage() {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => navigate('/teams')}
+                onClick={() => navigate('/profile')}
               >
                 Отмена
               </Button>
