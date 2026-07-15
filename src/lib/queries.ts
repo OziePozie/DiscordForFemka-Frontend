@@ -19,7 +19,6 @@ import {
   getTournamentTeams,
   getTournamentMatchesPage,
   getTournamentBracket,
-  getTeamsPage,
   getTeamById,
   getAdminMmrRequestsPage,
   approveMmrRequest,
@@ -110,7 +109,6 @@ import {
   type PlayerMatchesPageParams,
   type SeasonsPageParams,
   type TournamentMatchesParams,
-  type TeamsPageParams,
   type AdminMmrRequestsParams,
   type LobbiesPageParams,
   type MyInvitesPageParams,
@@ -182,7 +180,6 @@ export const qk = {
   tournamentMatches: (id: string, params: TournamentMatchesParams) =>
     ['tournament', id, 'matches', params] as const,
   bracket: (id: string) => ['tournament', id, 'bracket'] as const,
-  teams: (params: TeamsPageParams) => ['teams', params] as const,
   team: (id: string) => ['team', id] as const,
   adminMmr: ['adminMmr'] as const,
   adminMmrPage: (params: AdminMmrRequestsParams) =>
@@ -374,13 +371,6 @@ export function useRegisterTournament() {
 }
 
 // ──────────────── Teams ────────────────
-
-export function useTeamsList(params: TeamsPageParams = {}) {
-  return useQuery({
-    queryKey: qk.teams(params),
-    queryFn: () => getTeamsPage(params),
-  });
-}
 
 export function useTeam(id: string | undefined) {
   return useQuery({

@@ -271,21 +271,6 @@ export function registerTeamForTournament(
 
 // ──────────────── Teams (public) ────────────────
 
-export interface TeamsPageParams {
-  q?: string;
-  status?: string;
-  page?: number;
-  size?: number;
-}
-
-export function getTeamsPage(
-  params: TeamsPageParams = {},
-): Promise<PagedResponse<TeamPublicDto>> {
-  return api<PagedResponse<TeamPublicDto>>(
-    `/api/v1/teams${buildQuery(params)}`,
-  );
-}
-
 export function getTeamById(id: string): Promise<TeamDto> {
   return api<TeamDto>(`/api/v1/teams/${encodeURIComponent(id)}`);
 }
