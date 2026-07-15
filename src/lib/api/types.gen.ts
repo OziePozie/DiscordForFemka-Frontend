@@ -444,13 +444,17 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Таблица лидеров по внутреннему рейтингу платформы
-         * @description Игроки, отсортированные по внутреннему рейтингу (по убыванию). Рейтинг
-         *     отдельный от импортированного Dota MMR.
+         * Таблица лидеров по внутреннему рейтингу платформы (в рамках сцены)
+         * @description Игроки выбранной сцены (сезона), отсортированные по внутреннему рейтингу
+         *     (по убыванию). Рейтинг посезонный и отдельный от импортированного Dota MMR.
+         *     В выдачу попадают только игроки, сыгравшие в этой сцене хотя бы один матч.
+         *     Параметр `season` обязателен.
          */
         get: {
             parameters: {
-                query?: {
+                query: {
+                    /** @description Slug сцены (сезона), в рамках которой строится таблица лидеров. */
+                    season: string;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                 };
@@ -471,6 +475,8 @@ export interface paths {
                         };
                     };
                 };
+                400: components["responses"]["Validation"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -489,13 +495,17 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Внутренний рейтинг игрока
-         * @description Текущий внутренний рейтинг игрока. Для игрока без сыгранных матчей
-         *     возвращается синтетическая запись со стартовым рейтингом (ранг Blossom).
+         * Внутренний рейтинг игрока (в рамках сцены)
+         * @description Текущий внутренний рейтинг игрока в выбранной сцене (сезоне). Для игрока
+         *     без сыгранных матчей в этой сцене возвращается синтетическая запись со
+         *     стартовым рейтингом (ранг Blossom). Параметр `season` обязателен.
          */
         get: {
             parameters: {
-                query?: never;
+                query: {
+                    /** @description Slug сцены (сезона), в рамках которой возвращается рейтинг. */
+                    season: string;
+                };
                 header?: never;
                 path: {
                     id: components["parameters"]["IdInPath"];
@@ -513,6 +523,8 @@ export interface paths {
                         "application/json": components["schemas"]["PlayerRatingDto"];
                     };
                 };
+                400: components["responses"]["Validation"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -4918,6 +4930,9 @@ export interface components {
             rankName: string;
             /** Format: date-time */
             updatedAt?: string | null;
+            /** Format: uuid */
+            seasonId: string;
+            seasonSlug: string;
         };
         LeaderboardEntryDto: {
             /** Format: int32 */
@@ -4939,6 +4954,9 @@ export interface components {
             currentStreak: number;
             rankTier: components["schemas"]["RankTier"];
             rankName: string;
+            /** Format: uuid */
+            seasonId: string;
+            seasonSlug: string;
         };
         /** @enum {string} */
         GenderType: "MALE" | "FEMALE";

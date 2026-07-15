@@ -228,12 +228,19 @@ paths:
   /api/v1/ratings/leaderboard:
     get:
       tags: [Rating]
-      summary: Таблица лидеров по внутреннему рейтингу платформы
+      summary: Таблица лидеров по внутреннему рейтингу платформы (в рамках сцены)
       description: |
-        Игроки, отсортированные по внутреннему рейтингу (по убыванию). Рейтинг
-        отдельный от импортированного Dota MMR.
+        Игроки выбранной сцены (сезона), отсортированные по внутреннему рейтингу
+        (по убыванию). Рейтинг посезонный и отдельный от импортированного Dota MMR.
+        В выдачу попадают только игроки, сыгравшие в этой сцене хотя бы один матч.
+        Параметр `season` обязателен.
       security: []
       parameters:
+        - in: query
+          name: season
+          required: true
+          description: Slug сцены (сезона), в рамках которой строится таблица лидеров.
+          schema: { type: string }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -249,23 +256,33 @@ paths:
                       items:
                         type: array
                         items: { $ref: "#/components/schemas/LeaderboardEntryDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/ratings/players/{id}:
     get:
       tags: [Rating]
-      summary: Внутренний рейтинг игрока
+      summary: Внутренний рейтинг игрока (в рамках сцены)
       description: |
-        Текущий внутренний рейтинг игрока. Для игрока без сыгранных матчей
-        возвращается синтетическая запись со стартовым рейтингом (ранг Blossom).
+        Текущий внутренний рейтинг игрока в выбранной сцене (сезоне). Для игрока
+        без сыгранных матчей в этой сцене возвращается синтетическая запись со
+        стартовым рейтингом (ранг Blossom). Параметр `season` обязателен.
       security: []
       parameters:
         - $ref: "#/components/parameters/IdInPath"
+        - in: query
+          name: season
+          required: true
+          description: Slug сцены (сезона), в рамках которой возвращается рейтинг.
+          schema: { type: string }
       responses:
         "200":
           description: ок
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PlayerRatingDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/admin/ratings/recalculate:
     post:
@@ -2376,7 +2393,7 @@ components:
       enum: [BLOSSOM, SAPPHIRE, DIAMOND, IMMORTAL, CELESTIAL]
     PlayerRatingDto:
       type: object
-      required: [playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName]
+      required: [playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName, seasonId, seasonSlug]
       properties:
         playerId:       { type: string, format: uuid }
         rating:         { type: integer, format: int32 }
@@ -2387,9 +2404,11 @@ components:
         rankTier:       { $ref: "#/components/schemas/RankTier" }
         rankName:       { type: string }
         updatedAt:      { type: string, format: date-time, nullable: true }
+        seasonId:       { type: string, format: uuid }
+        seasonSlug:     { type: string }
     LeaderboardEntryDto:
       type: object
-      required: [rank, playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName]
+      required: [rank, playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName, seasonId, seasonSlug]
       properties:
         rank:           { type: integer, format: int32 }
         playerId:       { type: string, format: uuid }
@@ -2403,6 +2422,8 @@ components:
         currentStreak:  { type: integer, format: int32 }
         rankTier:       { $ref: "#/components/schemas/RankTier" }
         rankName:       { type: string }
+        seasonId:       { type: string, format: uuid }
+        seasonSlug:     { type: string }
     GenderType:
       type: string
       enum: [MALE, FEMALE]
