@@ -99,8 +99,9 @@ function ResultSide({
       <div className="mb-3 flex items-center gap-3">
         <h3 className="ec-display text-[1.0625rem] text-ink">{teamName}</h3>
         <span
-          className="ec-kicker text-[0.75rem] [letter-spacing:0.1em]"
-          style={{ color: won ? '#0d9464' : '#d43a3a' }}
+          className={`ec-kicker text-[0.75rem] [letter-spacing:0.1em] ${
+            won ? 'text-success' : 'text-live'
+          }`}
         >
           {sideLabel.toUpperCase()}
           {won ? ' · WIN' : ''}

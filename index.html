@@ -11,6 +11,19 @@
       rel="stylesheet"
     />
     <title>PLAY STAGE</title>
+    <script>
+      // Выставляем тему до первой отрисовки, чтобы не мигало светлой темой.
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark =
+            stored === 'dark' ||
+            ((stored === 'system' || !stored) &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

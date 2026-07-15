@@ -35,11 +35,11 @@ function fmtDate(iso?: string | null): string {
 function statusColor(s: SeasonStatus): string {
   switch (s) {
     case 'ACTIVE':
-      return '#0d9464';
+      return 'hsl(var(--success))';
     case 'PLANNED':
-      return '#7c5cff';
+      return 'hsl(var(--brand))';
     case 'FINISHED':
-      return '#9a9eb3';
+      return 'hsl(var(--ink-faint))';
   }
 }
 
