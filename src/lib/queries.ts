@@ -76,6 +76,7 @@ import {
   getAdminTeamsPage,
   hideTeam,
   unhideTeam,
+  createAdminPlayer,
   updateAdminPlayer,
   banAdminPlayer,
   unbanAdminPlayer,
@@ -152,6 +153,7 @@ import type {
   CreateMatchRequestDto,
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
+  AdminCreatePlayerRequest,
   UpdateMatchRequest,
   TechResultRequest,
   MoveTeamsRequest,
@@ -982,6 +984,16 @@ export function useAdminPlayers(params: AdminPlayersPageParams = {}) {
   return useQuery({
     queryKey: qk.adminPlayersPage(params),
     queryFn: () => getAdminPlayersPage(params),
+  });
+}
+
+export function useCreateAdminPlayer() {
+  const qc = useQueryClient();
+  return useMutation<PlayerAdminDto, Error, AdminCreatePlayerRequest>({
+    mutationFn: (body) => createAdminPlayer(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminPlayers });
+    },
   });
 }
 

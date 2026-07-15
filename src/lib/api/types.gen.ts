@@ -762,7 +762,39 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * Создать профиль-заглушку игрока (steamId + ник + MMR).
+         * @description Создаёт админский профиль-заглушку для игрока, который ещё не входил.
+         *     Первый реальный вход через Steam с этим steamId «подхватывает» профиль
+         *     вместо создания дубликата. Только ADMIN.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminCreatePlayerRequest"];
+                };
+            };
+            responses: {
+                /** @description Заглушка создана */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerAdminDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -5022,6 +5054,19 @@ export interface components {
             roles: components["schemas"]["PlayerRole"][];
             mmr: components["schemas"]["PlayerMmrDto"];
             activity: components["schemas"]["PlayerActivityDto"];
+            /** @description Admin-created stub profile not yet claimed by a real login. */
+            stub: boolean;
+            /**
+             * Format: date-time
+             * @description When the real player first logged in and claimed this stub; null if unclaimed or not a stub.
+             */
+            claimedAt?: string | null;
+        };
+        AdminCreatePlayerRequest: {
+            /** @description SteamID64 or 32-bit Dota account/friend id; normalized to SteamID64 server-side. */
+            steamId: string;
+            nickname: string;
+            mmr: number;
         };
         AdminUpdatePlayerRequest: {
             roles?: components["schemas"]["PlayerRole"][];

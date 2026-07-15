@@ -37,6 +37,7 @@ import type {
   CreateMatchRequestDto,
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
+  AdminCreatePlayerRequest,
   AuditLogDto,
   BotStatusDto,
   ActivityStatus,
@@ -791,6 +792,15 @@ export function getAdminPlayersPage(
   return api<PagedResponse<PlayerAdminDto>>(
     `/api/v1/admin/players${buildQuery(params)}`,
   );
+}
+
+export function createAdminPlayer(
+  body: AdminCreatePlayerRequest,
+): Promise<PlayerAdminDto> {
+  return api<PlayerAdminDto>('/api/v1/admin/players', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function updateAdminPlayer(
