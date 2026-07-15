@@ -5513,6 +5513,29 @@ export interface components {
             dire: components["schemas"]["MatchPlayerStatDto"][];
             /** Format: int64 */
             mvpSteamAccountId?: number | null;
+            /** @description Heroes banned during the draft (empty if the match had no ban phase). */
+            bans?: components["schemas"]["MatchBanDto"][];
+        };
+        /** @description A hero banned during the draft. */
+        MatchBanDto: {
+            /**
+             * Format: int32
+             * @description Dota 2 hero id that was banned.
+             * @example 1
+             */
+            heroId: number;
+            /**
+             * @description Side that banned the hero.
+             * @example RADIANT
+             * @enum {string}
+             */
+            team: "RADIANT" | "DIRE";
+            /**
+             * Format: int32
+             * @description Order within the ban phase (0-based).
+             * @example 0
+             */
+            order: number;
         };
         MatchPlayerStatDto: {
             /** Format: int64 */

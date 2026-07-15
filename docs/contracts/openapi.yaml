@@ -3009,6 +3009,31 @@ components:
         # Derived at read time (no DB column): steam account id of the MVP on the
         # winning side. Null when no stats are available.
         mvpSteamAccountId: { type: integer, format: int64, nullable: true }
+        bans:
+          type: array
+          description: Heroes banned during the draft (empty if the match had no ban phase).
+          items:
+            $ref: '#/components/schemas/MatchBanDto'
+    MatchBanDto:
+      type: object
+      description: A hero banned during the draft.
+      required: [heroId, team, order]
+      properties:
+        heroId:
+          type: integer
+          format: int32
+          description: Dota 2 hero id that was banned.
+          example: 1
+        team:
+          type: string
+          enum: [RADIANT, DIRE]
+          description: Side that banned the hero.
+          example: RADIANT
+        order:
+          type: integer
+          format: int32
+          description: Order within the ban phase (0-based).
+          example: 0
     MatchPlayerStatDto:
       type: object
       required: [steamAccountId, heroId, kills, deaths, assists, lastHits, denies, gpm, xpm, level, heroDamage, towerDamage, heroHealing, netWorth, gold, leaverStatus, items, isWin]
