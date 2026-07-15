@@ -24,21 +24,22 @@ const config: Config = {
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
-        // Editorial Clean palette — flat brand tokens (не трогают shadcn-переменные)
+        // Editorial Clean palette — flat brand tokens через CSS-переменные,
+        // чтобы переключались вместе с темой (значения — в src/index.css).
         ink: {
-          DEFAULT: '#10142d',
-          muted: '#6b6f85',
-          faint: '#9a9eb3',
-          disabled: '#c3c6d4',
+          DEFAULT: 'hsl(var(--ink) / <alpha-value>)',
+          muted: 'hsl(var(--ink-muted) / <alpha-value>)',
+          faint: 'hsl(var(--ink-faint) / <alpha-value>)',
+          disabled: 'hsl(var(--ink-disabled) / <alpha-value>)',
         },
         line: {
-          DEFAULT: '#ecebe7',
-          strong: '#10142d',
-          num: '#d5d7e0',
+          DEFAULT: 'hsl(var(--line) / <alpha-value>)',
+          strong: 'hsl(var(--line-strong) / <alpha-value>)',
+          num: 'hsl(var(--line-num) / <alpha-value>)',
         },
-        brand: '#7c5cff',
-        success: '#0d9464',
-        live: '#d43a3a',
+        brand: 'hsl(var(--brand) / <alpha-value>)',
+        success: 'hsl(var(--success) / <alpha-value>)',
+        live: 'hsl(var(--live) / <alpha-value>)',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',

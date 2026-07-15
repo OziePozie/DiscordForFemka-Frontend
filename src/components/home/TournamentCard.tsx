@@ -23,11 +23,14 @@ function statusPresentation(status: TournamentStatus): {
 } {
   switch (status) {
     case 'REGISTRATION_OPEN':
-      return { color: '#0d9464', text: 'Регистрация открыта' };
+      return { color: 'hsl(var(--success))', text: 'Регистрация открыта' };
     case 'LIVE':
-      return { color: '#d43a3a', text: 'Идёт сейчас' };
+      return { color: 'hsl(var(--live))', text: 'Идёт сейчас' };
     default:
-      return { color: '#9a9eb3', text: TOURNAMENT_STATUS_LABEL[status] };
+      return {
+        color: 'hsl(var(--ink-faint))',
+        text: TOURNAMENT_STATUS_LABEL[status],
+      };
   }
 }
 

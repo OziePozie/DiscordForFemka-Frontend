@@ -23,7 +23,7 @@ type Props = {
  * цветной таблетки. Точка сохраняет узнаваемость тира, текст нейтрален.
  */
 export function RankBadge({ tier, className }: Props) {
-  const meta = RANK_META[tier] ?? { label: tier, dot: '#9a9eb3' };
+  const meta = RANK_META[tier] ?? { label: tier, dot: 'hsl(var(--ink-faint))' };
   return (
     <span
       className={cn(

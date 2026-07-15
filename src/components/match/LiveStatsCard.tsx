@@ -44,10 +44,7 @@ export function LiveStatsCard({ match, snapshot, meId }: Props) {
     return (
       <div className="space-y-4">
         <div className="ec-kicker flex items-center gap-2 text-[0.75rem] text-live [letter-spacing:0.1em]">
-          <span
-            className="ec-dot animate-pulse"
-            style={{ backgroundColor: '#d43a3a' }}
-          />
+          <span className="ec-dot animate-pulse bg-live" />
           LIVE — ожидаем данные…
         </div>
         <Skeleton className="h-48 w-full" />
@@ -59,10 +56,7 @@ export function LiveStatsCard({ match, snapshot, meId }: Props) {
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
         <div className="ec-kicker flex items-center gap-2 text-[0.75rem] text-live [letter-spacing:0.1em]">
-          <span
-            className="ec-dot animate-pulse"
-            style={{ backgroundColor: '#d43a3a' }}
-          />
+          <span className="ec-dot animate-pulse bg-live" />
           LIVE · {formatGameTime(snapshot.gameTime)}
         </div>
         <div className="ec-num flex items-baseline gap-2 text-[1.5rem] text-ink">

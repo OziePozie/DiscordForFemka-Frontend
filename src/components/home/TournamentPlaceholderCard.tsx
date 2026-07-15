@@ -26,7 +26,7 @@ export default function TournamentPlaceholderCard({
       </div>
 
       <div className="mt-5 flex items-center gap-2 text-[0.8125rem] font-semibold text-ink-faint">
-        <span className="ec-dot" style={{ backgroundColor: '#c3c6d4' }} />
+        <span className="ec-dot bg-ink-disabled" />
         <span>Ожидание</span>
       </div>
     </div>

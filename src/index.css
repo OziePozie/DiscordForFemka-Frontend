@@ -13,6 +13,7 @@
     /* Editorial Clean — светлый минимализм, один фиолетовый акцент.
        Значения выведены из палитры: фон #fdfcfa, текст #10142d,
        границы #ecebe7, акцент #7c5cff, успех #0d9464, live #d43a3a. */
+    color-scheme: light;
     --background: 40 43% 99%;
     --foreground: 231.7 47.5% 12%;
     --card: 40 43% 99%;
@@ -33,6 +34,55 @@
     --input: 48 12% 92%;
     --ring: 251.8 100% 68%;
     --radius: 0.5rem;
+
+    /* Плоские бренд-токены Editorial Clean как HSL-каналы — чтобы работали
+       и alpha-модификаторы Tailwind (bg-live/5), и переключение темы. */
+    --ink: 231.7 47.5% 12%; /* #10142d */
+    --ink-muted: 230.8 10.8% 47%; /* #6b6f85 */
+    --ink-faint: 230 14% 65%; /* #9a9eb3 */
+    --ink-disabled: 229 17% 80%; /* #c3c6d4 */
+    --line: 48 12% 92%; /* #ecebe7 */
+    --line-strong: 231.7 47.5% 12%; /* #10142d */
+    --line-num: 229 15% 86%; /* #d5d7e0 */
+    --brand: 251.8 100% 68%; /* #7c5cff */
+    --success: 158.7 84% 32%; /* #0d9464 */
+    --live: 0 64% 53%; /* #d43a3a */
+  }
+
+  .dark {
+    /* Тёмная тема Editorial Clean — глубокий navy-фон, тёплый почти-белый
+       текст, тот же фиолетовый акцент (чуть ярче для контраста). */
+    color-scheme: dark;
+    --background: 231 28% 7%;
+    --foreground: 40 30% 94%;
+    --card: 231 24% 10%;
+    --card-foreground: 40 30% 94%;
+    --popover: 231 26% 11%;
+    --popover-foreground: 40 30% 94%;
+    --primary: 40 30% 94%;
+    --primary-foreground: 231.7 47.5% 12%;
+    --secondary: 231 18% 16%;
+    --secondary-foreground: 40 30% 94%;
+    --muted: 231 18% 16%;
+    --muted-foreground: 230 12% 62%;
+    --accent: 231 18% 18%;
+    --accent-foreground: 40 30% 94%;
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 231 16% 20%;
+    --input: 231 16% 20%;
+    --ring: 251.8 100% 72%;
+
+    --ink: 40 30% 94%;
+    --ink-muted: 230 12% 62%;
+    --ink-faint: 230 12% 48%;
+    --ink-disabled: 230 12% 34%;
+    --line: 231 16% 20%;
+    --line-strong: 40 30% 94%;
+    --line-num: 231 16% 28%;
+    --brand: 251.8 100% 74%;
+    --success: 158 64% 46%;
+    --live: 0 72% 62%;
   }
 }
 
@@ -92,13 +142,13 @@
       opacity 0.2s ease;
   }
 
-  /* Основная — чёрная таблетка */
+  /* Основная — контрастная таблетка (тёмная в светлой теме, светлая в тёмной) */
   .ec-btn-dark {
-    background: #10142d;
-    color: #ffffff;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
   }
   .ec-btn-dark:hover:not(:disabled) {
-    background: #23284a;
+    background: hsl(var(--primary) / 0.86);
   }
   .ec-btn-dark:disabled {
     opacity: 0.45;
@@ -108,12 +158,12 @@
   /* Вторичная — обводка */
   .ec-btn-outline {
     background: transparent;
-    color: #10142d;
-    border: 1.5px solid #10142d;
+    color: hsl(var(--foreground));
+    border: 1.5px solid hsl(var(--foreground));
   }
   .ec-btn-outline:hover:not(:disabled) {
-    background: #10142d;
-    color: #ffffff;
+    background: hsl(var(--foreground));
+    color: hsl(var(--background));
   }
   .ec-btn-outline:disabled {
     opacity: 0.4;
