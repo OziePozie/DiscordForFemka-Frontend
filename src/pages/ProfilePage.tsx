@@ -99,7 +99,6 @@ export default function ProfilePage() {
         gender: me.data.profile.gender ?? undefined,
         primaryRole: me.data.profile.primaryRole ?? undefined,
         secondaryRoles: me.data.profile.secondaryRoles ?? [],
-        dotabuffUrl: me.data.profile.dotabuffUrl ?? '',
         stratzUrl: me.data.profile.stratzUrl ?? '',
       });
     }
@@ -402,17 +401,6 @@ export default function ProfilePage() {
                   );
                 })}
               </div>
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="dotabuff">Dotabuff URL</Label>
-              <Input
-                id="dotabuff"
-                value={form.dotabuffUrl ?? ''}
-                onChange={(e) => update('dotabuffUrl', e.target.value)}
-                disabled={!editing}
-                placeholder="https://www.dotabuff.com/players/..."
-              />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
