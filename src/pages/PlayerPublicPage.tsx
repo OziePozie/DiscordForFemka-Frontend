@@ -28,6 +28,7 @@ import {
   type TournamentStatus,
 } from '@/lib/api/types';
 import { timeAgo } from '@/lib/utils';
+import { ExternalLink } from 'lucide-react';
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return '—';
@@ -137,6 +138,18 @@ export default function PlayerPublicPage() {
             )}
             {p.twitchLogin && (
               <Badge variant="secondary">Twitch: {p.twitchLogin}</Badge>
+            )}
+            {p.dotabuffUrl && (
+              <a
+                href={p.dotabuffUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                title="Dotabuff"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Dotabuff
+              </a>
             )}
           </div>
 
