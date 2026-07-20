@@ -4,10 +4,12 @@ import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
+import { GroupStageBlock } from '@/components/GroupStageBlock';
 import {
   useBracket,
   useMe,
   useRegisterTournament,
+  useStages,
   useTournament,
   useTournamentMatches,
   useTournamentTeams,
@@ -623,8 +625,10 @@ function MatchRow({ m }: { m: MatchDto }) {
 
 function BracketTab({ tournamentId }: { tournamentId: string }) {
   const q = useBracket(tournamentId);
+  const stagesQ = useStages(tournamentId);
 
-  if (q.isLoading) return <Skeleton className="h-60 w-full" />;
+  if (q.isLoading || stagesQ.isLoading)
+    return <Skeleton className="h-60 w-full" />;
   if (q.isError)
     return (
       <div className="text-sm text-destructive">
@@ -632,14 +636,55 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
       </div>
     );
 
-  const bracket = q.data;
-  if (!bracket || bracket.rounds.length === 0)
-    return (
-      <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
-        Сетка ещё не сформирована.
-      </div>
-    );
+  // Ошибка стадий не валит вкладку — считаем, что стадий нет (старое поведение).
+  const stages = stagesQ.data ?? [];
+  const groupStage = stages.find((s) => s.stageType === 'GROUP');
+  const playoffStage = stages.find((s) => s.stageType === 'PLAYOFF');
 
+  const bracket = q.data;
+  const hasBracket = Boolean(bracket && bracket.rounds.length > 0);
+
+  // Турнир без стадий — старое поведение без изменений.
+  if (!groupStage) {
+    if (!hasBracket)
+      return (
+        <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+          Сетка ещё не сформирована.
+        </div>
+      );
+    return <PlayoffBracket bracket={bracket!} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">Групповая стадия</h3>
+        <GroupStageBlock
+          tournamentId={tournamentId}
+          groupConfig={groupStage.config}
+        />
+      </section>
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">Плей-офф</h3>
+        {hasBracket ? (
+          <PlayoffBracket bracket={bracket!} />
+        ) : (
+          <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+            {playoffStage?.status === 'PENDING'
+              ? 'Плей-офф ещё не сгенерирован.'
+              : 'Сетка ещё не сформирована.'}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PlayoffBracket({
+  bracket,
+}: {
+  bracket: NonNullable<ReturnType<typeof useBracket>['data']>;
+}) {
   const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
   const lbRounds = bracket.rounds.filter((r) => r.section === 'LB');
   const gfRounds = bracket.rounds.filter((r) => r.section === 'GF');
