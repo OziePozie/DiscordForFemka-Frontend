@@ -19,6 +19,10 @@ import {
   getTournamentTeams,
   getTournamentMatchesPage,
   getTournamentBracket,
+  getTournamentStages,
+  getTournamentStandings,
+  generateStages,
+  generatePlayoff,
   getTeamById,
   getAdminMmrRequestsPage,
   approveMmrRequest,
@@ -136,6 +140,9 @@ import type {
   SeasonDto,
   TournamentDto,
   BracketDto,
+  TournamentStageDto,
+  GroupStandingsDto,
+  GenerateStagesRequest,
   CreateSeasonRequest,
   UpdateSeasonRequest,
   CreateTournamentRequest,
@@ -182,6 +189,8 @@ export const qk = {
   tournamentMatches: (id: string, params: TournamentMatchesParams) =>
     ['tournament', id, 'matches', params] as const,
   bracket: (id: string) => ['tournament', id, 'bracket'] as const,
+  stages: (id: string) => ['tournament', id, 'stages'] as const,
+  standings: (id: string) => ['tournament', id, 'standings'] as const,
   team: (id: string) => ['team', id] as const,
   adminMmr: ['adminMmr'] as const,
   adminMmrPage: (params: AdminMmrRequestsParams) =>
@@ -353,6 +362,22 @@ export function useBracket(id: string | undefined) {
   return useQuery({
     queryKey: id ? qk.bracket(id) : ['tournament', 'none', 'bracket'],
     queryFn: () => getTournamentBracket(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useStages(id: string | undefined) {
+  return useQuery({
+    queryKey: id ? qk.stages(id) : ['tournament', 'none', 'stages'],
+    queryFn: () => getTournamentStages(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useStandings(id: string | undefined) {
+  return useQuery({
+    queryKey: id ? qk.standings(id) : ['tournament', 'none', 'standings'],
+    queryFn: () => getTournamentStandings(id!),
     enabled: Boolean(id),
   });
 }
@@ -657,6 +682,34 @@ export function useGenerateBracket() {
     mutationFn: generateBracket,
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: qk.bracket(id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
+  });
+}
+
+export function useGenerateStages() {
+  const qc = useQueryClient();
+  return useMutation<
+    TournamentStageDto[],
+    Error,
+    { id: string; body: GenerateStagesRequest }
+  >({
+    mutationFn: ({ id, body }) => generateStages(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: qk.stages(id) });
+      qc.invalidateQueries({ queryKey: qk.standings(id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
+  });
+}
+
+export function useGeneratePlayoff() {
+  const qc = useQueryClient();
+  return useMutation<BracketDto, Error, string>({
+    mutationFn: generatePlayoff,
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: qk.bracket(id) });
+      qc.invalidateQueries({ queryKey: qk.stages(id) });
       qc.invalidateQueries({ queryKey: ['tournament'] });
     },
   });

@@ -86,6 +86,13 @@ export type TournamentDetailsDto = S['TournamentDetailsDto'];
 export type TournamentTeamDto = S['TournamentTeamDto'];
 export type BracketDto = S['BracketDto'];
 export type BracketRoundDto = S['BracketRoundDto'];
+export type TournamentStageDto = S['TournamentStageDto'];
+export type StageConfigDto = S['StageConfigDto'];
+export type StageType = S['StageType'];
+export type StageStatus = S['StageStatus'];
+export type GroupStandingsDto = S['GroupStandingsDto'];
+export type StandingRowDto = S['StandingRowDto'];
+export type GenerateStagesRequest = S['GenerateStagesRequest'];
 
 // TODO: replace once openapi regenerates — captain-readiness / lobby fields are
 // not yet in types.gen.ts. We augment the generated MatchDto with the new

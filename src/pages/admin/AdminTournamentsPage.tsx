@@ -10,6 +10,8 @@ import {
   useHideTournament,
   useUnhideTournament,
   useGenerateBracket,
+  useGenerateStages,
+  useGeneratePlayoff,
   useTournamentEligibility,
   useUpdateTournamentEligibility,
 } from '@/lib/queries';
@@ -45,12 +47,15 @@ import { ProblemDetailError } from '@/lib/api/client';
 import {
   GAME_MODES,
   GAME_MODE_LABEL,
+  MATCH_FORMATS,
   REGIONS,
   REGION_LABEL,
   TOURNAMENT_FORMAT_LABEL,
   TOURNAMENT_STATUS_LABEL,
   type BracketDto,
   type GameMode,
+  type GenerateStagesRequest,
+  type MatchFormat,
   type Region,
   type SeasonDto,
   type TournamentDto,
@@ -141,6 +146,8 @@ type DialogState =
   | { kind: 'confirm-bracket'; tournament: TournamentDto }
   | { kind: 'finish'; tournament: TournamentDto }
   | { kind: 'bracket-result'; tournament: TournamentDto; bracket: BracketDto }
+  | { kind: 'generate-stages'; tournament: TournamentDto }
+  | { kind: 'stages-result'; tournament: TournamentDto; stageCount: number }
   | null;
 
 function statusVariant(s: TournamentStatus) {
@@ -218,6 +225,8 @@ export default function AdminTournamentsPage() {
   const hideMut = useHideTournament();
   const unhideMut = useUnhideTournament();
   const bracketMut = useGenerateBracket();
+  const stagesMut = useGenerateStages();
+  const playoffMut = useGeneratePlayoff();
 
   const mutating =
     createMut.isPending ||
@@ -228,11 +237,20 @@ export default function AdminTournamentsPage() {
     finishMut.isPending ||
     hideMut.isPending ||
     unhideMut.isPending ||
-    bracketMut.isPending;
+    bracketMut.isPending ||
+    stagesMut.isPending ||
+    playoffMut.isPending;
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<FormState>(emptyForm(null));
   const [winnerTeamId, setWinnerTeamId] = useState('');
+  const [stagesForm, setStagesForm] = useState({
+    numGroups: '2',
+    groupSeriesFormat: 'BO1' as MatchFormat,
+    advanceToUpper: '1',
+    advanceToLower: '1',
+    playoffBracketType: 'DOUBLE_ELIM' as TournamentFormat,
+  });
 
   function openCreate() {
     const currentSeason = seasons.find((s) => s.slug === seasonSlug);
@@ -435,6 +453,47 @@ export default function AdminTournamentsPage() {
     }
   }
 
+  async function handleGenerateStages() {
+    if (!dialog || dialog.kind !== 'generate-stages') return;
+    const body: GenerateStagesRequest = {
+      numGroups: Number(stagesForm.numGroups),
+      groupSeriesFormat: stagesForm.groupSeriesFormat,
+      advanceToUpper: Number(stagesForm.advanceToUpper),
+      advanceToLower: Number(stagesForm.advanceToLower),
+      playoffBracketType: stagesForm.playoffBracketType,
+    };
+    try {
+      const stages = await stagesMut.mutateAsync({
+        id: dialog.tournament.id,
+        body,
+      });
+      setDialog({
+        kind: 'stages-result',
+        tournament: dialog.tournament,
+        stageCount: stages.length,
+      });
+    } catch (e) {
+      toast({
+        title: 'Не удалось сгенерировать группы',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleGeneratePlayoff(t: TournamentDto) {
+    try {
+      await playoffMut.mutateAsync(t.id);
+      toast({ title: 'Плей-офф сгенерирован', description: t.name });
+    } catch (e) {
+      toast({
+        title: 'Не удалось сгенерировать плей-офф',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   async function handleFinish() {
     if (!dialog || dialog.kind !== 'finish') return;
     const id = winnerTeamId.trim();
@@ -585,6 +644,10 @@ export default function AdminTournamentsPage() {
                   onGenerateBracket={() =>
                     setDialog({ kind: 'confirm-bracket', tournament: t })
                   }
+                  onGenerateStages={() =>
+                    setDialog({ kind: 'generate-stages', tournament: t })
+                  }
+                  onGeneratePlayoff={() => handleGeneratePlayoff(t)}
                   onStart={() => runTransition(t, 'start')}
                   onFinish={() => setDialog({ kind: 'finish', tournament: t })}
                   onToggleHidden={() => handleToggleHidden(t)}
@@ -1069,6 +1132,152 @@ export default function AdminTournamentsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Generate group stages */}
+      <Dialog
+        open={dialog?.kind === 'generate-stages'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Сгенерировать группы?</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'generate-stages'
+                ? dialog.tournament.name
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="stages-num-groups">Число групп</Label>
+              <Input
+                id="stages-num-groups"
+                type="number"
+                min={1}
+                value={stagesForm.numGroups}
+                onChange={(e) =>
+                  setStagesForm((f) => ({ ...f, numGroups: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-series-format">
+                Формат серий группы
+              </Label>
+              <Select
+                value={stagesForm.groupSeriesFormat}
+                onValueChange={(v) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    groupSeriesFormat: v as MatchFormat,
+                  }))
+                }
+              >
+                <SelectTrigger id="stages-series-format">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MATCH_FORMATS.map((mf) => (
+                    <SelectItem key={mf} value={mf}>
+                      {mf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-advance-upper">
+                Выходят в верхнюю сетку (из группы)
+              </Label>
+              <Input
+                id="stages-advance-upper"
+                type="number"
+                min={1}
+                value={stagesForm.advanceToUpper}
+                onChange={(e) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    advanceToUpper: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-advance-lower">
+                Выходят в нижнюю сетку (из группы, 0 для SE)
+              </Label>
+              <Input
+                id="stages-advance-lower"
+                type="number"
+                min={0}
+                value={stagesForm.advanceToLower}
+                onChange={(e) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    advanceToLower: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-playoff-type">Тип плей-оффа</Label>
+              <Select
+                value={stagesForm.playoffBracketType}
+                onValueChange={(v) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    playoffBracketType: v as TournamentFormat,
+                  }))
+                }
+              >
+                <SelectTrigger id="stages-playoff-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SINGLE_ELIM">
+                    Single elimination
+                  </SelectItem>
+                  <SelectItem value="DOUBLE_ELIM">
+                    Double elimination
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleGenerateStages} disabled={stagesMut.isPending}>
+              {stagesMut.isPending ? 'Генерация…' : 'Сгенерировать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stages result */}
+      <Dialog
+        open={dialog?.kind === 'stages-result'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Группы сгенерированы</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'stages-result'
+                ? `${dialog.tournament.name}: создано стадий — ${dialog.stageCount}. Групповые матчи сгенерированы; плей-офф генерируется отдельной кнопкой после завершения групп.`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={closeDialog}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Finish dialog */}
       <Dialog
         open={dialog?.kind === 'finish'}
@@ -1347,6 +1556,8 @@ interface TournamentRowProps {
   onOpenReg: () => void;
   onCloseReg: () => void;
   onGenerateBracket: () => void;
+  onGenerateStages: () => void;
+  onGeneratePlayoff: () => void;
   onStart: () => void;
   onFinish: () => void;
   onToggleHidden: () => void;
@@ -1360,6 +1571,8 @@ function TournamentRow({
   onOpenReg,
   onCloseReg,
   onGenerateBracket,
+  onGenerateStages,
+  onGeneratePlayoff,
   onStart,
   onFinish,
   onToggleHidden,
@@ -1429,6 +1642,20 @@ function TournamentRow({
               }
             >
               Сгенерировать сетку
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onGenerateStages}
+              disabled={!canGenerate}
+              title={
+                canGenerate
+                  ? undefined
+                  : 'Доступно после закрытия регистрации'
+              }
+            >
+              Сгенерировать группы…
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onGeneratePlayoff}>
+              Сгенерировать плей-офф
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={onStart}

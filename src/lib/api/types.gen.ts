@@ -1958,6 +1958,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tournaments/{id}/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список этапов турнира */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentStageDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/standings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Турнирные таблицы групповой стадии */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GroupStandingsDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tournaments/{id}/registrations": {
         parameters: {
             query?: never;
@@ -2455,6 +2531,139 @@ export interface paths {
         get?: never;
         put?: never;
         /** Сгенерировать турнирную сетку. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BracketDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/stages/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сгенерировать групповую + плей-офф стадии турнира. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GenerateStagesRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentStageDto"][];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/stages/{stageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Обновить конфигурацию этапа турнира. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateStageRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentStageDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/stages/playoff/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сгенерировать плей-офф сетку по итогам групповой стадии. */
         post: {
             parameters: {
                 query?: never;
@@ -5425,6 +5634,50 @@ export interface components {
             matches: components["schemas"]["BracketCellDto"][];
         };
         /** @enum {string} */
+        StageType: "GROUP" | "PLAYOFF";
+        /** @enum {string} */
+        StageStatus: "PENDING" | "LIVE" | "FINISHED";
+        StageConfigDto: {
+            numGroups?: number | null;
+            groupSeriesFormat?: components["schemas"]["MatchFormat"] | null;
+            advanceToUpper?: number | null;
+            advanceToLower?: number | null;
+            bracketType?: components["schemas"]["TournamentFormat"] | null;
+        };
+        TournamentStageDto: {
+            /** Format: uuid */
+            id: string;
+            stageType: components["schemas"]["StageType"];
+            ordinal: number;
+            status: components["schemas"]["StageStatus"];
+            config?: components["schemas"]["StageConfigDto"] | null;
+        };
+        StandingRowDto: {
+            rank: number;
+            team?: components["schemas"]["TeamPublicDto"];
+            points: number;
+            seriesWon: number;
+            seriesLost: number;
+            gamesWon: number;
+            gamesLost: number;
+            gameDiff: number;
+            tied: boolean;
+        };
+        GroupStandingsDto: {
+            groupNo: number;
+            rows: components["schemas"]["StandingRowDto"][];
+        };
+        GenerateStagesRequest: {
+            numGroups: number;
+            groupSeriesFormat: components["schemas"]["MatchFormat"];
+            advanceToUpper: number;
+            advanceToLower: number;
+            playoffBracketType: components["schemas"]["TournamentFormat"];
+        };
+        UpdateStageRequest: {
+            config?: components["schemas"]["StageConfigDto"] | null;
+        };
+        /** @enum {string} */
         SlotSourceType: "WINNER" | "LOSER" | "TEAM" | "BYE";
         SlotSourceDto: {
             type: components["schemas"]["SlotSourceType"];
@@ -5485,6 +5738,10 @@ export interface components {
             bracketSection?: components["schemas"]["BracketSection"];
             roundIndex?: number | null;
             matchIndex?: number | null;
+            /** Format: uuid */
+            stageId?: string | null;
+            groupNo?: number | null;
+            groupRound?: number | null;
             /** @default false */
             viewerCanInvite: boolean;
         };

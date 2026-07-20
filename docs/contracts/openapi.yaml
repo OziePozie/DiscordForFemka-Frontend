@@ -960,6 +960,32 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BracketDto" }
 
+  /api/v1/tournaments/{id}/stages:
+    get:
+      tags: [Tournament]
+      summary: Список этапов турнира
+      security: []
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TournamentStageDto" } }
+
+  /api/v1/tournaments/{id}/standings:
+    get:
+      tags: [Tournament]
+      summary: Турнирные таблицы групповой стадии
+      security: []
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/GroupStandingsDto" } }
+
   /api/v1/tournaments/{id}/registrations:
     post:
       tags: [Tournament]
@@ -1183,6 +1209,67 @@ paths:
     post:
       tags: [Admin, Tournament]
       summary: Сгенерировать турнирную сетку.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BracketDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/tournaments/{id}/stages/generate:
+    post:
+      tags: [Admin, Tournament]
+      summary: Сгенерировать групповую + плей-офф стадии турнира.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GenerateStagesRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TournamentStageDto" } }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/tournaments/{id}/stages/{stageId}:
+    patch:
+      tags: [Admin, Tournament]
+      summary: Обновить конфигурацию этапа турнира.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: stageId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateStageRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentStageDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/stages/playoff/generate:
+    post:
+      tags: [Admin, Tournament]
+      summary: Сгенерировать плей-офф сетку по итогам групповой стадии.
       parameters: [{ $ref: "#/components/parameters/IdInPath" }]
       responses:
         "200":
@@ -2892,6 +2979,59 @@ components:
         title:      { type: string }
         matches:    { type: array, items: { $ref: "#/components/schemas/BracketCellDto" } }
 
+    # ---- Group stage ----
+    StageType:   { type: string, enum: [GROUP, PLAYOFF] }
+    StageStatus: { type: string, enum: [PENDING, LIVE, FINISHED] }
+    StageConfigDto:
+      type: object
+      properties:
+        numGroups:         { type: integer, nullable: true }
+        groupSeriesFormat: { allOf: [{ $ref: "#/components/schemas/MatchFormat" }], nullable: true }
+        advanceToUpper:    { type: integer, nullable: true }
+        advanceToLower:    { type: integer, nullable: true }
+        bracketType:       { allOf: [{ $ref: "#/components/schemas/TournamentFormat" }], nullable: true }
+    TournamentStageDto:
+      type: object
+      required: [id, stageType, ordinal, status]
+      properties:
+        id:        { type: string, format: uuid }
+        stageType: { $ref: "#/components/schemas/StageType" }
+        ordinal:   { type: integer }
+        status:    { $ref: "#/components/schemas/StageStatus" }
+        config:    { allOf: [{ $ref: "#/components/schemas/StageConfigDto" }], nullable: true }
+    StandingRowDto:
+      type: object
+      required: [rank, points, seriesWon, seriesLost, gamesWon, gamesLost, gameDiff, tied]
+      properties:
+        rank:       { type: integer }
+        team:       { $ref: "#/components/schemas/TeamPublicDto" }
+        points:     { type: integer }
+        seriesWon:  { type: integer }
+        seriesLost: { type: integer }
+        gamesWon:   { type: integer }
+        gamesLost:  { type: integer }
+        gameDiff:   { type: integer }
+        tied:       { type: boolean }
+    GroupStandingsDto:
+      type: object
+      required: [groupNo, rows]
+      properties:
+        groupNo: { type: integer }
+        rows:    { type: array, items: { $ref: "#/components/schemas/StandingRowDto" } }
+    GenerateStagesRequest:
+      type: object
+      required: [numGroups, groupSeriesFormat, advanceToUpper, advanceToLower, playoffBracketType]
+      properties:
+        numGroups:          { type: integer, minimum: 1 }
+        groupSeriesFormat:  { $ref: "#/components/schemas/MatchFormat" }
+        advanceToUpper:     { type: integer, minimum: 1 }
+        advanceToLower:     { type: integer, minimum: 0 }
+        playoffBracketType: { $ref: "#/components/schemas/TournamentFormat" }
+    UpdateStageRequest:
+      type: object
+      properties:
+        config: { allOf: [{ $ref: "#/components/schemas/StageConfigDto" }], nullable: true }
+
     # Source of a bracket cell slot: a winner/loser of another match, a seeded
     # team (R1 bye cell), or an empty BYE pass. `label` is render-ready text.
     SlotSourceType:
@@ -2975,6 +3115,10 @@ components:
         bracketSection: { $ref: "#/components/schemas/BracketSection", nullable: true }
         roundIndex:     { type: integer, nullable: true }
         matchIndex:     { type: integer, nullable: true }
+        # Group stage — populated when the match belongs to a GROUP stage.
+        stageId:    { type: string, format: uuid, nullable: true }
+        groupNo:    { type: integer, nullable: true }
+        groupRound: { type: integer, nullable: true }
         # True only when the authenticated viewer is a roster member of teamA or
         # teamB AND the match has an active (LIVE) lobby. Always false for
         # anonymous requests. Gates the «Пригласить меня в лобби» button.
