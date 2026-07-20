@@ -13,6 +13,9 @@ import type {
   TournamentDetailsDto,
   TournamentTeamDto,
   BracketDto,
+  TournamentStageDto,
+  GroupStandingsDto,
+  GenerateStagesRequest,
   MatchDto,
   TeamDto,
   TeamPublicDto,
@@ -262,6 +265,22 @@ export function getTournamentMatchesPage(
 export function getTournamentBracket(tournamentId: string): Promise<BracketDto> {
   return api<BracketDto>(
     `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/bracket`,
+  );
+}
+
+export function getTournamentStages(
+  tournamentId: string,
+): Promise<TournamentStageDto[]> {
+  return api<TournamentStageDto[]>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/stages`,
+  );
+}
+
+export function getTournamentStandings(
+  tournamentId: string,
+): Promise<GroupStandingsDto[]> {
+  return api<GroupStandingsDto[]>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/standings`,
   );
 }
 
@@ -525,6 +544,23 @@ export function putTournamentEligibility(
 export function generateBracket(id: string): Promise<BracketDto> {
   return api<BracketDto>(
     `/api/v1/admin/tournaments/${encodeURIComponent(id)}/bracket/generate`,
+    { method: 'POST' },
+  );
+}
+
+export function generateStages(
+  id: string,
+  body: GenerateStagesRequest,
+): Promise<TournamentStageDto[]> {
+  return api<TournamentStageDto[]>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/stages/generate`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function generatePlayoff(id: string): Promise<BracketDto> {
+  return api<BracketDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/stages/playoff/generate`,
     { method: 'POST' },
   );
 }
