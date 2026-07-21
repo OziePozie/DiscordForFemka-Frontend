@@ -1365,6 +1365,28 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/admin/tournaments/{id}/teams/{teamId}/group:
+    patch:
+      tags: [Admin, Tournament]
+      summary: Перенести команду в другую группу.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MoveTeamGroupRequest" }
+      responses:
+        "204": { description: команда перенесена }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /api/v1/admin/teams:
     get:
       tags: [Admin, Team]
@@ -3069,6 +3091,12 @@ components:
       type: object
       properties:
         config: { allOf: [{ $ref: "#/components/schemas/StageConfigDto" }], nullable: true }
+
+    MoveTeamGroupRequest:
+      type: object
+      required: [groupNo]
+      properties:
+        groupNo: { type: integer, minimum: 0 }
 
     # Source of a bracket cell slot: a winner/loser of another match, a seeded
     # team (R1 bye cell), or an empty BYE pass. `label` is render-ready text.
