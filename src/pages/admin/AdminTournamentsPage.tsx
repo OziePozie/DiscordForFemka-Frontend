@@ -14,6 +14,9 @@ import {
   useGeneratePlayoff,
   useTournamentEligibility,
   useUpdateTournamentEligibility,
+  useAdminTournamentTeams,
+  useApproveTournamentTeam,
+  useRejectTournamentTeam,
 } from '@/lib/queries';
 import { getSeasonsPage, getSeasonBySlug } from '@/lib/api/endpoints';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +53,7 @@ import {
   MATCH_FORMATS,
   REGIONS,
   REGION_LABEL,
+  REQUEST_STATUS_LABEL,
   TOURNAMENT_FORMAT_LABEL,
   TOURNAMENT_STATUS_LABEL,
   type BracketDto,
@@ -60,6 +64,7 @@ import {
   type SeasonDto,
   type TournamentDto,
   type TournamentEligibilityDto,
+  type TournamentTeamAdminDto,
   type TournamentFormat,
   type TournamentStatus,
 } from '@/lib/api/types';
@@ -148,6 +153,7 @@ type DialogState =
   | { kind: 'bracket-result'; tournament: TournamentDto; bracket: BracketDto }
   | { kind: 'generate-stages'; tournament: TournamentDto }
   | { kind: 'stages-result'; tournament: TournamentDto; stageCount: number }
+  | { kind: 'team-requests'; tournament: TournamentDto }
   | null;
 
 function statusVariant(s: TournamentStatus) {
@@ -638,6 +644,9 @@ export default function AdminTournamentsPage() {
                   onEdit={() => openEdit(t)}
                   onEligibility={() =>
                     setDialog({ kind: 'eligibility', tournament: t })
+                  }
+                  onTeamRequests={() =>
+                    setDialog({ kind: 'team-requests', tournament: t })
                   }
                   onOpenReg={() => runTransition(t, 'open')}
                   onCloseReg={() => runTransition(t, 'close')}
@@ -1330,7 +1339,203 @@ export default function AdminTournamentsPage() {
           onClose={closeDialog}
         />
       )}
+
+      {/* Team requests (approve / reject) dialog. Mounted only while open so the
+          GET fires exactly once per open. */}
+      {dialog?.kind === 'team-requests' && (
+        <TeamRequestsDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
     </div>
+  );
+}
+
+interface TeamRequestsDialogBodyProps {
+  tournament: TournamentDto;
+  onClose: () => void;
+}
+
+function requestStatusVariant(s: TournamentTeamAdminDto['status']) {
+  switch (s) {
+    case 'APPROVED':
+      return 'default' as const;
+    case 'REJECTED':
+      return 'destructive' as const;
+    default:
+      return 'secondary' as const;
+  }
+}
+
+function TeamRequestsDialogBody({
+  tournament,
+  onClose,
+}: TeamRequestsDialogBodyProps) {
+  const { toast } = useToast();
+  const query = useAdminTournamentTeams(tournament.id);
+  const approveMut = useApproveTournamentTeam();
+  const rejectMut = useRejectTournamentTeam();
+
+  // teamId of the request whose reject reason input is currently open.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReasons, setRejectReasons] = useState<Record<string, string>>(
+    {},
+  );
+
+  const teams = query.data ?? [];
+
+  async function handleApprove(teamId: string) {
+    try {
+      await approveMut.mutateAsync({ tournamentId: tournament.id, teamId });
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleReject(teamId: string) {
+    const reason = rejectReasons[teamId]?.trim() || undefined;
+    try {
+      await rejectMut.mutateAsync({
+        tournamentId: tournament.id,
+        teamId,
+        reason,
+      });
+      setRejectingId(null);
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Заявки команд — {tournament.name}</DialogTitle>
+        </DialogHeader>
+
+        {query.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : query.isError ? (
+          <div className="text-sm text-destructive">
+            {describeError(query.error)}
+          </div>
+        ) : teams.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Заявок нет</div>
+        ) : (
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+            {teams.map((team) => {
+              const teamId = team.teamId;
+              // Без teamId нельзя построить корректный URL мутации и React key —
+              // пропускаем такую (в норме не встречается) заявку.
+              if (!teamId) return null;
+              const violations = team.eligibilityViolations ?? [];
+              const isRejecting = rejectingId === teamId;
+              return (
+                <div key={teamId} className="space-y-2 rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{team.name}</span>
+                      <Badge variant={requestStatusVariant(team.status)}>
+                        {team.status
+                          ? REQUEST_STATUS_LABEL[team.status]
+                          : '—'}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(teamId)}
+                        disabled={
+                          team.status === 'APPROVED' || approveMut.isPending
+                        }
+                      >
+                        Одобрить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          setRejectingId(isRejecting ? null : teamId)
+                        }
+                        disabled={
+                          team.status === 'REJECTED' || rejectMut.isPending
+                        }
+                      >
+                        Отклонить
+                      </Button>
+                    </div>
+                  </div>
+
+                  {violations.length > 0 && (
+                    <ul className="space-y-0.5 text-xs text-muted-foreground">
+                      {violations.map((v, i) => (
+                        <li key={`${v.code}-${i}`}>{v.message}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {team.status === 'REJECTED' && team.rejectReason && (
+                    <div className="text-xs text-muted-foreground">
+                      Причина отклонения: {team.rejectReason}
+                    </div>
+                  )}
+
+                  {isRejecting && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        className="h-8 flex-1"
+                        placeholder="Причина (опционально)"
+                        value={rejectReasons[teamId] ?? ''}
+                        onChange={(e) =>
+                          setRejectReasons((r) => ({
+                            ...r,
+                            [teamId]: e.target.value,
+                          }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(teamId)}
+                        disabled={rejectMut.isPending}
+                      >
+                        Подтвердить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setRejectingId(null)}
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Закрыть
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1553,6 +1758,7 @@ interface TournamentRowProps {
   mutating: boolean;
   onEdit: () => void;
   onEligibility: () => void;
+  onTeamRequests: () => void;
   onOpenReg: () => void;
   onCloseReg: () => void;
   onGenerateBracket: () => void;
@@ -1568,6 +1774,7 @@ function TournamentRow({
   mutating,
   onEdit,
   onEligibility,
+  onTeamRequests,
   onOpenReg,
   onCloseReg,
   onGenerateBracket,
@@ -1613,6 +1820,9 @@ function TournamentRow({
             <DropdownMenuItem onClick={onEdit}>Редактировать</DropdownMenuItem>
             <DropdownMenuItem onClick={onEligibility}>
               Правила (eligibility)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onTeamRequests}>
+              Заявки команд
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={onOpenReg}
