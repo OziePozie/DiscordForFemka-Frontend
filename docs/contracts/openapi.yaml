@@ -2303,6 +2303,10 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
+        - in: query
+          name: unreadOnly
+          description: Вернуть только непрочитанные уведомления.
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: ок
