@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Swords, Radio } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,12 +15,9 @@ import {
   useMarkAllNotificationsRead,
 } from '@/lib/queries';
 import { useNotificationStream } from '@/lib/notifications/useNotificationStream';
+import { typeIcon } from '@/lib/notifications/typeIcon';
 import { timeAgoRu } from '@/lib/format';
-import type { NotificationDto, NotificationType } from '@/lib/api/types';
-
-function typeIcon(type: NotificationType | undefined) {
-  return type === 'MATCH_READY_CHECK' ? Swords : Radio;
-}
+import type { NotificationDto } from '@/lib/api/types';
 
 export function NotificationBell() {
   const { isAuthenticated } = useAuth();
