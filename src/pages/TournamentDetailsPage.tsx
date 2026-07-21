@@ -1,4 +1,10 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
@@ -26,6 +32,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import { safeHttpUrl } from '@/lib/utils';
@@ -205,10 +218,24 @@ function Header({
   const register = useRegisterTournament();
   const { toast } = useToast();
 
-  const captainTeam = me.data?.teams.find(
-    (t) => t.role === 'CAPTAIN' && t.teamStatus === 'ACTIVE',
+  // All active teams the player captains, ordered deterministically so the
+  // selector (and its default pick) don't depend on the DB's row order.
+  const captainTeams = useMemo(
+    () =>
+      (me.data?.teams ?? [])
+        .filter((t) => t.role === 'CAPTAIN' && t.teamStatus === 'ACTIVE')
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    [me.data?.teams],
   );
-  const userIsCaptainOfActive = !!captainTeam;
+  const userIsCaptainOfActive = captainTeams.length > 0;
+
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  // Effective team = the explicit pick while it's still valid, otherwise the
+  // first (alphabetical) captained team.
+  const effectiveTeamId =
+    captainTeams.find((t) => t.teamId === selectedTeamId)?.teamId ??
+    captainTeams[0]?.teamId ??
+    '';
 
   const canRegBtn =
     isAuthenticated &&
@@ -228,11 +255,11 @@ function Header({
             : '';
 
   async function handleRegister() {
-    if (!captainTeam) return;
+    if (!effectiveTeamId) return;
     try {
       await register.mutateAsync({
         tournamentId: tournament.id,
-        teamId: captainTeam.teamId,
+        teamId: effectiveTeamId,
       });
       toast({ title: 'Команда зарегистрирована' });
     } catch (e) {
@@ -300,6 +327,28 @@ function Header({
                 </a>
               </Button>
             )}
+            {captainTeams.length > 1 &&
+              tournament.status === 'REGISTRATION_OPEN' && (
+                <Select
+                  value={effectiveTeamId}
+                  onValueChange={setSelectedTeamId}
+                  disabled={register.isPending}
+                >
+                  <SelectTrigger
+                    className="w-[220px] rounded-pill"
+                    aria-label="Команда для регистрации"
+                  >
+                    <SelectValue placeholder="Выберите команду" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {captainTeams.map((t) => (
+                      <SelectItem key={t.teamId} value={t.teamId}>
+                        {teamLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             <Button
               onClick={handleRegister}
               disabled={!canRegBtn || register.isPending}
