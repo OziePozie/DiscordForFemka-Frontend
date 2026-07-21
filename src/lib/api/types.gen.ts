@@ -5666,6 +5666,8 @@ export interface components {
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];
             registeredTeamsCount: number;
+            approvedTeamsCount?: number;
+            pendingTeamsCount?: number;
             canRegister: boolean;
             topTeams?: components["schemas"]["TournamentTeamDto"][];
             rules?: string | null;
@@ -5676,6 +5678,7 @@ export interface components {
             /** Format: date-time */
             registeredAt: string;
             withdrawn: boolean;
+            status?: components["schemas"]["RequestStatus"];
         };
         BracketDto: {
             format: components["schemas"]["TournamentFormat"];

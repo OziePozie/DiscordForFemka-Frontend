@@ -159,7 +159,13 @@ export default function TournamentDetailsPage() {
     );
   }
 
-  const { tournament, registeredTeamsCount, canRegister, rules } = q.data;
+  const {
+    tournament,
+    approvedTeamsCount = 0,
+    pendingTeamsCount = 0,
+    canRegister,
+    rules,
+  } = q.data;
 
   return (
     <div className="space-y-6">
@@ -182,7 +188,8 @@ export default function TournamentDetailsPage() {
           <OverviewTab
             tournament={tournament}
             rules={rules}
-            registeredTeamsCount={registeredTeamsCount}
+            approvedTeamsCount={approvedTeamsCount}
+            pendingTeamsCount={pendingTeamsCount}
           />
         </TabsContent>
 
@@ -369,11 +376,13 @@ function Header({
 function OverviewTab({
   tournament,
   rules,
-  registeredTeamsCount,
+  approvedTeamsCount,
+  pendingTeamsCount,
 }: {
   tournament: TournamentDto;
   rules?: string | null;
-  registeredTeamsCount: number;
+  approvedTeamsCount: number;
+  pendingTeamsCount: number;
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -405,7 +414,13 @@ function OverviewTab({
         <CardContent className="space-y-2 text-sm">
           <div>
             <span className="text-muted-foreground">Команд:</span>{' '}
-            <span className="font-semibold">{registeredTeamsCount}</span>
+            <span className="font-semibold">{approvedTeamsCount}</span>
+            {pendingTeamsCount > 0 ? (
+              <span className="text-muted-foreground">
+                {' '}
+                (+{pendingTeamsCount} на модерации)
+              </span>
+            ) : null}
             {tournament.maxTeams ? ` / ${tournament.maxTeams}` : ''}
           </div>
           <div>
@@ -549,12 +564,17 @@ function TeamsTab({ tournamentId }: { tournamentId: string }) {
                     {tt.seed ?? '—'}
                   </td>
                   <td className="px-4 py-2">
-                    <TeamNameLink
-                      teamId={tt.team.id}
-                      name={tt.team.name}
-                      tag={tt.team.tag}
-                      className="font-medium"
-                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <TeamNameLink
+                        teamId={tt.team.id}
+                        name={tt.team.name}
+                        tag={tt.team.tag}
+                        className="font-medium"
+                      />
+                      {tt.status === 'PENDING' ? (
+                        <Badge variant="outline">на модерации</Badge>
+                      ) : null}
+                    </span>
                   </td>
                   <td className="px-4 py-2">
                     <span className="inline-flex items-center gap-1.5">

@@ -63,6 +63,8 @@ import type {
   PlayerStatsDto,
   InviteResultDto,
   NotificationDto,
+  TournamentTeamAdminDto,
+  RejectTeamRequest,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -532,6 +534,35 @@ export function unhideTournament(id: string): Promise<TournamentDto> {
   return api<TournamentDto>(
     `/api/v1/admin/tournaments/${encodeURIComponent(id)}/unhide`,
     { method: 'POST' },
+  );
+}
+
+export function getAdminTournamentTeams(
+  tournamentId: string,
+): Promise<TournamentTeamAdminDto[]> {
+  return api<TournamentTeamAdminDto[]>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams`,
+  );
+}
+
+export function approveTournamentTeam(
+  tournamentId: string,
+  teamId: string,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/approve`,
+    { method: 'POST' },
+  );
+}
+
+export function rejectTournamentTeam(
+  tournamentId: string,
+  teamId: string,
+  body: RejectTeamRequest,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/reject`,
+    { method: 'POST', body: JSON.stringify(body) },
   );
 }
 
