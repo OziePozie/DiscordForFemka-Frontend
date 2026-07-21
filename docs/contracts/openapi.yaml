@@ -1974,6 +1974,36 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/teams/{id}/members/{playerId}/role:
+    patch:
+      tags: [Team]
+      summary: Сменить роль участника (MAIN ↔ SUB)
+      description: >-
+        Меняет роль текущего участника между основой и запасом. Только капитан.
+        Роль капитана меняется через передачу капитанства, не здесь.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: playerId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeMemberRoleRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   # =================== MATCH (доп.) ===================
   /api/v1/match-requests/{id}:
     delete:
@@ -2733,6 +2763,11 @@ components:
         inviteePlayerId: { type: string, format: uuid }
         proposedRole:    { $ref: "#/components/schemas/TeamMemberRole" }
         position:        { $ref: "#/components/schemas/PlayerPosition" }
+    ChangeMemberRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/TeamMemberRole" }
     TeamInviteDto:
       type: object
       required: [id, team, invitee, inviter, proposedRole, status, expiresAt, createdAt]

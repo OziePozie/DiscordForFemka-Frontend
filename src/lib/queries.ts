@@ -35,6 +35,7 @@ import {
   createTeamInvite,
   cancelTeamInvite,
   leaveTeamMember,
+  changeTeamMemberRole,
   getPlayersPage,
   registerTeamForTournament,
   createSeason,
@@ -136,6 +137,7 @@ import type {
   CreateMmrChangeRequest,
   PlayerMmrDto,
   TeamDto,
+  TeamMemberRole,
   TournamentTeamDto,
   SeasonDto,
   TournamentDto,
@@ -479,6 +481,22 @@ export function useLeaveTeamMember() {
       qc.invalidateQueries({ queryKey: qk.team(team.id) });
       qc.invalidateQueries({ queryKey: ['teams'] });
       qc.invalidateQueries({ queryKey: qk.me });
+    },
+  });
+}
+
+export function useChangeTeamMemberRole() {
+  const qc = useQueryClient();
+  return useMutation<
+    TeamDto,
+    Error,
+    { teamId: string; playerId: string; role: TeamMemberRole }
+  >({
+    mutationFn: ({ teamId, playerId, role }) =>
+      changeTeamMemberRole(teamId, playerId, role),
+    onSuccess: (team) => {
+      qc.invalidateQueries({ queryKey: qk.team(team.id) });
+      qc.invalidateQueries({ queryKey: ['teams'] });
     },
   });
 }

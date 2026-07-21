@@ -4161,6 +4161,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams/{id}/members/{playerId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Сменить роль участника (MAIN ↔ SUB)
+         * @description Меняет роль текущего участника между основой и запасом. Только капитан. Роль капитана меняется через передачу капитанства, не здесь.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    playerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangeMemberRoleRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/match-requests/{id}": {
         parameters: {
             query?: never;
@@ -5395,6 +5446,9 @@ export interface components {
             inviteePlayerId: string;
             proposedRole: components["schemas"]["TeamMemberRole"];
             position?: components["schemas"]["PlayerPosition"];
+        };
+        ChangeMemberRoleRequest: {
+            role: components["schemas"]["TeamMemberRole"];
         };
         TeamInviteDto: {
             /** Format: uuid */

@@ -20,6 +20,7 @@ import type {
   TeamDto,
   TeamPublicDto,
   TeamStatus,
+  TeamMemberRole,
   MmrChangeRequestAdminDto,
   MmrChangeRequestDto,
   CreateMmrChangeRequest,
@@ -340,6 +341,20 @@ export function leaveTeamMember(
   return api<TeamDto>(
     `/api/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(playerId)}/leave`,
     { method: 'POST' },
+  );
+}
+
+export function changeTeamMemberRole(
+  teamId: string,
+  playerId: string,
+  role: TeamMemberRole,
+): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(playerId)}/role`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    },
   );
 }
 

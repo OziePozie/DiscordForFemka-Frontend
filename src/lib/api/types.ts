@@ -37,6 +37,7 @@ export type TeamMemberDto = S['TeamMemberDto'];
 export type CreateTeamRequest = S['CreateTeamRequest'];
 export type UpdateTeamRequest = S['UpdateTeamRequest'];
 export type CreateInviteRequest = S['CreateInviteRequest'];
+export type ChangeMemberRoleRequest = S['ChangeMemberRoleRequest'];
 export type TeamInviteDto = S['TeamInviteDto'];
 
 // Match requests (KV lobbies)
