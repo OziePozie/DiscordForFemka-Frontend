@@ -12,6 +12,9 @@ import {
   useGenerateBracket,
   useGenerateStages,
   useGeneratePlayoff,
+  useStages,
+  useStandings,
+  useMoveTeamGroup,
   useTournamentEligibility,
   useUpdateTournamentEligibility,
   useAdminTournamentTeams,
@@ -154,6 +157,7 @@ type DialogState =
   | { kind: 'generate-stages'; tournament: TournamentDto }
   | { kind: 'stages-result'; tournament: TournamentDto; stageCount: number }
   | { kind: 'team-requests'; tournament: TournamentDto }
+  | { kind: 'group-edit'; tournament: TournamentDto }
   | null;
 
 function statusVariant(s: TournamentStatus) {
@@ -655,6 +659,9 @@ export default function AdminTournamentsPage() {
                   }
                   onGenerateStages={() =>
                     setDialog({ kind: 'generate-stages', tournament: t })
+                  }
+                  onGroupEdit={() =>
+                    setDialog({ kind: 'group-edit', tournament: t })
                   }
                   onGeneratePlayoff={() => handleGeneratePlayoff(t)}
                   onStart={() => runTransition(t, 'start')}
@@ -1348,7 +1355,129 @@ export default function AdminTournamentsPage() {
           onClose={closeDialog}
         />
       )}
+
+      {/* Group composition editor. Mounted only while open so the GETs
+          (stages/standings) fire exactly once per open. */}
+      {dialog?.kind === 'group-edit' && (
+        <GroupEditDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
     </div>
+  );
+}
+
+function GroupEditDialogBody({
+  tournament,
+  onClose,
+}: {
+  tournament: TournamentDto;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const stagesQ = useStages(tournament.id);
+  const standingsQ = useStandings(tournament.id);
+  const moveMut = useMoveTeamGroup();
+
+  const groupStage = (stagesQ.data ?? []).find((s) => s.stageType === 'GROUP');
+  const numGroups = groupStage?.config?.numGroups ?? 0;
+
+  const groups = [...(standingsQ.data ?? [])].sort(
+    (a, b) => a.groupNo - b.groupNo,
+  );
+
+  async function handleMove(teamId: string, groupNo: number) {
+    try {
+      await moveMut.mutateAsync({
+        tournamentId: tournament.id,
+        teamId,
+        groupNo,
+      });
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Не удалось перенести команду',
+        description: describeError(e),
+      });
+    }
+  }
+
+  const isLoading = stagesQ.isLoading || standingsQ.isLoading;
+  const isError = stagesQ.isError || standingsQ.isError;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Состав групп — {tournament.name}</DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : isError ? (
+          <div className="text-sm text-destructive">
+            {describeError(stagesQ.error ?? standingsQ.error)}
+          </div>
+        ) : !groupStage ? (
+          <div className="text-sm text-muted-foreground">
+            Группы ещё не сгенерированы
+          </div>
+        ) : (
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+            {groups.map((group) => (
+              <div
+                key={group.groupNo}
+                className="space-y-2 rounded-md border p-3"
+              >
+                <div className="font-medium">
+                  Группа {String.fromCharCode(65 + group.groupNo)}
+                </div>
+                <div className="space-y-2">
+                  {group.rows.map((row) => {
+                    const teamId = row.team?.id;
+                    if (!teamId) return null;
+                    return (
+                      <div
+                        key={teamId}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">{row.team?.name}</span>
+                        <Select
+                          value={String(group.groupNo)}
+                          onValueChange={(v) => handleMove(teamId, Number(v))}
+                          disabled={moveMut.isPending}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: numGroups }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                Группа {String.fromCharCode(65 + i)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Закрыть
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1763,6 +1892,7 @@ interface TournamentRowProps {
   onCloseReg: () => void;
   onGenerateBracket: () => void;
   onGenerateStages: () => void;
+  onGroupEdit: () => void;
   onGeneratePlayoff: () => void;
   onStart: () => void;
   onFinish: () => void;
@@ -1779,6 +1909,7 @@ function TournamentRow({
   onCloseReg,
   onGenerateBracket,
   onGenerateStages,
+  onGroupEdit,
   onGeneratePlayoff,
   onStart,
   onFinish,
@@ -1863,6 +1994,9 @@ function TournamentRow({
               }
             >
               Сгенерировать группы…
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onGroupEdit}>
+              Состав групп
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onGeneratePlayoff}>
               Сгенерировать плей-офф

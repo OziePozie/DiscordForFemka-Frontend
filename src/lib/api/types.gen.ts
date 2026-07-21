@@ -2887,6 +2887,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tournaments/{id}/teams/{teamId}/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Перенести команду в другую группу. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    teamId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MoveTeamGroupRequest"];
+                };
+            };
+            responses: {
+                /** @description команда перенесена */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/admin/teams": {
         parameters: {
             query?: never;
@@ -5733,6 +5778,9 @@ export interface components {
         };
         UpdateStageRequest: {
             config?: components["schemas"]["StageConfigDto"] | null;
+        };
+        MoveTeamGroupRequest: {
+            groupNo: number;
         };
         /** @enum {string} */
         SlotSourceType: "WINNER" | "LOSER" | "TEAM" | "BYE";

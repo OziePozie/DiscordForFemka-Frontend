@@ -25,6 +25,7 @@ import {
   getTournamentStages,
   getTournamentStandings,
   generateStages,
+  moveTeamGroup,
   generatePlayoff,
   getTeamById,
   getAdminMmrRequestsPage,
@@ -759,6 +760,23 @@ export function useGenerateStages() {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: qk.stages(id) });
       qc.invalidateQueries({ queryKey: qk.standings(id) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
+  });
+}
+
+export function useMoveTeamGroup() {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { tournamentId: string; teamId: string; groupNo: number }
+  >({
+    mutationFn: ({ tournamentId, teamId, groupNo }) =>
+      moveTeamGroup(tournamentId, teamId, groupNo),
+    onSuccess: (_d, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.stages(tournamentId) });
+      qc.invalidateQueries({ queryKey: qk.standings(tournamentId) });
       qc.invalidateQueries({ queryKey: ['tournament'] });
     },
   });

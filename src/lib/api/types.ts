@@ -98,6 +98,7 @@ export type StageStatus = S['StageStatus'];
 export type GroupStandingsDto = S['GroupStandingsDto'];
 export type StandingRowDto = S['StandingRowDto'];
 export type GenerateStagesRequest = S['GenerateStagesRequest'];
+export type MoveTeamGroupRequest = S['MoveTeamGroupRequest'];
 
 // TODO: replace once openapi regenerates — captain-readiness / lobby fields are
 // not yet in types.gen.ts. We augment the generated MatchDto with the new

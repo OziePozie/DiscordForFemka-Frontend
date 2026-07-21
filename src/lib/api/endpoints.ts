@@ -604,6 +604,17 @@ export function generateStages(
   );
 }
 
+export function moveTeamGroup(
+  tournamentId: string,
+  teamId: string,
+  groupNo: number,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/group`,
+    { method: 'PATCH', body: JSON.stringify({ groupNo }) },
+  );
+}
+
 export function generatePlayoff(id: string): Promise<BracketDto> {
   return api<BracketDto>(
     `/api/v1/admin/tournaments/${encodeURIComponent(id)}/stages/playoff/generate`,
