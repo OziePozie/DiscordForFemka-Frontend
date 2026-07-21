@@ -2988,6 +2988,8 @@ components:
       properties:
         tournament:           { $ref: "#/components/schemas/TournamentDto" }
         registeredTeamsCount: { type: integer }
+        approvedTeamsCount:   { type: integer }
+        pendingTeamsCount:    { type: integer }
         canRegister:          { type: boolean }
         topTeams:             { type: array, items: { $ref: "#/components/schemas/TournamentTeamDto" } }
         rules:                { type: string, nullable: true }
@@ -2999,6 +3001,7 @@ components:
         seed:         { type: integer, nullable: true }
         registeredAt: { type: string, format: date-time }
         withdrawn:    { type: boolean }
+        status:       { $ref: "#/components/schemas/RequestStatus" }
     BracketDto:
       type: object
       required: [format, rounds]

@@ -85,6 +85,10 @@ export type HighlightDto = S['HighlightDto'];
 export type TournamentDto = S['TournamentDto'];
 export type TournamentDetailsDto = S['TournamentDetailsDto'];
 export type TournamentTeamDto = S['TournamentTeamDto'];
+export type TournamentTeamAdminDto = S['TournamentTeamAdminDto'];
+export type RosterMemberAdminDto = S['RosterMemberAdminDto'];
+export type EligibilityViolationDto = S['EligibilityViolationDto'];
+export type RejectTeamRequest = S['RejectTeamRequest'];
 export type BracketDto = S['BracketDto'];
 export type BracketRoundDto = S['BracketRoundDto'];
 export type TournamentStageDto = S['TournamentStageDto'];
@@ -510,6 +514,12 @@ export const MATCH_REQUEST_STATUS_LABEL: Record<MatchRequestStatus, string> = {
   MATCHED: 'Принято',
   CANCELLED: 'Отменено',
   EXPIRED: 'Истекло',
+};
+
+export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
+  PENDING: 'На модерации',
+  APPROVED: 'Одобрена',
+  REJECTED: 'Отклонена',
 };
 
 export const INVITE_STATUS_LABEL: Record<InviteStatus, string> = {
