@@ -17,6 +17,9 @@ import {
   getSeasonBySlug,
   getTournamentBySlug,
   getTournamentTeams,
+  getAdminTournamentTeams,
+  approveTournamentTeam,
+  rejectTournamentTeam,
   getTournamentMatchesPage,
   getTournamentBracket,
   getTournamentStages,
@@ -188,6 +191,8 @@ export const qk = {
   tournament: (slug: string) => ['tournament', slug] as const,
   tournamentTeams: (id: string, verifiedOnly = false) =>
     ['tournament', id, 'teams', { verifiedOnly }] as const,
+  adminTournamentTeams: (id: string) =>
+    ['admin', 'tournament', id, 'teams'] as const,
   tournamentMatches: (id: string, params: TournamentMatchesParams) =>
     ['tournament', id, 'matches', params] as const,
   bracket: (id: string) => ['tournament', id, 'bracket'] as const,
@@ -344,6 +349,44 @@ export function useTournamentTeams(
       : ['tournament', 'none', 'teams', { verifiedOnly }],
     queryFn: () => getTournamentTeams(id!, verifiedOnly),
     enabled: Boolean(id),
+  });
+}
+
+export function useAdminTournamentTeams(id: string | undefined) {
+  return useQuery({
+    queryKey: id
+      ? qk.adminTournamentTeams(id)
+      : ['admin', 'tournament', 'none', 'teams'],
+    queryFn: () => getAdminTournamentTeams(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useApproveTournamentTeam() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { tournamentId: string; teamId: string }>({
+    mutationFn: ({ tournamentId, teamId }) =>
+      approveTournamentTeam(tournamentId, teamId),
+    onSuccess: (_d, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.adminTournamentTeams(tournamentId) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
+  });
+}
+
+export function useRejectTournamentTeam() {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { tournamentId: string; teamId: string; reason?: string }
+  >({
+    mutationFn: ({ tournamentId, teamId, reason }) =>
+      rejectTournamentTeam(tournamentId, teamId, { reason: reason ?? null }),
+    onSuccess: (_d, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.adminTournamentTeams(tournamentId) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
   });
 }
 
