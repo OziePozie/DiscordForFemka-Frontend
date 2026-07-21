@@ -4,6 +4,7 @@ import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import {
   useCancelTeamInvite,
+  useChangeTeamMemberRole,
   useCreateTeamInvite,
   useDisbandTeam,
   useLeaveTeamMember,
@@ -112,6 +113,7 @@ export default function TeamDetailsPage() {
   const disband = useDisbandTeam();
   const transfer = useTransferCaptaincy();
   const leaveMember = useLeaveTeamMember();
+  const changeRole = useChangeTeamMemberRole();
   const invites = useTeamInvites(id);
   const createInvite = useCreateTeamInvite();
   const cancelInvite = useCancelTeamInvite();
@@ -222,6 +224,23 @@ export default function TeamDetailsPage() {
       toast({ title: leaveOpen.self ? 'Вы покинули команду' : 'Игрок удалён из команды' });
       setLeaveOpen(null);
       if (leaveOpen.self) navigate('/profile');
+    } catch (e) {
+      toast({ title: 'Ошибка', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handleChangeRole(
+    playerId: string,
+    nickname: string,
+    nextRole: TeamMemberRole,
+  ) {
+    if (!id) return;
+    try {
+      await changeRole.mutateAsync({ teamId: id, playerId, role: nextRole });
+      toast({
+        title: nextRole === 'MAIN' ? 'Переведён(а) в основу' : 'Переведён(а) в запас',
+        description: nickname,
+      });
     } catch (e) {
       toast({ title: 'Ошибка', description: describeError(e), variant: 'destructive' });
     }
@@ -468,21 +487,42 @@ export default function TeamDetailsPage() {
                       {isCaptain && team.status !== 'DISBANDED' && (
                         <td className="px-4 py-2 text-right">
                           {!isMemberCaptain ? (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() =>
-                                setLeaveOpen({
-                                  playerId: m.player.id,
-                                  nickname: m.player.nickname ?? 'Без ника',
-                                  self: isMe,
-                                })
-                              }
-                              disabled={leaveMember.isPending}
-                            >
-                              Удалить
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  handleChangeRole(
+                                    m.player.id,
+                                    m.player.nickname ?? 'Без ника',
+                                    m.role === 'MAIN' ? 'SUB' : 'MAIN',
+                                  )
+                                }
+                                disabled={changeRole.isPending}
+                                title={
+                                  m.role === 'MAIN'
+                                    ? 'Перевести в запас'
+                                    : 'Перевести в основу'
+                                }
+                              >
+                                {m.role === 'MAIN' ? 'В запас' : 'В основу'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() =>
+                                  setLeaveOpen({
+                                    playerId: m.player.id,
+                                    nickname: m.player.nickname ?? 'Без ника',
+                                    self: isMe,
+                                  })
+                                }
+                                disabled={leaveMember.isPending}
+                              >
+                                Удалить
+                              </Button>
+                            </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">
                               капитан
