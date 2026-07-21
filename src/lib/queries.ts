@@ -232,8 +232,8 @@ export const qk = {
     ['player', id, 'matches', params] as const,
   playerStats: (id: string) => ['player', id, 'stats'] as const,
   notificationsUnread: ['notifications', 'unread'] as const,
-  notificationsList: (page: number, size: number) =>
-    ['notifications', 'list', page, size] as const,
+  notificationsList: (page: number, size: number, unreadOnly: boolean) =>
+    ['notifications', 'list', page, size, unreadOnly] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -1466,9 +1466,10 @@ export function useUnreadCount(enabled = true) {
 }
 
 export function useNotifications(page = 0, size = 20, enabled = true) {
+  const unreadOnly = true;
   return useQuery({
-    queryKey: qk.notificationsList(page, size),
-    queryFn: () => getNotifications(page, size),
+    queryKey: qk.notificationsList(page, size, unreadOnly),
+    queryFn: () => getNotifications(page, size, unreadOnly),
     enabled,
   });
 }
