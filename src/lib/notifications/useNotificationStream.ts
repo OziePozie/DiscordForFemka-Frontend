@@ -1,27 +1,35 @@
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
-import { qk } from '@/lib/queries';
+import { qk, useMarkNotificationRead } from '@/lib/queries';
 import { useToast } from '@/components/ui/use-toast';
+import { typeIcon } from '@/lib/notifications/typeIcon';
 import type { NotificationDto } from '@/lib/api/types';
 
 /**
  * Opens the notifications SSE stream while authenticated. On each incoming
- * notification: shows a toast, bumps the unread-count cache, and invalidates the
- * list so an open dropdown refreshes. The browser auto-reconnects EventSource;
- * on (re)open we resync the unread count in case events were missed.
+ * notification: shows a clickable toast (navigate to the match + mark read),
+ * bumps the unread-count cache, and invalidates the list. The browser
+ * auto-reconnects EventSource; on (re)open we resync the unread count.
  */
 export function useNotificationStream() {
   const { isAuthenticated } = useAuth();
   const qc = useQueryClient();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
+  const navigate = useNavigate();
+  const markRead = useMarkNotificationRead();
 
-  // useToast() returns a fresh `toast` identity every render. Keep it in a ref so
-  // it is NOT an effect dependency — otherwise the EventSource would tear down and
-  // reconnect on every re-render (each badge bump / dropdown toggle), defeating the
-  // persistent stream and hammering the backend.
+  // Держим изменчивые зависимости в ref, чтобы EventSource не пересоздавался на
+  // каждый ре-рендер (иначе стрим рвётся и пересоздаётся на каждый бамп бейджа).
   const toastRef = useRef(toast);
   toastRef.current = toast;
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const markReadRef = useRef(markRead);
+  markReadRef.current = markRead;
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -37,7 +45,19 @@ export function useNotificationStream() {
       } catch {
         return;
       }
-      toastRef.current({ title: dto.title, description: dto.body ?? undefined });
+      const n = dto;
+      let toastId: string;
+      const onClick = () => {
+        if (n.id) markReadRef.current.mutate(n.id);
+        if (n.link) navigateRef.current(n.link);
+        dismissRef.current(toastId);
+      };
+      toastId = toastRef.current({
+        title: n.title,
+        description: n.body ?? undefined,
+        icon: typeIcon(n.type),
+        onClick,
+      });
       qc.setQueryData<{ count: number }>(qk.notificationsUnread, (prev) => ({
         count: (prev?.count ?? 0) + 1,
       }));
@@ -49,7 +69,6 @@ export function useNotificationStream() {
       qc.invalidateQueries({ queryKey: qk.notificationsUnread });
     };
     es.onerror = () => {
-      // EventSource auto-reconnects; this fires routinely on transient drops.
       console.debug('notifications SSE error (will retry)');
     };
 

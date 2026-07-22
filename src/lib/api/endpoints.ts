@@ -1117,9 +1117,10 @@ export function cancelOpenLobby(id: string): Promise<void> {
 export async function getNotifications(
   page = 0,
   size = 20,
+  unreadOnly = true,
 ): Promise<PagedResponse<NotificationDto>> {
   return api<PagedResponse<NotificationDto>>(
-    `/api/v1/notifications?page=${page}&size=${size}`,
+    `/api/v1/notifications?page=${page}&size=${size}&unreadOnly=${unreadOnly}`,
   );
 }
 

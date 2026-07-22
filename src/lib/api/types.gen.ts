@@ -4927,6 +4927,8 @@ export interface paths {
                 query?: {
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
+                    /** @description Вернуть только непрочитанные уведомления. */
+                    unreadOnly?: boolean;
                 };
                 header?: never;
                 path?: never;
