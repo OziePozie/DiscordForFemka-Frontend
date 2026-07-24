@@ -18,6 +18,8 @@ import {
   useTournamentEligibility,
   useUpdateTournamentEligibility,
   useAdminTournamentTeams,
+  useAdminRegisterTeam,
+  useAdminTeams,
   useApproveTournamentTeam,
   useRejectTournamentTeam,
 } from '@/lib/queries';
@@ -1511,8 +1513,18 @@ function TeamRequestsDialogBody({
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>(
     {},
   );
+  // Панель ручной регистрации команды (свёрнута по умолчанию).
+  const [showRegister, setShowRegister] = useState(false);
 
   const teams = query.data ?? [];
+
+  // Команды, уже участвующие в турнире (APPROVED) — их не даём регистрировать
+  // повторно, бэкенд для них вернул бы 409.
+  const registeredTeamIds = new Set(
+    teams
+      .filter((t) => t.status === 'APPROVED' && t.teamId)
+      .map((t) => t.teamId as string),
+  );
 
   async function handleApprove(teamId: string) {
     try {
@@ -1550,6 +1562,25 @@ function TeamRequestsDialogBody({
         <DialogHeader>
           <DialogTitle>Заявки команд — {tournament.name}</DialogTitle>
         </DialogHeader>
+
+        <div className="rounded-md border bg-muted/30 p-3">
+          {showRegister ? (
+            <RegisterTeamPanel
+              tournamentId={tournament.id}
+              registeredTeamIds={registeredTeamIds}
+              onClose={() => setShowRegister(false)}
+            />
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">
+                Добавить команду вручную, минуя окно регистрации.
+              </span>
+              <Button size="sm" onClick={() => setShowRegister(true)}>
+                Зарегистрировать команду
+              </Button>
+            </div>
+          )}
+        </div>
 
         {query.isLoading ? (
           <div className="space-y-2">
@@ -1665,6 +1696,105 @@ function TeamRequestsDialogBody({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface RegisterTeamPanelProps {
+  tournamentId: string;
+  registeredTeamIds: Set<string>;
+  onClose: () => void;
+}
+
+function RegisterTeamPanel({
+  tournamentId,
+  registeredTeamIds,
+  onClose,
+}: RegisterTeamPanelProps) {
+  const { toast } = useToast();
+  const registerMut = useAdminRegisterTeam();
+  const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+
+  // Дебаунс поискового запроса, чтобы не дёргать бэкенд на каждый символ.
+  useEffect(() => {
+    const h = setTimeout(() => setDebounced(search.trim()), 250);
+    return () => clearTimeout(h);
+  }, [search]);
+
+  const teamsQ = useAdminTeams(
+    debounced.length >= 2 ? { q: debounced, size: 8 } : { size: 8 },
+  );
+  const results = teamsQ.data?.items ?? [];
+
+  async function handleRegister(teamId: string, name: string) {
+    try {
+      await registerMut.mutateAsync({ tournamentId, teamId });
+      toast({
+        title: 'Команда зарегистрирована',
+        description: `${name} добавлена в турнир (APPROVED).`,
+      });
+    } catch (e) {
+      toast({
+        title: 'Не удалось зарегистрировать',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="reg-team-search" className="text-sm font-medium">
+          Зарегистрировать команду
+        </Label>
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          Свернуть
+        </Button>
+      </div>
+      <Input
+        id="reg-team-search"
+        placeholder="Поиск по названию команды…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {teamsQ.isLoading ? (
+        <div className="text-xs text-muted-foreground">Загрузка…</div>
+      ) : results.length === 0 ? (
+        <div className="text-xs text-muted-foreground">
+          {debounced.length >= 2 ? 'Ничего не найдено' : 'Команд нет'}
+        </div>
+      ) : (
+        <div className="max-h-56 space-y-1 overflow-y-auto">
+          {results.map((team) => {
+            const already = registeredTeamIds.has(team.id);
+            return (
+              <div
+                key={team.id}
+                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5"
+              >
+                <div className="min-w-0 truncate">
+                  <span className="text-sm font-medium">{team.name}</span>
+                  {team.tag && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      [{team.tag}]
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant={already ? 'outline' : 'default'}
+                  disabled={already || registerMut.isPending}
+                  onClick={() => handleRegister(team.id, team.name)}
+                >
+                  {already ? 'Уже в турнире' : 'Добавить'}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
