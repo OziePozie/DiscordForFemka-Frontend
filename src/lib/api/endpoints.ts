@@ -545,6 +545,18 @@ export function getAdminTournamentTeams(
   );
 }
 
+// Админ-регистрация произвольной команды: минует проверку капитана, окно
+// регистрации и лимит команд; команда попадает сразу в статусе APPROVED.
+export function adminRegisterTeam(
+  tournamentId: string,
+  teamId: string,
+): Promise<TournamentTeamDto> {
+  return api<TournamentTeamDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams`,
+    { method: 'POST', body: JSON.stringify({ teamId }) },
+  );
+}
+
 export function approveTournamentTeam(
   tournamentId: string,
   teamId: string,

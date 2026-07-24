@@ -18,6 +18,7 @@ import {
   getTournamentBySlug,
   getTournamentTeams,
   getAdminTournamentTeams,
+  adminRegisterTeam,
   approveTournamentTeam,
   rejectTournamentTeam,
   getTournamentMatchesPage,
@@ -360,6 +361,22 @@ export function useAdminTournamentTeams(id: string | undefined) {
       : ['admin', 'tournament', 'none', 'teams'],
     queryFn: () => getAdminTournamentTeams(id!),
     enabled: Boolean(id),
+  });
+}
+
+export function useAdminRegisterTeam() {
+  const qc = useQueryClient();
+  return useMutation<
+    TournamentTeamDto,
+    Error,
+    { tournamentId: string; teamId: string }
+  >({
+    mutationFn: ({ tournamentId, teamId }) =>
+      adminRegisterTeam(tournamentId, teamId),
+    onSuccess: (_d, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.adminTournamentTeams(tournamentId) });
+      qc.invalidateQueries({ queryKey: ['tournament'] });
+    },
   });
 }
 
