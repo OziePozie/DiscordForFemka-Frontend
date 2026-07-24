@@ -606,6 +606,25 @@ export function generateBracket(id: string): Promise<BracketDto> {
   );
 }
 
+// Назначить команды в ячейку сетки по координате. Работает и для пустых ячеек
+// (BYE / ожидающих) — бэкенд создаёт SCHEDULED-матч на лету. teamAId/teamBId
+// = null оставляет соответствующий слот без изменений.
+export function assignBracketCell(
+  tournamentId: string,
+  body: {
+    section: 'WB' | 'LB' | 'GF';
+    roundIndex: number;
+    matchIndex: number;
+    teamAId: string | null;
+    teamBId: string | null;
+  },
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/bracket/cell`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
 export function generateStages(
   id: string,
   body: GenerateStagesRequest,
