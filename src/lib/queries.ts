@@ -23,6 +23,7 @@ import {
   rejectTournamentTeam,
   getTournamentMatchesPage,
   getTournamentBracket,
+  assignBracketCell,
   getTournamentStages,
   getTournamentStandings,
   generateStages,
@@ -426,6 +427,21 @@ export function useBracket(id: string | undefined) {
     queryKey: id ? qk.bracket(id) : ['tournament', 'none', 'bracket'],
     queryFn: () => getTournamentBracket(id!),
     enabled: Boolean(id),
+  });
+}
+
+export function useAssignBracketCell() {
+  const qc = useQueryClient();
+  return useMutation<
+    MatchDto,
+    Error,
+    { tournamentId: string; body: Parameters<typeof assignBracketCell>[1] }
+  >({
+    mutationFn: ({ tournamentId, body }) => assignBracketCell(tournamentId, body),
+    onSuccess: (_d, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.bracket(tournamentId) });
+      qc.invalidateQueries({ queryKey: ['tournament', tournamentId] });
+    },
   });
 }
 

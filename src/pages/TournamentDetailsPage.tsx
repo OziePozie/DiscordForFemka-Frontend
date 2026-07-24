@@ -1,5 +1,7 @@
 import {
+  createContext,
   useCallback,
+  useContext,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,6 +14,7 @@ import { TeamNameLink } from '@/components/TeamNameLink';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { GroupStageBlock } from '@/components/GroupStageBlock';
 import {
+  useAssignBracketCell,
   useBracket,
   useMe,
   useRegisterTournament,
@@ -33,6 +36,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -53,6 +64,10 @@ import {
   type TournamentDto,
   type MatchDto,
 } from '@/lib/api/types';
+
+// Пробрасывает id турнира вниз к ячейкам сетки (RoundColumns глубоко вложен),
+// чтобы админ мог назначать команды в пустые ячейки без prop-drilling.
+const BracketTournamentIdContext = createContext<string | null>(null);
 
 function statusVariant(s: TournamentStatus) {
   switch (s) {
@@ -721,7 +736,7 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
           Сетка ещё не сформирована.
         </div>
       );
-    return <PlayoffBracket bracket={bracket!} />;
+    return <PlayoffBracket bracket={bracket!} tournamentId={tournamentId} />;
   }
 
   return (
@@ -736,7 +751,7 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
       <section className="space-y-3">
         <h3 className="text-base font-semibold">Плей-офф</h3>
         {hasBracket ? (
-          <PlayoffBracket bracket={bracket!} />
+          <PlayoffBracket bracket={bracket!} tournamentId={tournamentId} />
         ) : (
           <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
             {playoffStage?.status === 'PENDING'
@@ -751,26 +766,24 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
 
 function PlayoffBracket({
   bracket,
+  tournamentId,
 }: {
   bracket: NonNullable<ReturnType<typeof useBracket>['data']>;
+  tournamentId: string;
 }) {
   const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
   const lbRounds = bracket.rounds.filter((r) => r.section === 'LB');
   const gfRounds = bracket.rounds.filter((r) => r.section === 'GF');
   const isDoubleElim = bracket.format === 'DOUBLE_ELIM';
 
-  if (!isDoubleElim) {
-    return (
-      <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
-        <ConnectedRounds rounds={wbRounds} />
-      </div>
-    );
-  }
-
   // Вся сетка в одном прокручиваемом контейнере: верхняя и нижняя сетки сложены
   // одна над другой, а Grand Final стоит справа от их финалов — именно туда
   // приходят победители обеих веток, и к нему тянутся линии от WB- и LB-финала.
-  return (
+  const inner = !isDoubleElim ? (
+    <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+      <ConnectedRounds rounds={wbRounds} />
+    </div>
+  ) : (
     <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
       <DoubleElimBracket
         wbRounds={wbRounds}
@@ -778,6 +791,12 @@ function PlayoffBracket({
         gfRounds={gfRounds}
       />
     </div>
+  );
+
+  return (
+    <BracketTournamentIdContext.Provider value={tournamentId}>
+      {inner}
+    </BracketTournamentIdContext.Provider>
   );
 }
 
@@ -1006,6 +1025,167 @@ function DoubleElimBracket({
   );
 }
 
+type BracketCell = BracketRound['matches'][number];
+
+const EMPTY_CELL_NONE = '__none__';
+
+// Админ-контрол для пустой ячейки сетки (нет материализованного матча): пикер
+// команд для слотов A/B. Отправка создаёт SCHEDULED-матч в этой координате.
+function EmptyCellAdmin({
+  tournamentId,
+  cell,
+}: {
+  tournamentId: string;
+  cell: BracketCell;
+}) {
+  const { toast } = useToast();
+  const teamsQ = useTournamentTeams(tournamentId);
+  const assignMut = useAssignBracketCell();
+  const [open, setOpen] = useState(false);
+  const [a, setA] = useState<string>(EMPTY_CELL_NONE);
+  const [b, setB] = useState<string>(EMPTY_CELL_NONE);
+
+  function openDialog() {
+    setA(cell.slotA.team?.id ?? EMPTY_CELL_NONE);
+    setB(cell.slotB.team?.id ?? EMPTY_CELL_NONE);
+    setOpen(true);
+  }
+
+  const optionMap = new Map<string, { id: string; name: string; tag: string }>();
+  for (const t of teamsQ.data ?? []) {
+    if (!t.withdrawn) optionMap.set(t.team.id, t.team);
+  }
+  if (cell.slotA.team) optionMap.set(cell.slotA.team.id, cell.slotA.team);
+  if (cell.slotB.team) optionMap.set(cell.slotB.team.id, cell.slotB.team);
+  const options = Array.from(optionMap.values());
+
+  async function submit() {
+    const teamAId = a === EMPTY_CELL_NONE ? null : a;
+    const teamBId = b === EMPTY_CELL_NONE ? null : b;
+    if (teamAId && teamBId && teamAId === teamBId) {
+      toast({ title: 'Команды должны отличаться', variant: 'destructive' });
+      return;
+    }
+    if (!teamAId && !teamBId) {
+      toast({ title: 'Выберите хотя бы одну команду', variant: 'destructive' });
+      return;
+    }
+    try {
+      await assignMut.mutateAsync({
+        tournamentId,
+        body: {
+          section: cell.section,
+          roundIndex: cell.roundIndex,
+          matchIndex: cell.matchIndex,
+          teamAId,
+          teamBId,
+        },
+      });
+      toast({ title: 'Команды назначены' });
+      setOpen(false);
+    } catch (e) {
+      toast({
+        title: 'Не удалось назначить',
+        description:
+          e instanceof ProblemDetailError
+            ? `${e.title}${e.detail ? `: ${e.detail}` : ''}`
+            : e instanceof Error
+              ? e.message
+              : 'Неизвестная ошибка',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 opacity-60 hover:opacity-100"
+        aria-label="Назначить команды"
+        title="Назначить команды"
+        onClick={openDialog}
+      >
+        <span aria-hidden className="text-xs">
+          ✎
+        </span>
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Назначить команды в ячейку</DialogTitle>
+            <DialogDescription>
+              Ячейка без матча (BYE или ожидание предыдущих). Назначение создаст
+              матч. Когда предыдущий матч доиграется, его реальный победитель
+              перезапишет свой слот.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {teamsQ.isLoading && (
+              <p className="text-sm text-muted-foreground">Загрузка команд…</p>
+            )}
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Команда A</span>
+              <Select value={a} onValueChange={setA}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Пусто (TBD)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EMPTY_CELL_NONE}>Пусто (TBD)</SelectItem>
+                  {options.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {teamLabel(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Команда B</span>
+              <Select value={b} onValueChange={setB}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Пусто (TBD)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EMPTY_CELL_NONE}>Пусто (TBD)</SelectItem>
+                  {options.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {teamLabel(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setA(b);
+                setB(a);
+              }}
+            >
+              Поменять A ↔ B
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={submit}
+              disabled={assignMut.isPending || teamsQ.isLoading}
+            >
+              {assignMut.isPending ? 'Сохранение…' : 'Применить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function RoundColumns({
   rounds,
   registerCell,
@@ -1020,6 +1200,7 @@ function RoundColumns({
   const me = useMe();
   const isStaff =
     me.data?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR') ?? false;
+  const tournamentId = useContext(BracketTournamentIdContext);
   return (
     <div className={`flex gap-4 ${alignEnd ? 'justify-end' : ''}`}>
       {rounds.map((round) => (
@@ -1055,6 +1236,15 @@ function RoundColumns({
               const cardClass = `relative block space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm ${isLive ? 'border-red-500/60 ring-1 ring-red-500/40' : ''}`;
               const cardBody = (
                 <>
+                  {isStaff && !cell.match && tournamentId ? (
+                    // Пустая ячейка (BYE/ожидающая) — даём назначить команды.
+                    <div
+                      className="absolute bottom-1 right-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <EmptyCellAdmin tournamentId={tournamentId} cell={cell} />
+                    </div>
+                  ) : null}
                   {isStaff && cell.match ? (
                     // Keep the admin dropdown's clicks from triggering the card link.
                     <div
