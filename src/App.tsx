@@ -22,6 +22,7 @@ import AdminTeamsPage from '@/pages/admin/AdminTeamsPage';
 import AdminMatchesPage from '@/pages/admin/AdminMatchesPage';
 import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 import AdminBotsPage from '@/pages/admin/AdminBotsPage';
+import AdminLobbiesPage from '@/pages/admin/AdminLobbiesPage';
 import ArchivePage from '@/pages/ArchivePage';
 import LeaderboardPage from '@/pages/LeaderboardPage';
 
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="teams" element={<AdminTeamsPage />} />
           <Route path="audit" element={<AdminAuditPage />} />
           <Route path="bots" element={<AdminBotsPage />} />
+          <Route path="lobbies" element={<AdminLobbiesPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
