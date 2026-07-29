@@ -44,6 +44,7 @@ import type {
   AdminCreatePlayerRequest,
   AuditLogDto,
   BotStatusDto,
+  AdminLobbyDto,
   ActivityStatus,
   PlayerRole,
   UpdateMatchRequest,
@@ -1023,6 +1024,19 @@ export function getAdminAuditPage(
 ): Promise<PagedResponse<AuditLogDto>> {
   return api<PagedResponse<AuditLogDto>>(
     `/api/v1/admin/audit${buildQuery(params)}`,
+  );
+}
+
+// ──────────────── Admin: Dota lobbies ────────────────
+
+export function listAdminLobbies(): Promise<AdminLobbyDto[]> {
+  return api<AdminLobbyDto[]>('/api/v1/admin/lobbies');
+}
+
+export function adminKickLobbyPlayer(lobbyId: number, accountId: number): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/lobbies/${lobbyId}/players/${accountId}`,
+    { method: 'DELETE' },
   );
 }
 

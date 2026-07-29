@@ -95,6 +95,8 @@ import {
   getAdminAuditPage,
   listAdminBots,
   adminBotLeaveLobby,
+  listAdminLobbies,
+  adminKickLobbyPlayer,
   adminBotGcRehello,
   adminBotSteamReconnect,
   updateAdminMatch,
@@ -179,6 +181,7 @@ import type {
   OpenLobbyDto,
   CreateOpenLobbyRequest,
   BotStatusDto,
+  AdminLobbyDto,
   LeaderboardEntryDto,
   PlayerRatingDto,
   PlayerStatsDto,
@@ -217,6 +220,7 @@ export const qk = {
   adminAudit: (params: AdminAuditPageParams) =>
     ['adminAudit', params] as const,
   adminBots: ['adminBots'] as const,
+  adminLobbies: ['adminLobbies'] as const,
   teamInvites: (teamId: string) => ['team', teamId, 'invites'] as const,
   playersPage: (params: PlayersPageParams) => ['players', params] as const,
   seasonChampions: (slug: string) =>
@@ -1268,6 +1272,25 @@ export function useAdminBotLeaveLobby() {
   return useMutation<void, Error, string>({
     mutationFn: adminBotLeaveLobby,
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminBots }),
+  });
+}
+
+// ──────────────── Admin: Dota lobbies ────────────────
+
+export function useAdminLobbies() {
+  return useQuery<AdminLobbyDto[]>({
+    queryKey: qk.adminLobbies,
+    queryFn: listAdminLobbies,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useAdminKickLobbyPlayer() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { lobbyId: number; accountId: number }>({
+    mutationFn: ({ lobbyId, accountId }) => adminKickLobbyPlayer(lobbyId, accountId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminLobbies }),
   });
 }
 

@@ -78,6 +78,29 @@ export interface BotStatusDto {
   healthy: boolean;
 }
 
+// Admin: Dota lobbies (proxy to Dota2API). Not in openapi.yaml — typed manually.
+// Mirrors DiscordForFemka AdminLobbyDto/AdminLobbyMemberDto (platform.admin.lobby.dto).
+// playerId/nickname/avatarUrl are null when the Steam account is not linked to a platform player.
+export interface AdminLobbyMemberDto {
+  accountId: number;
+  team: string;
+  slot: number;
+  heroId: number;
+  playerId: string | null;
+  nickname: string | null;
+  avatarUrl: string | null;
+}
+
+export interface AdminLobbyDto {
+  lobbyId: number;
+  botUsername: string;
+  gameName: string;
+  state: number;
+  gameState: number;
+  memberCount: number;
+  members: AdminLobbyMemberDto[];
+}
+
 // Seasons / Tournaments / Matches
 export type SeasonDto = S['SeasonDto'];
 export type SeasonDetailsDto = S['SeasonDetailsDto'];
