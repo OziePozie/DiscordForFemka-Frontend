@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, User, Users, Mail } from 'lucide-react';
+import { LogOut, Mail, Menu, User, Users, X } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
@@ -22,9 +23,12 @@ import { ThemeToggle } from './ThemeToggle';
 
 export default function Header() {
   const { session, isAuthenticated, isLoading } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const logout = useLogout();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => setIsMenuOpen(false), [location.pathname]);
 
   const isStaff = !!session?.roles?.some(
     (r) => r === 'MODERATOR' || r === 'ADMIN',
@@ -61,6 +65,10 @@ export default function Header() {
       ? 'font-bold text-ink'
       : 'font-medium text-ink-muted transition-colors hover:text-ink';
   };
+
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
 
   return (
     <header className="border-b border-line bg-background">
@@ -111,6 +119,15 @@ export default function Header() {
               </Link>
             )}
           </nav>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((v) => !v)}
+            className="flex h-9 w-9 items-center justify-center rounded-md text-ink sm:hidden"
+            aria-label={isMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={isMenuOpen}
+          >
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -176,6 +193,76 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {isMenuOpen && (
+        <nav className="flex flex-col gap-1 border-t border-line px-6 py-3 text-sm sm:hidden">
+          <Link
+            to="/"
+            className={`rounded-md px-2 py-2 ${navLink('/', true)}`}
+            onClick={closeMenu}
+          >
+            Главная
+          </Link>
+          <Link
+            to="/scenes"
+            className={`rounded-md px-2 py-2 ${navLink('/scenes')}`}
+            onClick={closeMenu}
+          >
+            Сцены
+          </Link>
+          <Link
+            to="/leaderboard"
+            className={`rounded-md px-2 py-2 ${navLink('/leaderboard')}`}
+            onClick={closeMenu}
+          >
+            Рейтинг
+          </Link>
+          <Link
+            to="/archive"
+            className={`rounded-md px-2 py-2 ${navLink('/archive')}`}
+            onClick={closeMenu}
+          >
+            Архив
+          </Link>
+          <Link
+            to="/lobbies"
+            className={`rounded-md px-2 py-2 ${navLink('/lobbies')}`}
+            onClick={closeMenu}
+          >
+            Лобби
+          </Link>
+          {isAuthenticated && pendingInviteCount > 0 && (
+            <Link
+              to="/me/invites"
+              className={`flex items-center gap-1.5 rounded-md px-2 py-2 ${navLink('/me/invites')}`}
+              onClick={closeMenu}
+            >
+              Приглашения
+              <Badge variant="default" className="h-5 px-1.5 text-xs">
+                {pendingInviteCount}
+              </Badge>
+            </Link>
+          )}
+          {isAuthenticated && (
+            <Link
+              to="/profile"
+              className={`rounded-md px-2 py-2 ${navLink('/profile')}`}
+              onClick={closeMenu}
+            >
+              Профиль
+            </Link>
+          )}
+          {isStaff && (
+            <Link
+              to="/admin/mmr"
+              className={`rounded-md px-2 py-2 ${navLink('/admin')}`}
+              onClick={closeMenu}
+            >
+              Админка
+            </Link>
+          )}
+        </nav>
+      )}
     </header>
   );
 }

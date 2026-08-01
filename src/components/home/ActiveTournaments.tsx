@@ -37,7 +37,7 @@ export default function ActiveTournaments({
   const placeholders = Math.max(0, MAX_CARDS - active.length);
 
   return (
-    <section className="border-b border-line px-10 py-14">
+    <section className="border-b border-line px-6 py-14 sm:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex items-end justify-between">
           <h2 className="ec-display text-[1.625rem] text-ink">

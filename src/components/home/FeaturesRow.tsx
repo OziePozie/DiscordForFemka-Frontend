@@ -23,7 +23,7 @@ const FEATURES = [
  */
 export default function FeaturesRow() {
   return (
-    <section className="px-10 py-16">
+    <section className="px-6 py-16 sm:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="grid border-t border-line divide-y divide-line md:grid-cols-4 md:divide-x md:divide-y-0 md:[&>*:first-child]:pl-0">
           {FEATURES.map(({ title, desc }, i) => (

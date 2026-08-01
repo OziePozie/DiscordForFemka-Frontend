@@ -76,7 +76,7 @@ export default function SeasonsListPage() {
 
   return (
     <div className="relative -my-8 ml-[calc(50%-50vw)] w-screen min-h-[calc(100vh-4.25rem)] bg-background text-ink">
-      <div className="mx-auto max-w-7xl px-10 py-14">
+      <div className="mx-auto max-w-7xl px-6 py-14 sm:px-10">
         {/* Шапка */}
         <header className="mb-10 flex flex-col gap-6 border-b border-line pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>

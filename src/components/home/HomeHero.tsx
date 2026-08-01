@@ -21,11 +21,11 @@ export default function HomeHero({ season, seasonLoading }: HomeHeroProps) {
     : 'Play Stage · Киберспорт';
 
   return (
-    <section className="border-b border-line px-10 pb-16 pt-14">
+    <section className="border-b border-line px-6 pb-16 pt-14 sm:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="ec-kicker text-[0.8125rem] text-brand">{kicker}</div>
 
-        <h1 className="ec-display mt-6 text-[4rem] leading-[0.98] text-ink [letter-spacing:-0.03em] md:text-[4.75rem]">
+        <h1 className="ec-display mt-6 text-[2.25rem] leading-[0.98] text-ink [letter-spacing:-0.03em] sm:text-[4rem] md:text-[4.75rem]">
           Твоя сцена.
           <br />
           Твоя <span className="text-brand">победа.</span>
