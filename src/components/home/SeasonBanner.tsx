@@ -19,7 +19,7 @@ export default function SeasonBanner({ season }: SeasonBannerProps) {
   if (!season?.bannerUrl) return null;
 
   return (
-    <section className="border-b border-line px-10 py-14">
+    <section className="border-b border-line px-6 py-14 sm:px-10">
       <div className="mx-auto max-w-7xl">
         <button
           type="button"
@@ -42,7 +42,7 @@ export default function SeasonBanner({ season }: SeasonBannerProps) {
           />
 
           {/* подпись поверх баннера */}
-          <div className="absolute inset-y-0 left-0 flex max-w-md flex-col justify-center px-10 text-left">
+          <div className="absolute inset-y-0 left-0 flex max-w-md flex-col justify-center px-6 text-left sm:px-10">
             <span className="ec-kicker text-[0.6875rem] text-white/85">
               Текущая сцена · {SEASON_STATUS_LABEL[season.status]}
             </span>
