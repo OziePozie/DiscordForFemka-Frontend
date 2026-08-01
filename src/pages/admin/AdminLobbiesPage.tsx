@@ -28,11 +28,21 @@ const LOBBY_STATE_LABEL: Record<number, string> = {
   6: 'SERVERASSIGN',
 };
 
-const TEAM_GROUPS: Array<{ key: string; label: string; teams: string[] }> = [
-  { key: 'radiant', label: 'Radiant', teams: ['RADIANT'] },
-  { key: 'dire', label: 'Dire', teams: ['DIRE'] },
-  { key: 'other', label: 'Прочие', teams: ['PLAYER_POOL', 'BROADCASTER', 'SPECTATOR', 'NOTEAM'] },
-];
+// Radiant/Dire columns + a catch-all "Прочие" for every other team value
+// (PLAYER_POOL/BROADCASTER/SPECTATOR/NOTEAM or anything the GC adds later), so no
+// member can silently disappear from the display.
+function groupMembers(members: AdminLobbyMemberDto[]) {
+  const bySlot = (a: AdminLobbyMemberDto, b: AdminLobbyMemberDto) => a.slot - b.slot;
+  return [
+    { key: 'radiant', label: 'Radiant', members: members.filter((m) => m.team === 'RADIANT').sort(bySlot) },
+    { key: 'dire', label: 'Dire', members: members.filter((m) => m.team === 'DIRE').sort(bySlot) },
+    {
+      key: 'other',
+      label: 'Прочие',
+      members: members.filter((m) => m.team !== 'RADIANT' && m.team !== 'DIRE').sort(bySlot),
+    },
+  ];
+}
 
 function describeError(err: unknown): string {
   if (err instanceof ProblemDetailError) {
@@ -42,7 +52,7 @@ function describeError(err: unknown): string {
   return 'неизвестная ошибка';
 }
 
-type KickTarget = { lobbyId: number; accountId: number; label: string };
+type KickTarget = { lobbyId: string; accountId: number; label: string };
 
 export default function AdminLobbiesPage() {
   const { toast } = useToast();
@@ -161,31 +171,26 @@ function LobbyCard({
         </div>
       </div>
       <div className="grid gap-4 p-4 md:grid-cols-3">
-        {TEAM_GROUPS.map((group) => {
-          const members = lobby.members
-            .filter((m) => group.teams.includes(m.team))
-            .sort((a, b) => a.slot - b.slot);
-          return (
-            <div key={group.key}>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {group.label} ({members.length})
-              </div>
-              <div className="space-y-1">
-                {members.length === 0 && (
-                  <div className="text-xs text-muted-foreground">—</div>
-                )}
-                {members.map((m) => (
-                  <MemberRow
-                    key={m.accountId}
-                    m={m}
-                    pending={pendingAccountId === m.accountId}
-                    onKick={() => onKick(m)}
-                  />
-                ))}
-              </div>
+        {groupMembers(lobby.members).map((group) => (
+          <div key={group.key}>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {group.label} ({group.members.length})
             </div>
-          );
-        })}
+            <div className="space-y-1">
+              {group.members.length === 0 && (
+                <div className="text-xs text-muted-foreground">—</div>
+              )}
+              {group.members.map((m) => (
+                <MemberRow
+                  key={m.accountId}
+                  m={m}
+                  pending={pendingAccountId === m.accountId}
+                  onKick={() => onKick(m)}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

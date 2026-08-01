@@ -92,7 +92,7 @@ export interface AdminLobbyMemberDto {
 }
 
 export interface AdminLobbyDto {
-  lobbyId: number;
+  lobbyId: string;
   botUsername: string;
   gameName: string;
   state: number;

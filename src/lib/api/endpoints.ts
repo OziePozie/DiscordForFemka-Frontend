@@ -1033,7 +1033,7 @@ export function listAdminLobbies(): Promise<AdminLobbyDto[]> {
   return api<AdminLobbyDto[]>('/api/v1/admin/lobbies');
 }
 
-export function adminKickLobbyPlayer(lobbyId: number, accountId: number): Promise<void> {
+export function adminKickLobbyPlayer(lobbyId: string, accountId: number): Promise<void> {
   return api<void>(
     `/api/v1/admin/lobbies/${lobbyId}/players/${accountId}`,
     { method: 'DELETE' },

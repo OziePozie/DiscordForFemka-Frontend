@@ -1288,7 +1288,7 @@ export function useAdminLobbies() {
 
 export function useAdminKickLobbyPlayer() {
   const qc = useQueryClient();
-  return useMutation<void, Error, { lobbyId: number; accountId: number }>({
+  return useMutation<void, Error, { lobbyId: string; accountId: number }>({
     mutationFn: ({ lobbyId, accountId }) => adminKickLobbyPlayer(lobbyId, accountId),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminLobbies }),
   });
