@@ -66,6 +66,10 @@ import type {
   NotificationDto,
   TournamentTeamAdminDto,
   RejectTeamRequest,
+  HeroGroupDto,
+  CreateHeroGroupRequest,
+  UpdateHeroGroupRequest,
+  DotaHeroDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -462,6 +466,52 @@ export function finishSeason(id: string): Promise<SeasonDto> {
     `/api/v1/admin/seasons/${encodeURIComponent(id)}/finish`,
     { method: 'POST' },
   );
+}
+
+// ──────────────── Admin: Hero groups ────────────────
+
+export interface HeroGroupsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getHeroGroupsPage(
+  params: HeroGroupsPageParams = {},
+): Promise<PagedResponse<HeroGroupDto>> {
+  return api<PagedResponse<HeroGroupDto>>(
+    `/api/v1/admin/hero-groups${buildQuery(params)}`,
+  );
+}
+
+export function createHeroGroup(
+  body: CreateHeroGroupRequest,
+): Promise<HeroGroupDto> {
+  return api<HeroGroupDto>('/api/v1/admin/hero-groups', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateHeroGroup(
+  id: string,
+  patch: UpdateHeroGroupRequest,
+): Promise<HeroGroupDto> {
+  return api<HeroGroupDto>(
+    `/api/v1/admin/hero-groups/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+  );
+}
+
+export function deleteHeroGroup(id: string): Promise<void> {
+  return api<void>(`/api/v1/admin/hero-groups/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ──────────────── Dota heroes catalog ────────────────
+
+export function getDotaHeroesCatalog(): Promise<DotaHeroDto[]> {
+  return api<DotaHeroDto[]>('/api/v1/dota/heroes');
 }
 
 // ──────────────── Admin Tournaments ────────────────

@@ -119,6 +119,11 @@ import {
   getUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
+  getHeroGroupsPage,
+  createHeroGroup,
+  updateHeroGroup,
+  deleteHeroGroup,
+  getDotaHeroesCatalog,
   type LeaderboardPageParams,
   type PlayerMatchesPageParams,
   type SeasonsPageParams,
@@ -131,6 +136,7 @@ import {
   type AdminAuditPageParams,
   type PlayersPageParams,
   type OpenLobbiesPageParams,
+  type HeroGroupsPageParams,
 } from './api/endpoints';
 import type {
   SessionDto,
@@ -185,6 +191,10 @@ import type {
   LeaderboardEntryDto,
   PlayerRatingDto,
   PlayerStatsDto,
+  HeroGroupDto,
+  CreateHeroGroupRequest,
+  UpdateHeroGroupRequest,
+  DotaHeroDto,
 } from './api/types';
 
 export const qk = {
@@ -240,6 +250,8 @@ export const qk = {
   notificationsUnread: ['notifications', 'unread'] as const,
   notificationsList: (page: number, size: number, unreadOnly: boolean) =>
     ['notifications', 'list', page, size, unreadOnly] as const,
+  heroGroups: (params: HeroGroupsPageParams) => ['hero-groups', params] as const,
+  dotaHeroes: ['dota-heroes'] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -333,6 +345,55 @@ export function useSeason(slug: string | undefined) {
     queryKey: slug ? qk.season(slug) : ['season', 'none'],
     queryFn: () => getSeasonBySlug(slug!),
     enabled: Boolean(slug),
+  });
+}
+
+// ──────────────── Hero groups & heroes catalog ────────────────
+
+export function useHeroGroupsList(params: HeroGroupsPageParams = {}) {
+  return useQuery({
+    queryKey: qk.heroGroups(params),
+    queryFn: () => getHeroGroupsPage(params),
+  });
+}
+
+export function useDotaHeroesCatalog() {
+  return useQuery({
+    queryKey: qk.dotaHeroes,
+    queryFn: getDotaHeroesCatalog,
+    staleTime: Infinity, // static reference data, never changes at runtime
+  });
+}
+
+function invalidateHeroGroupCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['hero-groups'] });
+}
+
+export function useCreateHeroGroup() {
+  const qc = useQueryClient();
+  return useMutation<HeroGroupDto, Error, CreateHeroGroupRequest>({
+    mutationFn: createHeroGroup,
+    onSuccess: () => invalidateHeroGroupCaches(qc),
+  });
+}
+
+export function useUpdateHeroGroup() {
+  const qc = useQueryClient();
+  return useMutation<
+    HeroGroupDto,
+    Error,
+    { id: string; patch: UpdateHeroGroupRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateHeroGroup(id, patch),
+    onSuccess: () => invalidateHeroGroupCaches(qc),
+  });
+}
+
+export function useDeleteHeroGroup() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: deleteHeroGroup,
+    onSuccess: () => invalidateHeroGroupCaches(qc),
   });
 }
 
