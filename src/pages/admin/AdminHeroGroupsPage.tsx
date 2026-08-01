@@ -134,7 +134,7 @@ export default function AdminHeroGroupsPage() {
     }
   }
 
-  const mutating = createMut.isPending || updateMut.isPending;
+  const mutating = createMut.isPending || updateMut.isPending || deleteMut.isPending;
 
   return (
     <div className="space-y-6">
