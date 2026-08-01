@@ -159,13 +159,22 @@ export default function AdminAchievementsPage() {
     }
   }
 
-  // Covers the create/edit dialog's own submit button. Row actions (Edit/Conditions/
-  // Publish/Archive) additionally gate on their own mutation's isPending below — a
-  // shared flag isn't needed for cross-row protection because every dialog here
-  // (create/edit and conditions) is a modal Dialog: while conditionsMut is in flight
-  // the conditions dialog is still open and its overlay blocks pointer events on the
-  // table underneath, so no other row's buttons are reachable to double-submit against.
+  // Covers the create/edit dialog's own submit button. The conditions dialog's own
+  // save button gates on conditionsMut.isPending directly — no shared flag needed
+  // there, since every dialog here is modal and blocks the table underneath while open.
   const mutating = createMut.isPending || updateMut.isPending;
+
+  // Publish/Archive are one-click row actions with NO modal, so (unlike the dialogs
+  // above) the table stays fully interactive during their async window. Gate per-row
+  // (not on the mutation's shared isPending) so archiving one row doesn't freeze every
+  // other row's buttons, and so Edit/Conditions/Publish/Archive can't race each other
+  // on the SAME row (e.g. clicking Archive then immediately Edit before it resolves).
+  function isRowBusy(id: string): boolean {
+    return (
+      (publishMut.isPending && publishMut.variables === id) ||
+      (archiveMut.isPending && archiveMut.variables === id)
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -220,7 +229,7 @@ export default function AdminAchievementsPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => openEdit(a)}
-                        disabled={mutating || a.status === 'ARCHIVED'}
+                        disabled={mutating || a.status === 'ARCHIVED' || isRowBusy(a.id)}
                       >
                         Изм.
                       </Button>
@@ -228,7 +237,7 @@ export default function AdminAchievementsPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => openConditions(a)}
-                        disabled={mutating || a.status === 'ARCHIVED'}
+                        disabled={mutating || a.status === 'ARCHIVED' || isRowBusy(a.id)}
                       >
                         Условия
                       </Button>
@@ -236,7 +245,12 @@ export default function AdminAchievementsPage() {
                         <Button
                           size="sm"
                           onClick={() => handlePublish(a)}
-                          disabled={publishMut.isPending}
+                          disabled={isRowBusy(a.id) || a.conditions.length === 0}
+                          title={
+                            a.conditions.length === 0
+                              ? 'Нельзя опубликовать без условий'
+                              : undefined
+                          }
                         >
                           Опубликовать
                         </Button>
@@ -246,7 +260,7 @@ export default function AdminAchievementsPage() {
                           size="sm"
                           variant="destructive"
                           onClick={() => handleArchive(a)}
-                          disabled={archiveMut.isPending}
+                          disabled={isRowBusy(a.id)}
                         >
                           В архив
                         </Button>
