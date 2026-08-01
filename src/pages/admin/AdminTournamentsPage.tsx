@@ -22,8 +22,15 @@ import {
   useAdminTeams,
   useApproveTournamentTeam,
   useRejectTournamentTeam,
+  useTournamentQuestsList,
+  useCreateQuest,
+  useUpdateQuest,
+  useReplaceQuestConditions,
+  usePublishQuest,
+  useArchiveQuest,
 } from '@/lib/queries';
 import { getSeasonsPage, getSeasonBySlug } from '@/lib/api/endpoints';
+import { ConditionBuilder } from '@/components/admin/ConditionBuilder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,6 +79,9 @@ import {
   type TournamentTeamAdminDto,
   type TournamentFormat,
   type TournamentStatus,
+  GAMIFICATION_STATUS_LABEL,
+  type QuestDto,
+  type ConditionRowDto,
 } from '@/lib/api/types';
 import { formatDateTimeLocal, parseLocalDateTime } from '@/lib/utils';
 
@@ -160,6 +170,7 @@ type DialogState =
   | { kind: 'stages-result'; tournament: TournamentDto; stageCount: number }
   | { kind: 'team-requests'; tournament: TournamentDto }
   | { kind: 'group-edit'; tournament: TournamentDto }
+  | { kind: 'quests'; tournament: TournamentDto }
   | null;
 
 function statusVariant(s: TournamentStatus) {
@@ -664,6 +675,9 @@ export default function AdminTournamentsPage() {
                   }
                   onGroupEdit={() =>
                     setDialog({ kind: 'group-edit', tournament: t })
+                  }
+                  onQuests={() =>
+                    setDialog({ kind: 'quests', tournament: t })
                   }
                   onGeneratePlayoff={() => handleGeneratePlayoff(t)}
                   onStart={() => runTransition(t, 'start')}
@@ -1366,6 +1380,15 @@ export default function AdminTournamentsPage() {
           onClose={closeDialog}
         />
       )}
+
+      {/* Tournament quests. Mounted only while open so the quests-list GET fires
+          exactly once per open, matching the group-edit dialog above. */}
+      {dialog?.kind === 'quests' && (
+        <QuestsDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
     </div>
   );
 }
@@ -1480,6 +1503,283 @@ function GroupEditDialogBody({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function QuestsDialogBody({
+  tournament,
+  onClose,
+}: {
+  tournament: TournamentDto;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const questsQ = useTournamentQuestsList(tournament.id, { size: 50 });
+  const createMut = useCreateQuest();
+  const updateMut = useUpdateQuest();
+  const conditionsMut = useReplaceQuestConditions();
+  const publishMut = usePublishQuest();
+  const archiveMut = useArchiveQuest();
+
+  type QuestFormState = { name: string; description: string };
+  const EMPTY_QUEST_FORM: QuestFormState = { name: '', description: '' };
+
+  type QuestDialogState =
+    | { kind: 'create' }
+    | { kind: 'edit'; quest: QuestDto }
+    | { kind: 'conditions'; quest: QuestDto }
+    | null;
+
+  const [subDialog, setSubDialog] = useState<QuestDialogState>(null);
+  const [form, setForm] = useState<QuestFormState>(EMPTY_QUEST_FORM);
+  const [conditions, setConditions] = useState<ConditionRowDto[]>([]);
+
+  function closeSubDialog() {
+    setSubDialog(null);
+    setForm(EMPTY_QUEST_FORM);
+    setConditions([]);
+  }
+
+  function isRowBusy(id: string): boolean {
+    return (
+      (publishMut.isPending && publishMut.variables === id) ||
+      (archiveMut.isPending && archiveMut.variables === id)
+    );
+  }
+
+  async function handleSubmit() {
+    if (!subDialog) return;
+    if (!form.name.trim()) {
+      toast({ title: 'Ошибка', description: 'Укажите название', variant: 'destructive' });
+      return;
+    }
+    if (subDialog.kind === 'create') {
+      try {
+        await createMut.mutateAsync({
+          tournamentId: tournament.id,
+          body: { name: form.name.trim(), description: form.description.trim() || null },
+        });
+        toast({ title: 'Квест создан' });
+        closeSubDialog();
+      } catch (e) {
+        toast({ title: 'Не удалось создать', description: describeError(e), variant: 'destructive' });
+      }
+      return;
+    }
+    if (subDialog.kind === 'edit') {
+      try {
+        await updateMut.mutateAsync({
+          id: subDialog.quest.id,
+          patch: { name: form.name.trim(), description: form.description.trim() || null },
+        });
+        toast({ title: 'Квест обновлён' });
+        closeSubDialog();
+      } catch (e) {
+        toast({ title: 'Не удалось обновить', description: describeError(e), variant: 'destructive' });
+      }
+    }
+  }
+
+  async function handleSaveConditions() {
+    if (!subDialog || subDialog.kind !== 'conditions') return;
+    try {
+      await conditionsMut.mutateAsync({ id: subDialog.quest.id, conditions });
+      toast({ title: 'Условия сохранены' });
+      closeSubDialog();
+    } catch (e) {
+      toast({ title: 'Не удалось сохранить условия', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handlePublish(quest: QuestDto) {
+    try {
+      await publishMut.mutateAsync(quest.id);
+      toast({ title: 'Квест опубликован' });
+    } catch (e) {
+      toast({ title: 'Не удалось опубликовать', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handleArchive(quest: QuestDto) {
+    try {
+      await archiveMut.mutateAsync(quest.id);
+      toast({ title: 'Квест архивирован' });
+    } catch (e) {
+      toast({ title: 'Не удалось архивировать', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  const quests = questsQ.data?.items ?? [];
+  const mutating = createMut.isPending || updateMut.isPending;
+
+  return (
+    <>
+      <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Квесты — {tournament.name}</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              onClick={() => {
+                setForm(EMPTY_QUEST_FORM);
+                setSubDialog({ kind: 'create' });
+              }}
+            >
+              Новый квест
+            </Button>
+          </div>
+
+          {questsQ.isLoading && <Skeleton className="h-32 w-full" />}
+          {questsQ.isError && (
+            <div className="text-sm text-destructive">
+              {describeError(questsQ.error)}
+            </div>
+          )}
+          {questsQ.data && quests.length === 0 && (
+            <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+              Квестов пока нет.
+            </div>
+          )}
+          {quests.length > 0 && (
+            <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+              {quests.map((quest) => (
+                <div key={quest.id} className="space-y-2 rounded-md border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="font-medium">{quest.name}</div>
+                      {quest.description && (
+                        <div className="text-xs text-muted-foreground">
+                          {quest.description}
+                        </div>
+                      )}
+                    </div>
+                    <Badge variant={quest.status === 'PUBLISHED' ? 'default' : quest.status === 'ARCHIVED' ? 'outline' : 'secondary'}>
+                      {GAMIFICATION_STATUS_LABEL[quest.status]}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={mutating || quest.status === 'ARCHIVED' || isRowBusy(quest.id)}
+                      onClick={() => {
+                        setForm({ name: quest.name, description: quest.description ?? '' });
+                        setSubDialog({ kind: 'edit', quest });
+                      }}
+                    >
+                      Изм.
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={mutating || quest.status === 'ARCHIVED' || isRowBusy(quest.id)}
+                      onClick={() => {
+                        setConditions(quest.conditions);
+                        setSubDialog({ kind: 'conditions', quest });
+                      }}
+                    >
+                      Условия
+                    </Button>
+                    {quest.status === 'DRAFT' && (
+                      <Button
+                        size="sm"
+                        disabled={isRowBusy(quest.id) || quest.conditions.length === 0}
+                        title={quest.conditions.length === 0 ? 'Нельзя опубликовать без условий' : undefined}
+                        onClick={() => handlePublish(quest)}
+                      >
+                        Опубликовать
+                      </Button>
+                    )}
+                    {quest.status !== 'ARCHIVED' && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isRowBusy(quest.id)}
+                        onClick={() => handleArchive(quest)}
+                      >
+                        В архив
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={onClose}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quest create/edit sub-dialog */}
+      <Dialog
+        open={subDialog?.kind === 'create' || subDialog?.kind === 'edit'}
+        onOpenChange={(open) => { if (!open) closeSubDialog(); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {subDialog?.kind === 'edit' ? 'Редактировать квест' : 'Новый квест'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="quest-name">Название</Label>
+              <Input
+                id="quest-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                maxLength={128}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="quest-desc">Описание</Label>
+              <textarea
+                id="quest-desc"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="min-h-[5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeSubDialog}>Отмена</Button>
+            <Button onClick={handleSubmit} disabled={mutating}>
+              {mutating ? 'Сохранение…' : subDialog?.kind === 'edit' ? 'Сохранить' : 'Создать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quest conditions sub-dialog */}
+      <Dialog
+        open={subDialog?.kind === 'conditions'}
+        onOpenChange={(open) => { if (!open) closeSubDialog(); }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Условия — {subDialog?.kind === 'conditions' ? subDialog.quest.name : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <ConditionBuilder
+            conditions={conditions}
+            onChange={setConditions}
+            disabled={conditionsMut.isPending}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeSubDialog}>Отмена</Button>
+            <Button onClick={handleSaveConditions} disabled={conditionsMut.isPending}>
+              {conditionsMut.isPending ? 'Сохранение…' : 'Сохранить условия'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -2023,6 +2323,7 @@ interface TournamentRowProps {
   onGenerateBracket: () => void;
   onGenerateStages: () => void;
   onGroupEdit: () => void;
+  onQuests: () => void;
   onGeneratePlayoff: () => void;
   onStart: () => void;
   onFinish: () => void;
@@ -2040,6 +2341,7 @@ function TournamentRow({
   onGenerateBracket,
   onGenerateStages,
   onGroupEdit,
+  onQuests,
   onGeneratePlayoff,
   onStart,
   onFinish,
@@ -2128,6 +2430,7 @@ function TournamentRow({
             <DropdownMenuItem onClick={onGroupEdit}>
               Состав групп
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={onQuests}>Квесты</DropdownMenuItem>
             <DropdownMenuItem onClick={onGeneratePlayoff}>
               Сгенерировать плей-офф
             </DropdownMenuItem>

@@ -432,6 +432,84 @@ export interface UpdateTournamentRequest {
   regulationsVersion?: string | null;
 }
 
+// Gamification: hero groups, achievements, quests
+// TODO: regenerate openapi — backend PR https://github.com/OziePozie/DiscordForFemka/pull/111
+// not yet merged, docs/contracts/openapi.yaml here is stale relative to it.
+export type ConditionType = 'HERO_POOL' | 'WIN_REQUIRED';
+export type GamificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface ConditionRowDto {
+  type: ConditionType;
+  heroGroupId?: string | null;
+  minPlayers?: number | null;
+}
+
+export interface HeroGroupDto {
+  id: string;
+  name: string;
+  heroIds: number[];
+}
+
+export interface CreateHeroGroupRequest {
+  name: string;
+  heroIds: number[];
+}
+
+export interface UpdateHeroGroupRequest {
+  name?: string;
+  heroIds?: number[];
+}
+
+export interface DotaHeroDto {
+  id: number;
+  name: string;
+}
+
+export interface AchievementDto {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: GamificationStatus;
+  conditions: ConditionRowDto[];
+}
+
+export interface CreateAchievementRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateAchievementRequest {
+  name?: string;
+  description?: string | null;
+}
+
+export interface QuestDto {
+  id: string;
+  tournamentId: string;
+  name: string;
+  description?: string | null;
+  status: GamificationStatus;
+  conditions: ConditionRowDto[];
+}
+
+export interface CreateQuestRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateQuestRequest {
+  name?: string;
+  description?: string | null;
+}
+
+export interface PlayerAchievementDto {
+  achievementId: string;
+  name: string;
+  description?: string | null;
+  timesEarned: number;
+  lastEarnedAt?: string | null;
+}
+
 // Enums (as union types)
 export type PlayerRole = S['PlayerRole'];
 export type PlayerPosition = S['PlayerPosition'];
@@ -489,6 +567,17 @@ export const TOURNAMENT_STATUS_LABEL: Record<TournamentStatus, string> = {
   LIVE: 'Идёт',
   FINISHED: 'Завершён',
   CANCELLED: 'Отменён',
+};
+
+export const CONDITION_TYPE_LABEL: Record<ConditionType, string> = {
+  HERO_POOL: 'Пул героев в команде',
+  WIN_REQUIRED: 'Обязательная победа',
+};
+
+export const GAMIFICATION_STATUS_LABEL: Record<GamificationStatus, string> = {
+  DRAFT: 'Черновик',
+  PUBLISHED: 'Опубликовано',
+  ARCHIVED: 'В архиве',
 };
 
 export const TOURNAMENT_FORMAT_LABEL: Record<TournamentFormat, string> = {
