@@ -124,6 +124,12 @@ import {
   updateHeroGroup,
   deleteHeroGroup,
   getDotaHeroesCatalog,
+  getAchievementsPage,
+  createAchievement,
+  updateAchievement,
+  replaceAchievementConditions,
+  publishAchievement,
+  archiveAchievement,
   type LeaderboardPageParams,
   type PlayerMatchesPageParams,
   type SeasonsPageParams,
@@ -137,6 +143,7 @@ import {
   type PlayersPageParams,
   type OpenLobbiesPageParams,
   type HeroGroupsPageParams,
+  type AchievementsPageParams,
 } from './api/endpoints';
 import type {
   SessionDto,
@@ -195,6 +202,10 @@ import type {
   CreateHeroGroupRequest,
   UpdateHeroGroupRequest,
   DotaHeroDto,
+  ConditionRowDto,
+  AchievementDto,
+  CreateAchievementRequest,
+  UpdateAchievementRequest,
 } from './api/types';
 
 export const qk = {
@@ -252,6 +263,7 @@ export const qk = {
     ['notifications', 'list', page, size, unreadOnly] as const,
   heroGroups: (params: HeroGroupsPageParams) => ['hero-groups', params] as const,
   dotaHeroes: ['dota-heroes'] as const,
+  achievements: (params: AchievementsPageParams) => ['achievements', params] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -394,6 +406,67 @@ export function useDeleteHeroGroup() {
   return useMutation<void, Error, string>({
     mutationFn: deleteHeroGroup,
     onSuccess: () => invalidateHeroGroupCaches(qc),
+  });
+}
+
+// ──────────────── Achievements ────────────────
+
+export function useAchievementsList(params: AchievementsPageParams = {}) {
+  return useQuery({
+    queryKey: qk.achievements(params),
+    queryFn: () => getAchievementsPage(params),
+  });
+}
+
+function invalidateAchievementCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['achievements'] });
+}
+
+export function useCreateAchievement() {
+  const qc = useQueryClient();
+  return useMutation<AchievementDto, Error, CreateAchievementRequest>({
+    mutationFn: createAchievement,
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function useUpdateAchievement() {
+  const qc = useQueryClient();
+  return useMutation<
+    AchievementDto,
+    Error,
+    { id: string; patch: UpdateAchievementRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateAchievement(id, patch),
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function useReplaceAchievementConditions() {
+  const qc = useQueryClient();
+  return useMutation<
+    AchievementDto,
+    Error,
+    { id: string; conditions: ConditionRowDto[] }
+  >({
+    mutationFn: ({ id, conditions }) => replaceAchievementConditions(id, conditions),
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function usePublishAchievement() {
+  const qc = useQueryClient();
+  return useMutation<AchievementDto, Error, string>({
+    mutationFn: publishAchievement,
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function useArchiveAchievement() {
+  const qc = useQueryClient();
+  return useMutation<AchievementDto, Error, string>({
+    mutationFn: archiveAchievement,
+    onSuccess: () => invalidateAchievementCaches(qc),
   });
 }
 

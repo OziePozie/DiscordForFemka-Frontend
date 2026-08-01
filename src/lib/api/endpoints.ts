@@ -70,6 +70,10 @@ import type {
   CreateHeroGroupRequest,
   UpdateHeroGroupRequest,
   DotaHeroDto,
+  AchievementDto,
+  CreateAchievementRequest,
+  UpdateAchievementRequest,
+  ConditionRowDto,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -512,6 +516,64 @@ export function deleteHeroGroup(id: string): Promise<void> {
 
 export function getDotaHeroesCatalog(): Promise<DotaHeroDto[]> {
   return api<DotaHeroDto[]>('/api/v1/dota/heroes');
+}
+
+// ──────────────── Admin: Achievements ────────────────
+
+export interface AchievementsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getAchievementsPage(
+  params: AchievementsPageParams = {},
+): Promise<PagedResponse<AchievementDto>> {
+  return api<PagedResponse<AchievementDto>>(
+    `/api/v1/admin/achievements${buildQuery(params)}`,
+  );
+}
+
+export function createAchievement(
+  body: CreateAchievementRequest,
+): Promise<AchievementDto> {
+  return api<AchievementDto>('/api/v1/admin/achievements', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateAchievement(
+  id: string,
+  patch: UpdateAchievementRequest,
+): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+  );
+}
+
+export function replaceAchievementConditions(
+  id: string,
+  conditions: ConditionRowDto[],
+): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/conditions`,
+    { method: 'PUT', body: JSON.stringify(conditions) },
+  );
+}
+
+export function publishAchievement(id: string): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/publish`,
+    { method: 'POST' },
+  );
+}
+
+export function archiveAchievement(id: string): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/archive`,
+    { method: 'POST' },
+  );
 }
 
 // ──────────────── Admin Tournaments ────────────────

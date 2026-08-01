@@ -465,6 +465,24 @@ export interface DotaHeroDto {
   name: string;
 }
 
+export interface AchievementDto {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: GamificationStatus;
+  conditions: ConditionRowDto[];
+}
+
+export interface CreateAchievementRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateAchievementRequest {
+  name?: string;
+  description?: string | null;
+}
+
 // Enums (as union types)
 export type PlayerRole = S['PlayerRole'];
 export type PlayerPosition = S['PlayerPosition'];
