@@ -11,3 +11,6 @@ dist
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.js
+
+# Brainstorming visual companion mockups
+.superpowers/
