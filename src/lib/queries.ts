@@ -102,6 +102,7 @@ import {
   updateAdminMatch,
   getSeasonChampions,
   getPlayerHistory,
+  getPlayerAchievements,
   getTeamHistory,
   listOpenLobbies,
   getOpenLobby,
@@ -197,6 +198,7 @@ import type {
   ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
+  PlayerAchievementDto,
   TeamHistoryDto,
   OpenLobbyDto,
   CreateOpenLobbyRequest,
@@ -257,6 +259,7 @@ export const qk = {
   seasonChampions: (slug: string) =>
     ['season', slug, 'champions'] as const,
   playerHistory: (id: string) => ['player', id, 'history'] as const,
+  playerAchievements: (id: string) => ['player-achievements', id] as const,
   teamHistory: (id: string) => ['team', id, 'history'] as const,
   openLobbies: (params: OpenLobbiesPageParams) =>
     ['open-lobbies', params] as const,
@@ -1555,6 +1558,14 @@ export function usePlayerHistory(id: string | undefined) {
   return useQuery<PlayerHistoryDto>({
     queryKey: id ? qk.playerHistory(id) : ['player', 'none', 'history'],
     queryFn: () => getPlayerHistory(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function usePlayerAchievements(id: string | undefined) {
+  return useQuery<PlayerAchievementDto[]>({
+    queryKey: id ? qk.playerAchievements(id) : ['player-achievements', 'none'],
+    queryFn: () => getPlayerAchievements(id!),
     enabled: Boolean(id),
   });
 }

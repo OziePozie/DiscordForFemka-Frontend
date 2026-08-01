@@ -502,6 +502,14 @@ export interface UpdateQuestRequest {
   description?: string | null;
 }
 
+export interface PlayerAchievementDto {
+  achievementId: string;
+  name: string;
+  description?: string | null;
+  timesEarned: number;
+  lastEarnedAt?: string | null;
+}
+
 // Enums (as union types)
 export type PlayerRole = S['PlayerRole'];
 export type PlayerPosition = S['PlayerPosition'];

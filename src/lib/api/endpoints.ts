@@ -53,6 +53,7 @@ import type {
   ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
+  PlayerAchievementDto,
   TeamHistoryDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
@@ -1251,6 +1252,12 @@ export function getSeasonChampions(slug: string): Promise<SeasonChampionDto[]> {
 export function getPlayerHistory(id: string): Promise<PlayerHistoryDto> {
   return api<PlayerHistoryDto>(
     `/api/v1/players/${encodeURIComponent(id)}/history`,
+  );
+}
+
+export function getPlayerAchievements(id: string): Promise<PlayerAchievementDto[]> {
+  return api<PlayerAchievementDto[]>(
+    `/api/v1/players/${encodeURIComponent(id)}/achievements`,
   );
 }
 
