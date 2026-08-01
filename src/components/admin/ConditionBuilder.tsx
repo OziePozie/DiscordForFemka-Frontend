@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,14 +30,27 @@ function emptyParamsFor(type: ConditionType): Pick<ConditionRowDto, 'heroGroupId
 
 /**
  * Shared between the Achievement and Quest builders. One row per condition, all
- * ANDed together on the backend. Adding a new ConditionType later means adding one
- * more entry to CONDITION_TYPES + one more param-form branch below — nothing else
- * in this component's structure changes.
+ * ANDed together on the backend. Adding a new ConditionType that reuses the existing
+ * heroGroupId/minPlayers param shape means adding one entry to CONDITION_TYPES + one
+ * param-form branch below. A type needing a genuinely new param shape also touches
+ * emptyParamsFor's return type and ConditionRowDto in types.ts — still no change to
+ * this component's overall structure (loop + type-select + param-branch).
  */
 export function ConditionBuilder({ conditions, onChange, disabled }: Props) {
   // Small, bounded list (hero groups are admin-authored) — no pagination needed here.
   const heroGroupsQ = useHeroGroupsList({ size: 100 });
   const heroGroups = heroGroupsQ.data?.items ?? [];
+
+  // Stable per-row React keys, independent of array index — ConditionRowDto has no id
+  // of its own, and keying on index would tear down/remount the wrong row's DOM (losing
+  // focus mid-edit) whenever a row above it is removed.
+  const nextKey = useRef(0);
+  const [rowKeys, setRowKeys] = useState<number[]>(() => conditions.map(() => nextKey.current++));
+  if (rowKeys.length !== conditions.length) {
+    // A new editing session started (parent replaced `conditions` wholesale, e.g. the
+    // dialog reopened for a different achievement/quest) — resync key count.
+    setRowKeys(conditions.map(() => nextKey.current++));
+  }
 
   function updateRow(index: number, row: ConditionRowDto) {
     const next = [...conditions];
@@ -46,16 +60,18 @@ export function ConditionBuilder({ conditions, onChange, disabled }: Props) {
 
   function removeRow(index: number) {
     onChange(conditions.filter((_, i) => i !== index));
+    setRowKeys((keys) => keys.filter((_, i) => i !== index));
   }
 
   function addRow() {
     onChange([...conditions, { type: 'HERO_POOL', ...emptyParamsFor('HERO_POOL') }]);
+    setRowKeys((keys) => [...keys, nextKey.current++]);
   }
 
   return (
     <div className="space-y-3">
       {conditions.map((row, i) => (
-        <div key={i} className="space-y-2 rounded-md border p-3">
+        <div key={rowKeys[i] ?? i} className="space-y-2 rounded-md border p-3">
           <div className="flex items-center justify-between gap-2">
             <Select
               value={row.type}
@@ -115,9 +131,18 @@ export function ConditionBuilder({ conditions, onChange, disabled }: Props) {
                   min={1}
                   max={5}
                   value={row.minPlayers ?? ''}
-                  onChange={(e) =>
-                    updateRow(i, { ...row, minPlayers: Number(e.target.value) || null })
-                  }
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      updateRow(i, { ...row, minPlayers: null });
+                      return;
+                    }
+                    const n = Number(raw);
+                    updateRow(i, {
+                      ...row,
+                      minPlayers: Number.isNaN(n) ? null : Math.min(5, Math.max(1, n)),
+                    });
+                  }}
                   disabled={disabled}
                 />
               </div>
