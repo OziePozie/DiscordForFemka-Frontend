@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, Mail, Menu, User, Users, X } from 'lucide-react';
 import {
@@ -27,6 +27,8 @@ export default function Header() {
   const logout = useLogout();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => setIsMenuOpen(false), [location.pathname]);
 
   const isStaff = !!session?.roles?.some(
     (r) => r === 'MODERATOR' || r === 'ADMIN',
