@@ -676,7 +676,7 @@ export default function MatchDetailsPage() {
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 border-b border-line pb-8">
         <TeamBlock team={m.teamA} align="left" highlight={aWin} finished={finished} />
         <div className="flex flex-col items-center">
-          <div className="ec-display flex items-baseline gap-3 text-[4rem] leading-none">
+          <div className="ec-display flex items-baseline gap-2 text-[2.5rem] leading-none sm:gap-3 sm:text-[4rem]">
             <span className={finished && !aWin ? 'text-ink-disabled' : 'text-ink'}>
               {m.scoreA}
             </span>
