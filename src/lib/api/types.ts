@@ -483,6 +483,25 @@ export interface UpdateAchievementRequest {
   description?: string | null;
 }
 
+export interface QuestDto {
+  id: string;
+  tournamentId: string;
+  name: string;
+  description?: string | null;
+  status: GamificationStatus;
+  conditions: ConditionRowDto[];
+}
+
+export interface CreateQuestRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateQuestRequest {
+  name?: string;
+  description?: string | null;
+}
+
 // Enums (as union types)
 export type PlayerRole = S['PlayerRole'];
 export type PlayerPosition = S['PlayerPosition'];

@@ -74,6 +74,9 @@ import type {
   CreateAchievementRequest,
   UpdateAchievementRequest,
   ConditionRowDto,
+  QuestDto,
+  CreateQuestRequest,
+  UpdateQuestRequest,
 } from './types';
 
 export async function getSession(): Promise<SessionDto | null> {
@@ -574,6 +577,64 @@ export function archiveAchievement(id: string): Promise<AchievementDto> {
     `/api/v1/admin/achievements/${encodeURIComponent(id)}/archive`,
     { method: 'POST' },
   );
+}
+
+// ──────────────── Admin: Tournament quests ────────────────
+
+export interface QuestsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getTournamentQuestsPage(
+  tournamentId: string,
+  params: QuestsPageParams = {},
+): Promise<PagedResponse<QuestDto>> {
+  return api<PagedResponse<QuestDto>>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/quests${buildQuery(params)}`,
+  );
+}
+
+export function createQuest(
+  tournamentId: string,
+  body: CreateQuestRequest,
+): Promise<QuestDto> {
+  return api<QuestDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/quests`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function updateQuest(
+  id: string,
+  patch: UpdateQuestRequest,
+): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function replaceQuestConditions(
+  id: string,
+  conditions: ConditionRowDto[],
+): Promise<QuestDto> {
+  return api<QuestDto>(
+    `/api/v1/admin/quests/${encodeURIComponent(id)}/conditions`,
+    { method: 'PUT', body: JSON.stringify(conditions) },
+  );
+}
+
+export function publishQuest(id: string): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+  });
+}
+
+export function archiveQuest(id: string): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+  });
 }
 
 // ──────────────── Admin Tournaments ────────────────
