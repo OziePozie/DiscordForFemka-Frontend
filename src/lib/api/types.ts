@@ -673,3 +673,61 @@ export const OPEN_LOBBY_STATUS_LABEL: Record<OpenLobbyStatus, string> = {
   CANCELLED: 'Отменено',
   EXPIRED: 'Истекло',
 };
+
+// --- Telegram Mini App ---
+export type TelegramInitRequest = S['TelegramInitRequest'];
+export type TelegramClaimRequest = S['TelegramClaimRequest'];
+export type TelegramInitResponse = S['TelegramInitResponse'];
+
+// --- Profile privacy ---
+export type ProfileFieldKey = S['ProfileFieldKey'];
+export type FieldVisibility = S['FieldVisibility'];
+export type PrivacySettings = Partial<Record<ProfileFieldKey, FieldVisibility>>;
+
+export const PROFILE_FIELD_KEYS: ProfileFieldKey[] = [
+  'MMR',
+  'POSITIONS',
+  'COUNTRY',
+  'DOTA_LINKS',
+  'TELEGRAM',
+  'DISCORD',
+  'TWITCH',
+  'NICKNAME_HISTORY',
+];
+
+export const PROFILE_FIELD_LABEL: Record<ProfileFieldKey, string> = {
+  COUNTRY: 'Страна',
+  MMR: 'MMR',
+  POSITIONS: 'Позиции',
+  DOTA_LINKS: 'Dotabuff / Stratz',
+  DISCORD: 'Discord',
+  TWITCH: 'Twitch',
+  TELEGRAM: 'Telegram',
+  NICKNAME_HISTORY: 'История никнеймов',
+};
+
+export const FIELD_VISIBILITY_LABEL: Record<FieldVisibility, string> = {
+  PUBLIC: 'Всем',
+  PLAYERS: 'Игрокам',
+  PRIVATE: 'Только мне',
+};
+
+// --- Access codes ---
+export type CodeType = S['CodeType'];
+export type CodeStatus = S['CodeStatus'];
+export type AccessCodeDto = S['AccessCodeDto'];
+export type IssuedCodeDto = S['IssuedCodeDto'];
+export type IssueCodeRequest = S['IssueCodeRequest'];
+
+export const CODE_TYPE_LABEL: Record<CodeType, string> = {
+  AUTH: 'Привязка профиля',
+  START_RATING: 'Стартовая оценка',
+  TOURNAMENT_RATING: 'Турнирная оценка',
+};
+
+export const CODE_STATUS_LABEL: Record<CodeStatus, string> = {
+  ACTIVE: 'Активен',
+  USED: 'Использован',
+  REVOKED: 'Отозван',
+  EXPIRED: 'Истёк',
+};

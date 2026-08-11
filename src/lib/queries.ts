@@ -131,8 +131,15 @@ import {
   type AdminAuditPageParams,
   type PlayersPageParams,
   type OpenLobbiesPageParams,
+  getAccessCodesPage,
+  issueAccessCode,
+  revokeAccessCode,
+  type AccessCodesPageParams,
 } from './api/endpoints';
 import type {
+  AccessCodeDto,
+  IssuedCodeDto,
+  IssueCodeRequest,
   SessionDto,
   MeDto,
   UpdateMeRequest,
@@ -221,6 +228,9 @@ export const qk = {
     ['adminAudit', params] as const,
   adminBots: ['adminBots'] as const,
   adminLobbies: ['adminLobbies'] as const,
+  adminCodes: ['adminCodes'] as const,
+  adminCodesPage: (params: AccessCodesPageParams) =>
+    ['adminCodes', params] as const,
   teamInvites: (teamId: string) => ['team', teamId, 'invites'] as const,
   playersPage: (params: PlayersPageParams) => ['players', params] as const,
   seasonChampions: (slug: string) =>
@@ -1548,6 +1558,39 @@ export function useMarkAllNotificationsRead() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.notificationsUnread });
       qc.invalidateQueries({ queryKey: ['notifications', 'list'] });
+    },
+  });
+}
+
+// ──────────────── Admin: access codes ────────────────
+
+export function useAdminCodes(params: AccessCodesPageParams = {}) {
+  return useQuery({
+    queryKey: qk.adminCodesPage(params),
+    queryFn: () => getAccessCodesPage(params),
+  });
+}
+
+export function useIssueAccessCode() {
+  const qc = useQueryClient();
+  return useMutation<
+    IssuedCodeDto,
+    Error,
+    { playerId: string; body?: IssueCodeRequest }
+  >({
+    mutationFn: ({ playerId, body }) => issueAccessCode(playerId, body ?? {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminCodes });
+    },
+  });
+}
+
+export function useRevokeAccessCode() {
+  const qc = useQueryClient();
+  return useMutation<AccessCodeDto, Error, string>({
+    mutationFn: (id) => revokeAccessCode(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.adminCodes });
     },
   });
 }

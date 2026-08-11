@@ -23,6 +23,7 @@ import AdminMatchesPage from '@/pages/admin/AdminMatchesPage';
 import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 import AdminBotsPage from '@/pages/admin/AdminBotsPage';
 import AdminLobbiesPage from '@/pages/admin/AdminLobbiesPage';
+import AdminCodesPage from '@/pages/admin/AdminCodesPage';
 import ArchivePage from '@/pages/ArchivePage';
 import LeaderboardPage from '@/pages/LeaderboardPage';
 

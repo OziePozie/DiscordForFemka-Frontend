@@ -66,7 +66,89 @@ import type {
   NotificationDto,
   TournamentTeamAdminDto,
   RejectTeamRequest,
+  TelegramInitResponse,
+  PrivacySettings,
+  AccessCodeDto,
+  IssuedCodeDto,
+  IssueCodeRequest,
+  CodeStatus,
+  CodeType,
 } from './types';
+
+// ──────────────── Telegram Mini App ────────────────
+
+/**
+ * Логин по подписанной Telegram initData. Вызывается при каждом открытии
+ * Mini App: cookie сессии в вебвью (особенно на iOS) ненадёжна, а повторный
+ * вызов идемпотентен.
+ */
+export function telegramInit(initData: string): Promise<TelegramInitResponse> {
+  return api<TelegramInitResponse>('/oauth/telegram/init', {
+    method: 'POST',
+    body: JSON.stringify({ initData }),
+  });
+}
+
+/** Привязка профиля по одноразовому AUTH-коду. */
+export function telegramClaim(
+  initData: string,
+  code: string,
+): Promise<TelegramInitResponse> {
+  return api<TelegramInitResponse>('/oauth/telegram/claim', {
+    method: 'POST',
+    body: JSON.stringify({ initData, code }),
+  });
+}
+
+// ──────────────── Profile privacy ────────────────
+
+export function getPrivacySettings(): Promise<PrivacySettings> {
+  return api<PrivacySettings>('/api/v1/me/privacy');
+}
+
+export function updatePrivacySettings(
+  changes: PrivacySettings,
+): Promise<PrivacySettings> {
+  return api<PrivacySettings>('/api/v1/me/privacy', {
+    method: 'PUT',
+    body: JSON.stringify(changes),
+  });
+}
+
+// ──────────────── Admin: access codes ────────────────
+
+export function issueAccessCode(
+  playerId: string,
+  body: IssueCodeRequest = {},
+): Promise<IssuedCodeDto> {
+  return api<IssuedCodeDto>(
+    `/api/v1/admin/players/${encodeURIComponent(playerId)}/codes`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export interface AccessCodesPageParams {
+  playerId?: string;
+  status?: CodeStatus;
+  type?: CodeType;
+  page?: number;
+  size?: number;
+}
+
+export function getAccessCodesPage(
+  params: AccessCodesPageParams = {},
+): Promise<PagedResponse<AccessCodeDto>> {
+  return api<PagedResponse<AccessCodeDto>>(
+    `/api/v1/admin/codes${buildQuery(params)}`,
+  );
+}
+
+export function revokeAccessCode(id: string): Promise<AccessCodeDto> {
+  return api<AccessCodeDto>(
+    `/api/v1/admin/codes/${encodeURIComponent(id)}/revoke`,
+    { method: 'POST' },
+  );
+}
 
 export async function getSession(): Promise<SessionDto | null> {
   // Backend may return either body `null` or HTTP 200 with literal null in body.
@@ -123,6 +205,9 @@ export interface PlayersPageParams {
   country?: string;
   role?: string;
   activity?: 'active' | 'inactive' | 'all';
+  /** Границы MMR применяются к текущему MMR игрока (включительно). */
+  mmrMin?: number;
+  mmrMax?: number;
   page?: number;
   size?: number;
 }

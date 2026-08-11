@@ -74,6 +74,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/telegram/init": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Аутентификация Mini App по initData
+         * @description Проверяет подпись Telegram WebApp initData. Если Telegram-аккаунт привязан к игроку — устанавливает сессию (LINKED), иначе возвращает UNLINKED для экрана ввода кода. CSRF не требуется (подпись initData — сама по себе proof).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TelegramInitRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramInitResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/telegram/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Привязка профиля по AUTH-коду
+         * @description Проверяет initData, гасит одноразовый AUTH-код, привязывает Telegram к игроку кода (снимая stub), устанавливает сессию.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TelegramClaimRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramInitResponse"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/links/{provider}": {
         parameters: {
             query?: never;
@@ -90,7 +181,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "discord" | "twitch";
+                    provider: "discord" | "twitch" | "telegram";
                 };
                 cookie?: never;
             };
@@ -173,6 +264,75 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/me/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Настройки приватности профиля
+         * @description Эффективная видимость по каждому полю (дефолты + явные переопределения).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PrivacySettings"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        /**
+         * Изменить настройки приватности
+         * @description Применяет переданные поля (отсутствующие не меняются) и возвращает эффективные настройки.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PrivacySettings"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PrivacySettings"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/avatar": {
         parameters: {
             query?: never;
@@ -232,6 +392,10 @@ export interface paths {
                     country?: string;
                     role?: components["schemas"]["PlayerPosition"];
                     activity?: "active" | "inactive" | "all";
+                    /** @description Минимальный MMR (включительно) */
+                    mmrMin?: number;
+                    /** @description Максимальный MMR (включительно) */
+                    mmrMax?: number;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                     sort?: components["parameters"]["Sort"];
@@ -972,6 +1136,139 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/players/{id}/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Выдать одноразовый код игроку
+         * @description Возвращает plaintext-код ровно один раз (в базе хранится только SHA-256-хеш). Предыдущий ACTIVE-код того же типа автоматически отзывается.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["IssueCodeRequest"];
+                };
+            };
+            responses: {
+                /** @description код выпущен */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssuedCodeDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список кодов */
+        get: {
+            parameters: {
+                query?: {
+                    playerId?: string;
+                    status?: components["schemas"]["CodeStatus"];
+                    type?: components["schemas"]["CodeType"];
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["AccessCodeDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/codes/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отозвать код */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccessCodeDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -5234,6 +5531,8 @@ export interface components {
             /** Format: int64 */
             discordId?: string | null;
             twitchLogin?: string | null;
+            /** @description Telegram-логин; по умолчанию скрыт от анонимных зрителей. */
+            telegramUsername?: string | null;
             dotabuffUrl?: string | null;
             stratzUrl?: string | null;
             teams?: components["schemas"]["TeamMembershipDto"][];
@@ -5246,6 +5545,81 @@ export interface components {
             nickname?: string | null;
             /** Format: date-time */
             changedAt: string;
+        };
+        /**
+         * @description Поля профиля с управляемой видимостью.
+         * @enum {string}
+         */
+        ProfileFieldKey: "COUNTRY" | "MMR" | "POSITIONS" | "DOTA_LINKS" | "DISCORD" | "TWITCH" | "TELEGRAM" | "NICKNAME_HISTORY";
+        /**
+         * @description PUBLIC — все; PLAYERS — зарегистрированные игроки; PRIVATE — владелец и администрация.
+         * @enum {string}
+         */
+        FieldVisibility: "PUBLIC" | "PLAYERS" | "PRIVATE";
+        /** @description Карта «поле профиля → уровень видимости». */
+        PrivacySettings: {
+            [key: string]: components["schemas"]["FieldVisibility"];
+        };
+        TelegramInitRequest: {
+            /** @description Сырая строка window.Telegram.WebApp.initData */
+            initData: string;
+        };
+        TelegramClaimRequest: {
+            initData: string;
+            /** @example 7K2M-9PQR-X4VZ */
+            code: string;
+        };
+        TelegramInitResponse: {
+            /** @enum {string} */
+            status: "LINKED" | "UNLINKED";
+            session?: components["schemas"]["SessionDto"] | null;
+            telegramUsername?: string | null;
+        };
+        /** @enum {string} */
+        CodeType: "AUTH" | "START_RATING" | "TOURNAMENT_RATING";
+        /** @enum {string} */
+        CodeStatus: "ACTIVE" | "USED" | "REVOKED" | "EXPIRED";
+        IssueCodeRequest: {
+            type?: components["schemas"]["CodeType"] | null;
+            /** @description null или 0 — код без срока действия */
+            ttlHours?: number | null;
+        };
+        IssuedCodeDto: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description Показывается один раз и не восстанавливается
+             * @example 7K2M-9PQR-X4VZ
+             */
+            code: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+        };
+        AccessCodeDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description Последние 4 символа кода */
+            codeHint?: string | null;
+            codeType: components["schemas"]["CodeType"];
+            status: components["schemas"]["CodeStatus"];
+            /** Format: uuid */
+            playerId: string;
+            /** Format: uuid */
+            issuedBy?: string | null;
+            /** Format: uuid */
+            usedBy?: string | null;
+            /** Format: uuid */
+            revokedBy?: string | null;
+            /** Format: int64 */
+            usedTelegramId?: number | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            usedAt?: string | null;
+            /** Format: date-time */
+            revokedAt?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
         };
         /**
          * @description Внутренний ранг по порогам рейтинга.
