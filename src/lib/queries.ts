@@ -102,6 +102,7 @@ import {
   updateAdminMatch,
   getSeasonChampions,
   getPlayerHistory,
+  getPlayerAchievements,
   getTeamHistory,
   listOpenLobbies,
   getOpenLobby,
@@ -119,6 +120,23 @@ import {
   getUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
+  getHeroGroupsPage,
+  createHeroGroup,
+  updateHeroGroup,
+  deleteHeroGroup,
+  getDotaHeroesCatalog,
+  getAchievementsPage,
+  createAchievement,
+  updateAchievement,
+  replaceAchievementConditions,
+  publishAchievement,
+  archiveAchievement,
+  getTournamentQuestsPage,
+  createQuest,
+  updateQuest,
+  replaceQuestConditions,
+  publishQuest,
+  archiveQuest,
   type LeaderboardPageParams,
   type PlayerMatchesPageParams,
   type SeasonsPageParams,
@@ -135,6 +153,9 @@ import {
   issueAccessCode,
   revokeAccessCode,
   type AccessCodesPageParams,
+  type HeroGroupsPageParams,
+  type AchievementsPageParams,
+  type QuestsPageParams,
 } from './api/endpoints';
 import type {
   AccessCodeDto,
@@ -184,6 +205,7 @@ import type {
   ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
+  PlayerAchievementDto,
   TeamHistoryDto,
   OpenLobbyDto,
   CreateOpenLobbyRequest,
@@ -192,6 +214,17 @@ import type {
   LeaderboardEntryDto,
   PlayerRatingDto,
   PlayerStatsDto,
+  HeroGroupDto,
+  CreateHeroGroupRequest,
+  UpdateHeroGroupRequest,
+  DotaHeroDto,
+  ConditionRowDto,
+  AchievementDto,
+  CreateAchievementRequest,
+  UpdateAchievementRequest,
+  QuestDto,
+  CreateQuestRequest,
+  UpdateQuestRequest,
 } from './api/types';
 
 export const qk = {
@@ -236,6 +269,7 @@ export const qk = {
   seasonChampions: (slug: string) =>
     ['season', slug, 'champions'] as const,
   playerHistory: (id: string) => ['player', id, 'history'] as const,
+  playerAchievements: (id: string) => ['player-achievements', id] as const,
   teamHistory: (id: string) => ['team', id, 'history'] as const,
   openLobbies: (params: OpenLobbiesPageParams) =>
     ['open-lobbies', params] as const,
@@ -250,6 +284,11 @@ export const qk = {
   notificationsUnread: ['notifications', 'unread'] as const,
   notificationsList: (page: number, size: number, unreadOnly: boolean) =>
     ['notifications', 'list', page, size, unreadOnly] as const,
+  heroGroups: (params: HeroGroupsPageParams) => ['hero-groups', params] as const,
+  dotaHeroes: ['dota-heroes'] as const,
+  achievements: (params: AchievementsPageParams) => ['achievements', params] as const,
+  tournamentQuests: (tournamentId: string, params: QuestsPageParams) =>
+    ['tournament-quests', tournamentId, params] as const,
 };
 
 export function useSession(): UseQueryResult<SessionDto | null> {
@@ -343,6 +382,183 @@ export function useSeason(slug: string | undefined) {
     queryKey: slug ? qk.season(slug) : ['season', 'none'],
     queryFn: () => getSeasonBySlug(slug!),
     enabled: Boolean(slug),
+  });
+}
+
+// ──────────────── Hero groups & heroes catalog ────────────────
+
+export function useHeroGroupsList(params: HeroGroupsPageParams = {}) {
+  return useQuery({
+    queryKey: qk.heroGroups(params),
+    queryFn: () => getHeroGroupsPage(params),
+  });
+}
+
+export function useDotaHeroesCatalog() {
+  return useQuery({
+    queryKey: qk.dotaHeroes,
+    queryFn: getDotaHeroesCatalog,
+    staleTime: Infinity, // static reference data, never changes at runtime
+  });
+}
+
+function invalidateHeroGroupCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['hero-groups'] });
+}
+
+export function useCreateHeroGroup() {
+  const qc = useQueryClient();
+  return useMutation<HeroGroupDto, Error, CreateHeroGroupRequest>({
+    mutationFn: createHeroGroup,
+    onSuccess: () => invalidateHeroGroupCaches(qc),
+  });
+}
+
+export function useUpdateHeroGroup() {
+  const qc = useQueryClient();
+  return useMutation<
+    HeroGroupDto,
+    Error,
+    { id: string; patch: UpdateHeroGroupRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateHeroGroup(id, patch),
+    onSuccess: () => invalidateHeroGroupCaches(qc),
+  });
+}
+
+export function useDeleteHeroGroup() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: deleteHeroGroup,
+    onSuccess: () => invalidateHeroGroupCaches(qc),
+  });
+}
+
+// ──────────────── Achievements ────────────────
+
+export function useAchievementsList(params: AchievementsPageParams = {}) {
+  return useQuery({
+    queryKey: qk.achievements(params),
+    queryFn: () => getAchievementsPage(params),
+  });
+}
+
+function invalidateAchievementCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['achievements'] });
+}
+
+export function useCreateAchievement() {
+  const qc = useQueryClient();
+  return useMutation<AchievementDto, Error, CreateAchievementRequest>({
+    mutationFn: createAchievement,
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function useUpdateAchievement() {
+  const qc = useQueryClient();
+  return useMutation<
+    AchievementDto,
+    Error,
+    { id: string; patch: UpdateAchievementRequest }
+  >({
+    mutationFn: ({ id, patch }) => updateAchievement(id, patch),
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function useReplaceAchievementConditions() {
+  const qc = useQueryClient();
+  return useMutation<
+    AchievementDto,
+    Error,
+    { id: string; conditions: ConditionRowDto[] }
+  >({
+    mutationFn: ({ id, conditions }) => replaceAchievementConditions(id, conditions),
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function usePublishAchievement() {
+  const qc = useQueryClient();
+  return useMutation<AchievementDto, Error, string>({
+    mutationFn: publishAchievement,
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+export function useArchiveAchievement() {
+  const qc = useQueryClient();
+  return useMutation<AchievementDto, Error, string>({
+    mutationFn: archiveAchievement,
+    onSuccess: () => invalidateAchievementCaches(qc),
+  });
+}
+
+// ──────────────── Tournament quests ────────────────
+
+export function useTournamentQuestsList(
+  tournamentId: string | undefined,
+  params: QuestsPageParams = {},
+) {
+  return useQuery({
+    queryKey: tournamentId
+      ? qk.tournamentQuests(tournamentId, params)
+      : ['tournament-quests', 'none', params],
+    queryFn: () => getTournamentQuestsPage(tournamentId!, params),
+    enabled: Boolean(tournamentId),
+  });
+}
+
+function invalidateQuestCaches(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ['tournament-quests'] });
+}
+
+export function useCreateQuest() {
+  const qc = useQueryClient();
+  return useMutation<
+    QuestDto,
+    Error,
+    { tournamentId: string; body: CreateQuestRequest }
+  >({
+    mutationFn: ({ tournamentId, body }) => createQuest(tournamentId, body),
+    onSuccess: () => invalidateQuestCaches(qc),
+  });
+}
+
+export function useUpdateQuest() {
+  const qc = useQueryClient();
+  return useMutation<QuestDto, Error, { id: string; patch: UpdateQuestRequest }>({
+    mutationFn: ({ id, patch }) => updateQuest(id, patch),
+    onSuccess: () => invalidateQuestCaches(qc),
+  });
+}
+
+export function useReplaceQuestConditions() {
+  const qc = useQueryClient();
+  return useMutation<
+    QuestDto,
+    Error,
+    { id: string; conditions: ConditionRowDto[] }
+  >({
+    mutationFn: ({ id, conditions }) => replaceQuestConditions(id, conditions),
+    onSuccess: () => invalidateQuestCaches(qc),
+  });
+}
+
+export function usePublishQuest() {
+  const qc = useQueryClient();
+  return useMutation<QuestDto, Error, string>({
+    mutationFn: publishQuest,
+    onSuccess: () => invalidateQuestCaches(qc),
+  });
+}
+
+export function useArchiveQuest() {
+  const qc = useQueryClient();
+  return useMutation<QuestDto, Error, string>({
+    mutationFn: archiveQuest,
+    onSuccess: () => invalidateQuestCaches(qc),
   });
 }
 
@@ -1352,6 +1568,14 @@ export function usePlayerHistory(id: string | undefined) {
   return useQuery<PlayerHistoryDto>({
     queryKey: id ? qk.playerHistory(id) : ['player', 'none', 'history'],
     queryFn: () => getPlayerHistory(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function usePlayerAchievements(id: string | undefined) {
+  return useQuery<PlayerAchievementDto[]>({
+    queryKey: id ? qk.playerAchievements(id) : ['player-achievements', 'none'],
+    queryFn: () => getPlayerAchievements(id!),
     enabled: Boolean(id),
   });
 }

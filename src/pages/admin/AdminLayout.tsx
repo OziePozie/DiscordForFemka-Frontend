@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 const NAV: Array<{ to: string; label: string; disabled?: boolean }> = [
   { to: '/admin/mmr', label: 'MMR-заявки' },
   { to: '/admin/seasons', label: 'Сцены' },
+  { to: '/admin/hero-groups', label: 'Группы героев' },
+  { to: '/admin/achievements', label: 'Достижения' },
   { to: '/admin/tournaments', label: 'Турниры' },
   { to: '/admin/matches', label: 'Матчи' },
   { to: '/admin/players', label: 'Игроки' },

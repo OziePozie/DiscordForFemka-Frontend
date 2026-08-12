@@ -24,6 +24,8 @@ import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 import AdminBotsPage from '@/pages/admin/AdminBotsPage';
 import AdminLobbiesPage from '@/pages/admin/AdminLobbiesPage';
 import AdminCodesPage from '@/pages/admin/AdminCodesPage';
+import AdminHeroGroupsPage from '@/pages/admin/AdminHeroGroupsPage';
+import AdminAchievementsPage from '@/pages/admin/AdminAchievementsPage';
 import ArchivePage from '@/pages/ArchivePage';
 import LeaderboardPage from '@/pages/LeaderboardPage';
 
@@ -85,6 +87,9 @@ export default function App() {
           <Route path="audit" element={<AdminAuditPage />} />
           <Route path="bots" element={<AdminBotsPage />} />
           <Route path="lobbies" element={<AdminLobbiesPage />} />
+          <Route path="codes" element={<AdminCodesPage />} />
+          <Route path="hero-groups" element={<AdminHeroGroupsPage />} />
+          <Route path="achievements" element={<AdminAchievementsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

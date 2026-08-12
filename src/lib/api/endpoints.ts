@@ -53,6 +53,7 @@ import type {
   ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
+  PlayerAchievementDto,
   TeamHistoryDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
@@ -73,6 +74,17 @@ import type {
   IssueCodeRequest,
   CodeStatus,
   CodeType,
+  HeroGroupDto,
+  CreateHeroGroupRequest,
+  UpdateHeroGroupRequest,
+  DotaHeroDto,
+  AchievementDto,
+  CreateAchievementRequest,
+  UpdateAchievementRequest,
+  ConditionRowDto,
+  QuestDto,
+  CreateQuestRequest,
+  UpdateQuestRequest,
 } from './types';
 
 // ──────────────── Telegram Mini App ────────────────
@@ -547,6 +559,168 @@ export function finishSeason(id: string): Promise<SeasonDto> {
     `/api/v1/admin/seasons/${encodeURIComponent(id)}/finish`,
     { method: 'POST' },
   );
+}
+
+// ──────────────── Admin: Hero groups ────────────────
+
+export interface HeroGroupsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getHeroGroupsPage(
+  params: HeroGroupsPageParams = {},
+): Promise<PagedResponse<HeroGroupDto>> {
+  return api<PagedResponse<HeroGroupDto>>(
+    `/api/v1/admin/hero-groups${buildQuery(params)}`,
+  );
+}
+
+export function createHeroGroup(
+  body: CreateHeroGroupRequest,
+): Promise<HeroGroupDto> {
+  return api<HeroGroupDto>('/api/v1/admin/hero-groups', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateHeroGroup(
+  id: string,
+  patch: UpdateHeroGroupRequest,
+): Promise<HeroGroupDto> {
+  return api<HeroGroupDto>(
+    `/api/v1/admin/hero-groups/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+  );
+}
+
+export function deleteHeroGroup(id: string): Promise<void> {
+  return api<void>(`/api/v1/admin/hero-groups/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ──────────────── Dota heroes catalog ────────────────
+
+export function getDotaHeroesCatalog(): Promise<DotaHeroDto[]> {
+  return api<DotaHeroDto[]>('/api/v1/dota/heroes');
+}
+
+// ──────────────── Admin: Achievements ────────────────
+
+export interface AchievementsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getAchievementsPage(
+  params: AchievementsPageParams = {},
+): Promise<PagedResponse<AchievementDto>> {
+  return api<PagedResponse<AchievementDto>>(
+    `/api/v1/admin/achievements${buildQuery(params)}`,
+  );
+}
+
+export function createAchievement(
+  body: CreateAchievementRequest,
+): Promise<AchievementDto> {
+  return api<AchievementDto>('/api/v1/admin/achievements', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateAchievement(
+  id: string,
+  patch: UpdateAchievementRequest,
+): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+  );
+}
+
+export function replaceAchievementConditions(
+  id: string,
+  conditions: ConditionRowDto[],
+): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/conditions`,
+    { method: 'PUT', body: JSON.stringify(conditions) },
+  );
+}
+
+export function publishAchievement(id: string): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/publish`,
+    { method: 'POST' },
+  );
+}
+
+export function archiveAchievement(id: string): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/archive`,
+    { method: 'POST' },
+  );
+}
+
+// ──────────────── Admin: Tournament quests ────────────────
+
+export interface QuestsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getTournamentQuestsPage(
+  tournamentId: string,
+  params: QuestsPageParams = {},
+): Promise<PagedResponse<QuestDto>> {
+  return api<PagedResponse<QuestDto>>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/quests${buildQuery(params)}`,
+  );
+}
+
+export function createQuest(
+  tournamentId: string,
+  body: CreateQuestRequest,
+): Promise<QuestDto> {
+  return api<QuestDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/quests`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function updateQuest(
+  id: string,
+  patch: UpdateQuestRequest,
+): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function replaceQuestConditions(
+  id: string,
+  conditions: ConditionRowDto[],
+): Promise<QuestDto> {
+  return api<QuestDto>(
+    `/api/v1/admin/quests/${encodeURIComponent(id)}/conditions`,
+    { method: 'PUT', body: JSON.stringify(conditions) },
+  );
+}
+
+export function publishQuest(id: string): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+  });
+}
+
+export function archiveQuest(id: string): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+  });
 }
 
 // ──────────────── Admin Tournaments ────────────────
@@ -1163,6 +1337,12 @@ export function getSeasonChampions(slug: string): Promise<SeasonChampionDto[]> {
 export function getPlayerHistory(id: string): Promise<PlayerHistoryDto> {
   return api<PlayerHistoryDto>(
     `/api/v1/players/${encodeURIComponent(id)}/history`,
+  );
+}
+
+export function getPlayerAchievements(id: string): Promise<PlayerAchievementDto[]> {
+  return api<PlayerAchievementDto[]>(
+    `/api/v1/players/${encodeURIComponent(id)}/achievements`,
   );
 }
 
