@@ -49,6 +49,53 @@ paths:
       responses:
         "204": { description: ок }
 
+  # =================== TELEGRAM MINI APP ===================
+  /oauth/telegram/init:
+    post:
+      tags: [Auth]
+      summary: Аутентификация Mini App по initData
+      description: >
+        Проверяет подпись Telegram WebApp initData. Если Telegram-аккаунт привязан
+        к игроку — устанавливает сессию (LINKED), иначе возвращает UNLINKED для
+        экрана ввода кода. CSRF не требуется (подпись initData — сама по себе proof).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TelegramInitRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TelegramInitResponse" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /oauth/telegram/claim:
+    post:
+      tags: [Auth]
+      summary: Привязка профиля по AUTH-коду
+      description: >
+        Проверяет initData, гасит одноразовый AUTH-код, привязывает Telegram к
+        игроку кода (снимая stub), устанавливает сессию.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TelegramClaimRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TelegramInitResponse" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /api/v1/me/links/{provider}:
     delete:
       tags: [Auth]
@@ -57,7 +104,7 @@ paths:
         - in: path
           name: provider
           required: true
-          schema: { type: string, enum: [discord, twitch] }
+          schema: { type: string, enum: [discord, twitch, telegram] }
       responses:
         "204": { description: ок }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -89,6 +136,36 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MeDto" }
         "400": { $ref: "#/components/responses/Validation" }
+
+  /api/v1/me/privacy:
+    get:
+      tags: [Player]
+      summary: Настройки приватности профиля
+      description: Эффективная видимость по каждому полю (дефолты + явные переопределения).
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivacySettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    put:
+      tags: [Player]
+      summary: Изменить настройки приватности
+      description: Применяет переданные поля (отсутствующие не меняются) и возвращает эффективные настройки.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrivacySettings" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivacySettings" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
 
   /api/v1/me/avatar:
     post:
@@ -129,6 +206,14 @@ paths:
         - in: query
           name: activity
           schema: { type: string, enum: [active, inactive, all], default: all }
+        - in: query
+          name: mmrMin
+          description: Минимальный MMR (включительно)
+          schema: { type: integer }
+        - in: query
+          name: mmrMax
+          description: Максимальный MMR (включительно)
+          schema: { type: integer }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - $ref: "#/components/parameters/Sort"
@@ -512,6 +597,75 @@ paths:
               schema: { $ref: "#/components/schemas/PlayerAdminDto" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  # =================== ADMIN ACCESS CODES ===================
+  /api/v1/admin/players/{id}/codes:
+    post:
+      tags: [Admin, AccessCode]
+      summary: Выдать одноразовый код игроку
+      description: >
+        Возвращает plaintext-код ровно один раз (в базе хранится только SHA-256-хеш).
+        Предыдущий ACTIVE-код того же типа автоматически отзывается.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueCodeRequest" }
+      responses:
+        "201":
+          description: код выпущен
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IssuedCodeDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/codes:
+    get:
+      tags: [Admin, AccessCode]
+      summary: Список кодов
+      parameters:
+        - in: query
+          name: playerId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/CodeStatus" }
+        - in: query
+          name: type
+          schema: { $ref: "#/components/schemas/CodeType" }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/AccessCodeDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/codes/{id}/revoke:
+    post:
+      tags: [Admin, AccessCode]
+      summary: Отозвать код
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessCodeDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/admin/mmr/requests:
     get:
@@ -2539,6 +2693,7 @@ components:
         activity:        { $ref: "#/components/schemas/ActivityStatus" }
         discordId:       { type: string, format: int64, pattern: '^[0-9]+$', nullable: true }
         twitchLogin:     { type: string, nullable: true }
+        telegramUsername: { type: string, nullable: true, description: "Telegram-логин; по умолчанию скрыт от анонимных зрителей." }
         dotabuffUrl:     { type: string, nullable: true }
         stratzUrl:       { type: string, nullable: true }
         teams:           { type: array, items: { $ref: "#/components/schemas/TeamMembershipDto" } }
@@ -2551,6 +2706,77 @@ components:
       properties:
         nickname:        { type: string, nullable: true }
         changedAt:       { type: string, format: date-time }
+
+    # ---- Privacy ----
+    ProfileFieldKey:
+      type: string
+      description: Поля профиля с управляемой видимостью.
+      enum: [COUNTRY, MMR, POSITIONS, DOTA_LINKS, DISCORD, TWITCH, TELEGRAM, NICKNAME_HISTORY]
+    FieldVisibility:
+      type: string
+      description: PUBLIC — все; PLAYERS — зарегистрированные игроки; PRIVATE — владелец и администрация.
+      enum: [PUBLIC, PLAYERS, PRIVATE]
+    PrivacySettings:
+      type: object
+      description: Карта «поле профиля → уровень видимости».
+      additionalProperties: { $ref: "#/components/schemas/FieldVisibility" }
+
+    # ---- Telegram Mini App ----
+    TelegramInitRequest:
+      type: object
+      required: [initData]
+      properties:
+        initData: { type: string, description: "Сырая строка window.Telegram.WebApp.initData" }
+    TelegramClaimRequest:
+      type: object
+      required: [initData, code]
+      properties:
+        initData: { type: string }
+        code:     { type: string, example: "7K2M-9PQR-X4VZ" }
+    TelegramInitResponse:
+      type: object
+      required: [status]
+      properties:
+        status:           { type: string, enum: [LINKED, UNLINKED] }
+        session:          { allOf: [{ $ref: "#/components/schemas/SessionDto" }], nullable: true }
+        telegramUsername: { type: string, nullable: true }
+
+    # ---- Access codes ----
+    CodeType:
+      type: string
+      enum: [AUTH, START_RATING, TOURNAMENT_RATING]
+    CodeStatus:
+      type: string
+      enum: [ACTIVE, USED, REVOKED, EXPIRED]
+    IssueCodeRequest:
+      type: object
+      properties:
+        type:     { allOf: [{ $ref: "#/components/schemas/CodeType" }], nullable: true }
+        ttlHours: { type: integer, nullable: true, description: "null или 0 — код без срока действия" }
+    IssuedCodeDto:
+      type: object
+      required: [id, code]
+      properties:
+        id:        { type: string, format: uuid }
+        code:      { type: string, description: "Показывается один раз и не восстанавливается", example: "7K2M-9PQR-X4VZ" }
+        expiresAt: { type: string, format: date-time, nullable: true }
+    AccessCodeDto:
+      type: object
+      required: [id, codeType, status, playerId]
+      properties:
+        id:              { type: string, format: uuid }
+        codeHint:        { type: string, nullable: true, description: "Последние 4 символа кода" }
+        codeType:        { $ref: "#/components/schemas/CodeType" }
+        status:          { $ref: "#/components/schemas/CodeStatus" }
+        playerId:        { type: string, format: uuid }
+        issuedBy:        { type: string, format: uuid, nullable: true }
+        usedBy:          { type: string, format: uuid, nullable: true }
+        revokedBy:       { type: string, format: uuid, nullable: true }
+        usedTelegramId:  { type: integer, format: int64, nullable: true }
+        expiresAt:       { type: string, format: date-time, nullable: true }
+        usedAt:          { type: string, format: date-time, nullable: true }
+        revokedAt:       { type: string, format: date-time, nullable: true }
+        createdAt:       { type: string, format: date-time }
     RankTier:
       type: string
       description: Внутренний ранг по порогам рейтинга.

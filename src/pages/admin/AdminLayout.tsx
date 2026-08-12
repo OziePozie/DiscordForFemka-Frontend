@@ -17,6 +17,7 @@ const NAV: Array<{ to: string; label: string; disabled?: boolean }> = [
   { to: '/admin/audit', label: 'Журнал' },
   { to: '/admin/bots', label: 'Боты' },
   { to: '/admin/lobbies', label: 'Лобби' },
+  { to: '/admin/codes', label: 'Коды' },
 ];
 
 export default function AdminLayout() {

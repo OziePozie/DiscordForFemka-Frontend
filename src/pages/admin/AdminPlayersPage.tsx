@@ -7,6 +7,7 @@ import {
   useUnbanAdminPlayer,
   useUpdateAdminPlayer,
   useSetAdminPlayerFemaleVerified,
+  useIssueAccessCode,
 } from '@/lib/queries';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { useAuth } from '@/lib/auth';
@@ -42,6 +43,7 @@ import {
   PLAYER_ROLES,
   PLAYER_ROLE_LABEL,
   type ActivityStatus,
+  type IssuedCodeDto,
   type PlayerAdminDto,
   type PlayerRole,
 } from '@/lib/api/types';
@@ -57,6 +59,7 @@ type DialogState =
   | { kind: 'create' }
   | { kind: 'ban'; player: PlayerAdminDto }
   | { kind: 'edit'; player: PlayerAdminDto }
+  | { kind: 'issueCode'; player: PlayerAdminDto }
   | null;
 
 function describeError(e: unknown): string {
@@ -99,6 +102,9 @@ export default function AdminPlayersPage() {
     updateMut.isPending ||
     verifyMut.isPending;
 
+  const issueCodeMut = useIssueAccessCode();
+  const [issuedCode, setIssuedCode] = useState<IssuedCodeDto | null>(null);
+
   const [dialog, setDialog] = useState<DialogState>(null);
   const [banReason, setBanReason] = useState('');
   const [editRoles, setEditRoles] = useState<PlayerRole[]>([]);
@@ -125,6 +131,11 @@ export default function AdminPlayersPage() {
     setEditMmr('');
     setEditMmrReason('');
     setDialog({ kind: 'edit', player: p });
+  }
+
+  function openIssueCode(p: PlayerAdminDto) {
+    setIssuedCode(null);
+    setDialog({ kind: 'issueCode', player: p });
   }
 
   function closeDialog() {
@@ -521,6 +532,9 @@ export default function AdminPlayersPage() {
                         >
                           Изменить
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openIssueCode(p)}>
+                          Выдать код доступа
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -725,6 +739,87 @@ export default function AdminPlayersPage() {
             <Button onClick={handleSaveEdit} disabled={mutating}>
               {updateMut.isPending ? 'Сохранение…' : 'Сохранить'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Issue access code */}
+      <Dialog
+        open={dialog?.kind === 'issueCode'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIssuedCode(null);
+            closeDialog();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Код доступа</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'issueCode'
+                ? dialog.player.profile.nickname ?? 'Без ника'
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {issuedCode ? (
+            <div className="space-y-3">
+              <div className="rounded-md border bg-muted/40 px-4 py-3 text-center font-mono text-lg tracking-widest">
+                {issuedCode.code}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Код показывается один раз — скопируйте и передайте игроку. Действует до{' '}
+                {issuedCode.expiresAt
+                  ? new Date(issuedCode.expiresAt).toLocaleString('ru-RU')
+                  : '—'}
+                . Предыдущий активный код игрока отозван.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard
+                    .writeText(issuedCode.code)
+                    .then(() => toast({ title: 'Скопировано' }))
+                    .catch(() =>
+                      toast({ title: 'Не удалось скопировать', variant: 'destructive' }),
+                    );
+                }}
+              >
+                Скопировать
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Игрок введёт этот код в Telegram-мини-приложении и получит доступ к своей анкете.
+              Код одноразовый, в базе хранится только его хеш.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              {issuedCode ? 'Готово' : 'Отмена'}
+            </Button>
+            {!issuedCode && (
+              <Button
+                disabled={issueCodeMut.isPending}
+                onClick={() => {
+                  if (dialog?.kind !== 'issueCode') return;
+                  issueCodeMut
+                    .mutateAsync({ playerId: dialog.player.profile.id })
+                    .then(setIssuedCode)
+                    .catch((e) =>
+                      toast({
+                        title: 'Не удалось выдать код',
+                        description: describeError(e),
+                        variant: 'destructive',
+                      }),
+                    );
+                }}
+              >
+                {issueCodeMut.isPending ? 'Выдаём…' : 'Выдать код'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
