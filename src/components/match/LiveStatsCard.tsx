@@ -17,9 +17,16 @@ interface Props {
   meId?: string;
 }
 
-/** Единый шаблон колонок шапки и строк обеих команд (см. ResultStatsCard). */
+/**
+ * Единый шаблон колонок шапки и строк обеих команд (см. ResultStatsCard).
+ *
+ * Числовые колонки — minmax(min, Nfr): при нехватке места они ужимаются до
+ * минимума (дальше включается горизонтальный скролл), а на широком экране
+ * растягиваются по всей ширине таблицы вместо того, чтобы слипаться слева.
+ * Колонка предметов фиксирована ровно под 6 иконок и держится у правого края.
+ */
 const GRID_COLS =
-  'grid grid-cols-[46px_140px_40px_64px_56px_66px_1fr] [column-gap:8px] items-center';
+  'grid w-full grid-cols-[46px_minmax(120px,1.6fr)_minmax(36px,0.5fr)_minmax(64px,0.8fr)_minmax(56px,0.8fr)_minmax(64px,0.9fr)_174px] [column-gap:12px] items-center';
 
 /**
  * Resolve which platform team is on a given Dota side. The backend attributes each
@@ -106,7 +113,7 @@ function TeamSection({
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-max">
+        <div className="min-w-[640px]">
           <div
             className={`${GRID_COLS} ec-kicker border-b-[1.5px] border-ink pb-2 text-[0.6875rem] text-ink-faint [letter-spacing:0.1em]`}
           >

@@ -23,9 +23,13 @@ interface Props {
  * игрока фиксирована, ник обрезается по ellipsis).
  *
  * герой · игрок · LVL · K/D/A · LH/DN · GPM · XPM · NW · HD · TD · HH · items
+ *
+ * Числовые колонки — minmax(min, Nfr): при нехватке места ужимаются до минимума
+ * (дальше горизонтальный скролл), на широком экране растягиваются по всей ширине
+ * таблицы. Колонка предметов фиксирована под 6 иконок и стоит у правого края.
  */
 const GRID_COLS =
-  'grid grid-cols-[46px_140px_40px_64px_56px_50px_50px_66px_66px_54px_44px_1fr] [column-gap:8px] items-center';
+  'grid w-full grid-cols-[46px_minmax(120px,1.6fr)_minmax(36px,0.5fr)_minmax(64px,0.8fr)_minmax(56px,0.8fr)_minmax(48px,0.6fr)_minmax(48px,0.6fr)_minmax(64px,0.8fr)_minmax(60px,0.8fr)_minmax(52px,0.7fr)_minmax(44px,0.6fr)_174px] [column-gap:10px] items-center';
 
 export function ResultStatsCard({ match, result, meId }: Props) {
   const radiantWon = result.winnerTeamId === match.teamA?.id;
@@ -130,7 +134,7 @@ function ResultSide({
       </div>
 
       <div className="overflow-x-auto">
-        <div className="min-w-max">
+        <div className="min-w-[920px]">
           {/* Шапка */}
           <div
             className={`${GRID_COLS} ec-kicker border-b-[1.5px] border-ink pb-2 text-[0.6875rem] text-ink-faint [letter-spacing:0.1em]`}
