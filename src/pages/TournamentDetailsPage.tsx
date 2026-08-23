@@ -839,7 +839,9 @@ function computeConnectorPaths(
       );
       if (!targetEl) continue;
       for (const slot of [cell.slotA, cell.slotB]) {
-        if (!slot.section) continue;
+        // Провенанс слота есть не всегда: для форматов без скелета сетки бэкенд
+        // отдаёт slotA/slotB = null — тогда и линию рисовать не от чего.
+        if (!slot?.section) continue;
         const sameSection = slot.section === cell.section;
         // Между сетками соединяем только вход в Grand Final.
         if (!sameSection && cell.section !== 'GF') continue;
@@ -1046,8 +1048,8 @@ function EmptyCellAdmin({
   const [b, setB] = useState<string>(EMPTY_CELL_NONE);
 
   function openDialog() {
-    setA(cell.slotA.team?.id ?? EMPTY_CELL_NONE);
-    setB(cell.slotB.team?.id ?? EMPTY_CELL_NONE);
+    setA(cell.slotA?.team?.id ?? EMPTY_CELL_NONE);
+    setB(cell.slotB?.team?.id ?? EMPTY_CELL_NONE);
     setOpen(true);
   }
 
@@ -1055,8 +1057,8 @@ function EmptyCellAdmin({
   for (const t of teamsQ.data ?? []) {
     if (!t.withdrawn) optionMap.set(t.team.id, t.team);
   }
-  if (cell.slotA.team) optionMap.set(cell.slotA.team.id, cell.slotA.team);
-  if (cell.slotB.team) optionMap.set(cell.slotB.team.id, cell.slotB.team);
+  if (cell.slotA?.team) optionMap.set(cell.slotA.team.id, cell.slotA.team);
+  if (cell.slotB?.team) optionMap.set(cell.slotB.team.id, cell.slotB.team);
   const options = Array.from(optionMap.values());
 
   async function submit() {
@@ -1223,8 +1225,8 @@ function RoundColumns({
               // placeholder. A slot shows its team when known, otherwise the
               // source label ("Winner of WB R1 M2", "BYE", ...).
               const m = cell.match;
-              const teamA = m?.teamA ?? cell.slotA.team ?? null;
-              const teamB = m?.teamB ?? cell.slotB.team ?? null;
+              const teamA = m?.teamA ?? cell.slotA?.team ?? null;
+              const teamB = m?.teamB ?? cell.slotB?.team ?? null;
               const aWin =
                 m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamA?.id;
               const bWin =
@@ -1258,7 +1260,7 @@ function RoundColumns({
                     className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'}`}
                   >
                     <span className="truncate">
-                      {teamA ? teamLabel(teamA) : cell.slotA.label}
+                      {teamA ? teamLabel(teamA) : (cell.slotA?.label ?? '—')}
                     </span>
                     {m ? <span className="font-mono">{m.scoreA}</span> : null}
                   </div>
@@ -1266,7 +1268,7 @@ function RoundColumns({
                     className={`flex justify-between ${bWin ? 'font-semibold text-green-700' : ''} ${teamB ? '' : 'text-muted-foreground'}`}
                   >
                     <span className="truncate">
-                      {teamB ? teamLabel(teamB) : cell.slotB.label}
+                      {teamB ? teamLabel(teamB) : (cell.slotB?.label ?? '—')}
                     </span>
                     {m ? <span className="font-mono">{m.scoreB}</span> : null}
                   </div>
