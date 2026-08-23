@@ -3799,12 +3799,15 @@ components:
       type: object
       properties:
         id:         { type: string, format: uuid }
+        actorId:    { type: string, format: uuid, nullable: true }
         actor:
           allOf: [{ $ref: "#/components/schemas/PlayerPublicDto" }]
           nullable: true
         action:     { type: string }
         targetType: { type: string }
         targetId:   { type: string, format: uuid }
+        targetLabel: { type: string, nullable: true }
+        targetSlug:  { type: string, nullable: true }
         payload:    { type: object, additionalProperties: true }
         at:         { type: string, format: date-time }
 

@@ -60,6 +60,8 @@ export interface AuditLogDto {
   action: string;
   targetType: string;
   targetId?: string | null;
+  targetLabel?: string | null;
+  targetSlug?: string | null;
   payload?: Record<string, unknown> | null;
   at: string;
 }
