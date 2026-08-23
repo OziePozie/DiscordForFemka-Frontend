@@ -3345,18 +3345,21 @@ components:
         label:      { type: string }
 
     # One bracket cell. `match` is the real materialized match (or absent for a
-    # placeholder); slotA/slotB always carry the slot provenance for empty slots.
+    # placeholder). slotA/slotB carry the slot provenance used to render empty
+    # slots, but they are NULL whenever the backend assembles the bracket
+    # without a skeleton - legacy/non-elimination formats and materialized
+    # matches whose coordinate the skeleton did not produce.
     BracketCellDto:
       type: object
-      required: [section, roundIndex, matchIndex, placeholder, slotA, slotB]
+      required: [section, roundIndex, matchIndex, placeholder]
       properties:
         section:     { $ref: "#/components/schemas/BracketSection" }
         roundIndex:  { type: integer }
         matchIndex:  { type: integer }
         placeholder: { type: boolean }
         match:       { $ref: "#/components/schemas/MatchDto" }
-        slotA:       { $ref: "#/components/schemas/SlotSourceDto" }
-        slotB:       { $ref: "#/components/schemas/SlotSourceDto" }
+        slotA:       { allOf: [{ $ref: "#/components/schemas/SlotSourceDto" }], nullable: true }
+        slotB:       { allOf: [{ $ref: "#/components/schemas/SlotSourceDto" }], nullable: true }
 
     # ---- Match ----
     MatchDto:

@@ -6174,8 +6174,8 @@ export interface components {
             matchIndex: number;
             placeholder: boolean;
             match?: components["schemas"]["MatchDto"];
-            slotA: components["schemas"]["SlotSourceDto"];
-            slotB: components["schemas"]["SlotSourceDto"];
+            slotA?: components["schemas"]["SlotSourceDto"] | null;
+            slotB?: components["schemas"]["SlotSourceDto"] | null;
         };
         MatchDto: {
             /** Format: uuid */
