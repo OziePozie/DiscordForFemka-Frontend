@@ -4767,6 +4767,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/matches/{id}/refetch-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подтянуть результат последней катки заново (ADMIN)
+         * @description Пробует по очереди: Game Coordinator через dota2api, затем Steam GetMatchDetails, затем пересборку из сохранённых live-снапшотов. Победителя не меняет — уже проставленный результат (в том числе технический) остаётся. В ответе видно, какой источник сработал и финальные ли это цифры.
+         */
+        post: operations["adminRefetchMatchResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/ratings/rebuild": {
         parameters: {
             query?: never;
@@ -6177,6 +6197,24 @@ export interface components {
             slotA?: components["schemas"]["SlotSourceDto"] | null;
             slotB?: components["schemas"]["SlotSourceDto"] | null;
         };
+        /** @description Итог ручного «подтянуть результат» для последней катки матча. */
+        RefetchResultDto: {
+            /**
+             * @description Откуда пришли данные. LIVE_SNAPSHOT — пересборка из realtime-ряда: GPM/XPM и урон/лечение там остаются нулями, фид их не несёт.
+             * @enum {string}
+             */
+            source: "GAME_COORDINATOR" | "STEAM_WEB_API" | "LIVE_SNAPSHOT";
+            /** Format: int64 */
+            dotaMatchId?: number | null;
+            /** @description Сколько строк статистики добавил этот вызов (уже существующие не трогаются) */
+            statsWritten: number;
+            teamAKills: number;
+            teamBKills: number;
+            /** @description Длительность катки или игровое время использованного кадра */
+            durationSec: number;
+            /** @description true — это финальные цифры катки, false — срез до её конца */
+            finalNumbers: boolean;
+        };
         MatchDto: {
             /** Format: uuid */
             id: string;
@@ -6727,4 +6765,30 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    adminRefetchMatchResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdInPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ок */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefetchResultDto"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+}

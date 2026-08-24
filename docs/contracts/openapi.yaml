@@ -2267,6 +2267,27 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/admin/matches/{id}/refetch-result:
+    post:
+      tags: [Admin, Match]
+      summary: Подтянуть результат последней катки заново (ADMIN)
+      description: >
+        Пробует по очереди: Game Coordinator через dota2api, затем Steam GetMatchDetails,
+        затем пересборку из сохранённых live-снапшотов. Победителя не меняет — уже
+        проставленный результат (в том числе технический) остаётся. В ответе видно,
+        какой источник сработал и финальные ли это цифры.
+      operationId: adminRefetchMatchResult
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefetchResultDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   # =================== ADMIN: RATINGS (доп.) ===================
   /api/v1/admin/ratings/rebuild:
     post:
@@ -3362,6 +3383,30 @@ components:
         slotB:       { allOf: [{ $ref: "#/components/schemas/SlotSourceDto" }], nullable: true }
 
     # ---- Match ----
+    RefetchResultDto:
+      type: object
+      description: Итог ручного «подтянуть результат» для последней катки матча.
+      required: [source, statsWritten, teamAKills, teamBKills, durationSec, finalNumbers]
+      properties:
+        source:
+          type: string
+          enum: [GAME_COORDINATOR, STEAM_WEB_API, LIVE_SNAPSHOT]
+          description: >
+            Откуда пришли данные. LIVE_SNAPSHOT — пересборка из realtime-ряда:
+            GPM/XPM и урон/лечение там остаются нулями, фид их не несёт.
+        dotaMatchId: { type: integer, format: int64, nullable: true }
+        statsWritten:
+          type: integer
+          description: Сколько строк статистики добавил этот вызов (уже существующие не трогаются)
+        teamAKills:  { type: integer }
+        teamBKills:  { type: integer }
+        durationSec:
+          type: integer
+          description: Длительность катки или игровое время использованного кадра
+        finalNumbers:
+          type: boolean
+          description: true — это финальные цифры катки, false — срез до её конца
+
     MatchDto:
       type: object
       required: [id, kind, teamA, teamB, format, status, scoreA, scoreB,

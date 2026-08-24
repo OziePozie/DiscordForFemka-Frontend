@@ -214,6 +214,8 @@ export type MatchLiveSnapshotDto = S['MatchLiveSnapshotDto'];
 export type TeamLiveDto = S['TeamLiveDto'];
 export type PlayerLiveDto = S['PlayerLiveDto'];
 export type MatchResultDto = S['MatchResultDto'];
+// Итог админского «подтянуть результат»: какой источник ответил и финальны ли цифры.
+export type RefetchResultDto = S['RefetchResultDto'];
 export type MatchBanDto = S['MatchBanDto'];
 export type MatchPlayerStatDto = S['MatchPlayerStatDto'];
 export type PlayerMatchSummaryDto = S['PlayerMatchSummaryDto'];
