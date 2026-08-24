@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { useAdminAudit } from '@/lib/queries';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,53 @@ function actorLabel(
     return { id: log.actorId, label: log.actorId, hasProfile: false };
   }
   return { label: 'system', hasProfile: false };
+}
+
+function auditTargetHref(log: AuditLogDto): string | null {
+  if (!log.targetId) return null;
+  switch (log.targetType) {
+    case 'PLAYER':
+      return `/players/${log.targetId}`;
+    case 'TEAM':
+      return `/teams/${log.targetId}`;
+    case 'TOURNAMENT':
+      // Публичная страница турнира открывается по слагу, не по id.
+      return log.targetSlug ? `/tournaments/${log.targetSlug}` : null;
+    case 'MATCH':
+      return `/matches/${log.targetId}`;
+    default:
+      return null;
+  }
+}
+
+/** Метка цели: ссылка, если для типа есть страница; иначе — просто текст. */
+function AuditTargetRef({ log }: { log: AuditLogDto }) {
+  const href = auditTargetHref(log);
+  const label = log.targetLabel ?? log.targetId ?? null;
+  if (!label) return null;
+
+  if (!href) {
+    return (
+      <div className="font-mono text-xs text-muted-foreground">{label}</div>
+    );
+  }
+
+  if (log.targetType === 'PLAYER' && log.targetId) {
+    return (
+      <div className="text-xs">
+        <PlayerNameLink
+          playerId={log.targetId}
+          nickname={log.targetLabel ?? undefined}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <Link to={href} className="text-xs hover:underline">
+      {label}
+    </Link>
+  );
 }
 
 export default function AdminAuditPage() {
@@ -205,13 +253,14 @@ export default function AdminAuditPage() {
                     <td className="px-4 py-2 font-mono text-xs">
                       {log.action}
                     </td>
-                    <td className="px-4 py-2">
+                    <td
+                      className="px-4 py-2"
+                      onClick={(e) => {
+                        if (auditTargetHref(log)) e.stopPropagation();
+                      }}
+                    >
                       <div className="font-mono text-xs">{log.targetType}</div>
-                      {log.targetId && (
-                        <div className="font-mono text-xs text-muted-foreground">
-                          {log.targetId}
-                        </div>
-                      )}
+                      <AuditTargetRef log={log} />
                     </td>
                     <td
                       className="px-4 py-2"
@@ -292,8 +341,9 @@ export default function AdminAuditPage() {
                   <div className="font-mono text-xs">{detail.targetType}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Target ID</div>
-                  <div className="font-mono text-xs">
+                  <div className="text-muted-foreground">Target</div>
+                  <AuditTargetRef log={detail} />
+                  <div className="font-mono text-xs text-muted-foreground">
                     {detail.targetId ?? '—'}
                   </div>
                 </div>

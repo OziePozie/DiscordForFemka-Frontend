@@ -6678,11 +6678,15 @@ export interface components {
         AuditLogDto: {
             /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            actorId?: string | null;
             actor?: components["schemas"]["PlayerPublicDto"] | null;
             action?: string;
             targetType?: string;
             /** Format: uuid */
             targetId?: string;
+            targetLabel?: string | null;
+            targetSlug?: string | null;
             payload?: {
                 [key: string]: unknown;
             };
