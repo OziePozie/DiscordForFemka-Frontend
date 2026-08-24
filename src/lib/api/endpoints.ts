@@ -57,6 +57,7 @@ import type {
   TeamHistoryDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
+  RefetchResultDto,
   CreateOpenLobbyRequest,
   OpenLobbyDto,
   LeaderboardEntryDto,
@@ -1118,6 +1119,17 @@ export function finishMatch(
 export function repropagateMatch(id: string): Promise<MatchDto> {
   return api<MatchDto>(
     `/api/v1/admin/matches/${encodeURIComponent(id)}/repropagate`,
+    { method: 'POST' },
+  );
+}
+
+/**
+ * Подтянуть результат последней катки заново: GC → Steam → live-снапшоты.
+ * Победителя не меняет, только достаёт статистику, которую автопуллер упустил.
+ */
+export function refetchMatchResult(id: string): Promise<RefetchResultDto> {
+  return api<RefetchResultDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/refetch-result`,
     { method: 'POST' },
   );
 }

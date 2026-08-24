@@ -8,6 +8,7 @@ import {
   useMoveMatchTeams,
   useRecreateLobby,
   useRepropagateMatch,
+  useRefetchMatchResult,
   useTechResultMatch,
   useTournamentTeams,
   useUpdateAdminMatch,
@@ -77,6 +78,7 @@ type DialogState =
   | { kind: 'reset-ready' }
   | { kind: 'finish' }
   | { kind: 'repropagate' }
+  | { kind: 'refetch' }
   | { kind: 'tech' }
   | { kind: 'cancel' }
   | { kind: 'move' }
@@ -128,6 +130,7 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
   const launchMut = useLaunchLobby();
   const finishMut = useFinishMatch();
   const repropagateMut = useRepropagateMatch();
+  const refetchResultMut = useRefetchMatchResult();
   const techMut = useTechResultMatch();
   const cancelMut = useCancelMatchResult();
   const moveMut = useMoveMatchTeams();
@@ -138,6 +141,7 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
     launchMut.isPending ||
     finishMut.isPending ||
     repropagateMut.isPending ||
+    refetchResultMut.isPending ||
     techMut.isPending ||
     cancelMut.isPending ||
     moveMut.isPending ||
@@ -173,7 +177,10 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
   const bReady = !!match.teamBReadyAt;
   const canRepropagate = match.status === 'FINISHED' && match.kind === 'TOURNAMENT' && !!match.winnerTeamId;
   const canCancel = match.status === 'FINISHED';
-  const showActions = !finished || canRepropagate || canCancel;
+  // Есть катка — есть что подтягивать. Именно у закрытых руками матчей это и нужно:
+  // автопуллер перестаёт спрашивать результат, как только игра уходит из LIVE.
+  const canRefetchResult = isAdmin && (match.games?.length ?? 0) > 0;
+  const showActions = !finished || canRepropagate || canCancel || canRefetchResult;
 
   function openSettings() {
     setForm(settingsFromMatch(match));
@@ -357,6 +364,49 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
     }
   }
 
+  async function handleRefetchResult() {
+    if (!dialog || dialog.kind !== 'refetch') return;
+    try {
+      const r = await refetchResultMut.mutateAsync(match.id);
+      const recovered = r.games.filter((g) => g.source);
+      const notes = [`Добавлено строк статистики: ${r.statsWritten}`];
+      if (r.seriesUpdated) {
+        notes.push(`Счёт серии: ${r.seriesScoreA}:${r.seriesScoreB}`);
+      }
+      if (r.formatRaised) {
+        notes.push(`Формат поднят до ${MATCH_FORMAT_LABEL[r.format]}`);
+      }
+      if (recovered.some((g) => g.source === 'LIVE_SNAPSHOT')) {
+        notes.push('Часть данных из live-снапшотов — GPM/XPM и урон там нулевые');
+      }
+      if (recovered.some((g) => !g.finalNumbers)) {
+        notes.push('Есть катки со срезом до их конца — цифры не финальные');
+      }
+      if (r.games.length > recovered.length) {
+        notes.push(`Не нашлось данных по каткам: ${r.games.length - recovered.length}`);
+      }
+      if (r.seriesNote) {
+        notes.push(r.seriesNote);
+      }
+      toast({
+        title:
+          recovered.length === 0
+            ? 'Данных по каткам не нашлось'
+            : `Подтянуто каток: ${recovered.length}`,
+        description: notes.join(' · '),
+        variant: recovered.length === 0 ? 'destructive' : undefined,
+      });
+      await refetchMatches();
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось подтянуть результат',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   function openTech() {
     setTechForm({ side: 'A', mode: 'TECH_WIN' });
     setDialog({ kind: 'tech' });
@@ -528,6 +578,11 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
               onClick={() => setDialog({ kind: 'repropagate' })}
             >
               Перепровести победителя в сетку
+            </DropdownMenuItem>
+          )}
+          {canRefetchResult && (
+            <DropdownMenuItem onClick={() => setDialog({ kind: 'refetch' })}>
+              Подтянуть результат заново
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -873,6 +928,43 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
             </Button>
             <Button onClick={handleRepropagate} disabled={mutating}>
               {repropagateMut.isPending ? 'Перепровод…' : 'Перепровести'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Refetch result confirm */}
+      <Dialog
+        open={dialog?.kind === 'refetch'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Подтянуть результат заново?</DialogTitle>
+            <DialogDescription>
+              {`${teamName(match.teamA)} vs ${teamName(match.teamB)}`}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Найдёт все катки матча — включая те, что доиграли в одном лобби и в
+            платформе не завелись, — заведёт их, подтянет по каждой статистику
+            (Dota → Steam → live-снапшоты), при необходимости поднимет формат
+            серии и пересчитает счёт по победителям каток.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Победителя матча не меняет: если катки с ним расходятся, счёт
+            останется как есть, а расхождение придёт в ответе. Нужно, когда резы
+            зависли: после ручного закрытия матча автоматика их больше не
+            спрашивает.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleRefetchResult} disabled={mutating}>
+              {refetchResultMut.isPending ? 'Тянем…' : 'Подтянуть'}
             </Button>
           </DialogFooter>
         </DialogContent>
