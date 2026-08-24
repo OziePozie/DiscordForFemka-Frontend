@@ -79,6 +79,7 @@ import {
   launchLobby,
   finishMatch,
   repropagateMatch,
+  refetchMatchResult,
   techResultMatch,
   cancelMatchResult,
   moveMatchTeams,
@@ -194,6 +195,7 @@ import type {
   InviteResultDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
+  RefetchResultDto,
   MatchRequestDto,
   CreateMatchRequestDto,
   PlayerAdminDto,
@@ -1324,6 +1326,22 @@ export function useRepropagateMatch() {
       qc.invalidateQueries({ queryKey: qk.match(m.id) });
       qc.invalidateQueries({ queryKey: ['tournament'] });
       qc.invalidateQueries({ queryKey: ['admin-tournament-matches'] });
+    },
+  });
+}
+
+/**
+ * Подтянуть результат заново. Матч в ответе не приходит — сервер отдаёт отчёт о том,
+ * что нашлось, — поэтому карточку и статистику инвалидируем по id из аргумента.
+ */
+export function useRefetchMatchResult() {
+  const qc = useQueryClient();
+  return useMutation<RefetchResultDto, Error, string>({
+    mutationFn: refetchMatchResult,
+    onSuccess: (_r, id) => {
+      qc.invalidateQueries({ queryKey: qk.match(id) });
+      qc.invalidateQueries({ queryKey: ['match-result', id] });
+      qc.invalidateQueries({ queryKey: ['match-live', id] });
     },
   });
 }

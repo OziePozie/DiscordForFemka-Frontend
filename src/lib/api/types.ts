@@ -214,6 +214,10 @@ export type MatchLiveSnapshotDto = S['MatchLiveSnapshotDto'];
 export type TeamLiveDto = S['TeamLiveDto'];
 export type PlayerLiveDto = S['PlayerLiveDto'];
 export type MatchResultDto = S['MatchResultDto'];
+// Итог админского «подтянуть результат»: что нашлось по каждой катке серии,
+// пересчитанный счёт и почему он мог не примениться.
+export type RefetchResultDto = S['RefetchResultDto'];
+export type RefetchGameDto = S['RefetchGameDto'];
 export type MatchBanDto = S['MatchBanDto'];
 export type MatchPlayerStatDto = S['MatchPlayerStatDto'];
 export type PlayerMatchSummaryDto = S['PlayerMatchSummaryDto'];

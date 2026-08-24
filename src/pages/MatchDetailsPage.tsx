@@ -11,6 +11,7 @@ import {
   useMe,
 } from '@/lib/queries';
 import { useMatchLive, useMatchResult } from '@/lib/queries';
+import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { LiveStatsCard } from '@/components/match/LiveStatsCard';
 import { ResultStatsCard } from '@/components/match/ResultStatsCard';
 import { useAuth } from '@/lib/auth';
@@ -618,6 +619,8 @@ export default function MatchDetailsPage() {
   const bWin = finished && m.winnerTeamId === m.teamB.id;
 
   const isAdmin = !!session?.roles?.includes('ADMIN');
+  const isStaff =
+    !!session?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR');
   const captainOfA = !!me.data?.teams?.some(
     (t) => t.role === 'CAPTAIN' && t.teamId === m.teamA?.id,
   );
@@ -671,7 +674,12 @@ export default function MatchDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <MatchBreadcrumb match={m} />
+      {/* Админские действия по матчу — здесь, а не только в админке и сетке:
+          «резы зависли» замечают именно на этой странице. */}
+      <div className="flex items-start justify-between gap-3">
+        <MatchBreadcrumb match={m} />
+        {isStaff && <MatchAdminMenu match={m} />}
+      </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 border-b border-line pb-8">
         <TeamBlock team={m.teamA} align="left" highlight={aWin} finished={finished} />
