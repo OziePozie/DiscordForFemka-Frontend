@@ -368,23 +368,33 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
     if (!dialog || dialog.kind !== 'refetch') return;
     try {
       const r = await refetchResultMut.mutateAsync(match.id);
-      const from =
-        r.source === 'GAME_COORDINATOR'
-          ? 'из Dota'
-          : r.source === 'STEAM_WEB_API'
-            ? 'из Steam'
-            : 'из live-снапшотов';
+      const recovered = r.games.filter((g) => g.source);
       const notes = [`Добавлено строк статистики: ${r.statsWritten}`];
-      notes.push(`Киллы: ${r.teamAKills}:${r.teamBKills}`);
-      if (r.source === 'LIVE_SNAPSHOT') {
-        notes.push('GPM/XPM и урон фид не несёт — остались нулями');
+      if (r.seriesUpdated) {
+        notes.push(`Счёт серии: ${r.seriesScoreA}:${r.seriesScoreB}`);
       }
-      if (!r.finalNumbers) {
-        notes.push('Кадр снят до конца катки — цифры не финальные');
+      if (r.formatRaised) {
+        notes.push(`Формат поднят до ${MATCH_FORMAT_LABEL[r.format]}`);
+      }
+      if (recovered.some((g) => g.source === 'LIVE_SNAPSHOT')) {
+        notes.push('Часть данных из live-снапшотов — GPM/XPM и урон там нулевые');
+      }
+      if (recovered.some((g) => !g.finalNumbers)) {
+        notes.push('Есть катки со срезом до их конца — цифры не финальные');
+      }
+      if (r.games.length > recovered.length) {
+        notes.push(`Не нашлось данных по каткам: ${r.games.length - recovered.length}`);
+      }
+      if (r.seriesNote) {
+        notes.push(r.seriesNote);
       }
       toast({
-        title: `Результат подтянут ${from}`,
+        title:
+          recovered.length === 0
+            ? 'Данных по каткам не нашлось'
+            : `Подтянуто каток: ${recovered.length}`,
         description: notes.join(' · '),
+        variant: recovered.length === 0 ? 'destructive' : undefined,
       });
       await refetchMatches();
       closeDialog();
@@ -938,11 +948,16 @@ export function MatchAdminMenu({ match }: { match: MatchDto }) {
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Спросит результат последней катки ещё раз: сначала Dota, потом
-            Steam, потом соберёт из сохранённых live-снапшотов. Победителя не
-            меняет — проставленный результат, в том числе технический,
-            останется. Нужно, когда резы зависли: после ручного закрытия матча
-            автоматика их больше не спрашивает.
+            Найдёт все катки матча — включая те, что доиграли в одном лобби и в
+            платформе не завелись, — заведёт их, подтянет по каждой статистику
+            (Dota → Steam → live-снапшоты), при необходимости поднимет формат
+            серии и пересчитает счёт по победителям каток.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Победителя матча не меняет: если катки с ним расходятся, счёт
+            останется как есть, а расхождение придёт в ответе. Нужно, когда резы
+            зависли: после ручного закрытия матча автоматика их больше не
+            спрашивает.
           </p>
           <DialogFooter>
             <Button variant="ghost" onClick={closeDialog}>

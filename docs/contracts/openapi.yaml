@@ -2270,12 +2270,15 @@ paths:
   /api/v1/admin/matches/{id}/refetch-result:
     post:
       tags: [Admin, Match]
-      summary: Подтянуть результат последней катки заново (ADMIN)
+      summary: Подтянуть результат матча заново (ADMIN)
       description: >
-        Пробует по очереди: Game Coordinator через dota2api, затем Steam GetMatchDetails,
-        затем пересборку из сохранённых live-снапшотов. Победителя не меняет — уже
-        проставленный результат (в том числе технический) остаётся. В ответе видно,
-        какой источник сработал и финальные ли это цифры.
+        Восстанавливает ВСЮ серию: находит все dota-катки матча (в том числе те, что
+        доиграли в одном лобби и своей строки match_game не получили), заводит им катки,
+        поднимает формат под их число и пересчитывает счёт серии по победителям каток.
+        По каждой катке источник выбирается по убыванию качества: Game Coordinator через
+        dota2api, затем Steam GetMatchDetails, затем пересборка из live-снапшотов.
+        Победителя МАТЧА не меняет: если катки расходятся с записанным победителем, счёт
+        не трогается и расхождение возвращается в seriesNote.
       operationId: adminRefetchMatchResult
       parameters: [{ $ref: "#/components/parameters/IdInPath" }]
       responses:
@@ -3383,29 +3386,59 @@ components:
         slotB:       { allOf: [{ $ref: "#/components/schemas/SlotSourceDto" }], nullable: true }
 
     # ---- Match ----
-    RefetchResultDto:
+    RefetchGameDto:
       type: object
-      description: Итог ручного «подтянуть результат» для последней катки матча.
-      required: [source, statsWritten, teamAKills, teamBKills, durationSec, finalNumbers]
+      description: Одна катка серии после восстановления.
+      required: [gameNumber, statsWritten, teamAKills, teamBKills, finalNumbers]
       properties:
+        gameNumber:  { type: integer }
+        dotaMatchId: { type: integer, format: int64, nullable: true }
         source:
           type: string
+          nullable: true
           enum: [GAME_COORDINATOR, STEAM_WEB_API, LIVE_SNAPSHOT]
           description: >
-            Откуда пришли данные. LIVE_SNAPSHOT — пересборка из realtime-ряда:
-            GPM/XPM и урон/лечение там остаются нулями, фид их не несёт.
-        dotaMatchId: { type: integer, format: int64, nullable: true }
+            Откуда пришли данные; null — данных не нашлось нигде. LIVE_SNAPSHOT —
+            пересборка из realtime-ряда: GPM/XPM и урон/лечение там остаются нулями,
+            фид их не несёт.
         statsWritten:
           type: integer
           description: Сколько строк статистики добавил этот вызов (уже существующие не трогаются)
         teamAKills:  { type: integer }
         teamBKills:  { type: integer }
-        durationSec:
-          type: integer
-          description: Длительность катки или игровое время использованного кадра
+        winnerSide:
+          type: string
+          nullable: true
+          enum: [A, B]
+          description: Победитель катки; null — определить не удалось
         finalNumbers:
           type: boolean
-          description: true — это финальные цифры катки, false — срез до её конца
+          description: true — финальные цифры катки, false — срез до её конца
+
+    RefetchResultDto:
+      type: object
+      description: Итог ручного «подтянуть результат» по всей серии матча.
+      required: [games, statsWritten, format, formatRaised, seriesScoreA, seriesScoreB, seriesUpdated]
+      properties:
+        games:
+          type: array
+          items: { $ref: "#/components/schemas/RefetchGameDto" }
+        statsWritten:
+          type: integer
+          description: Всего добавлено строк статистики этим вызовом
+        format:       { $ref: "#/components/schemas/MatchFormat" }
+        formatRaised:
+          type: boolean
+          description: Был ли формат поднят под число найденных каток
+        seriesScoreA: { type: integer }
+        seriesScoreB: { type: integer }
+        seriesUpdated:
+          type: boolean
+          description: Записан ли пересчитанный счёт в матч
+        seriesNote:
+          type: string
+          nullable: true
+          description: Почему счёт не записан; null — записан или менять было нечего
 
     MatchDto:
       type: object

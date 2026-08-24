@@ -4777,8 +4777,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Подтянуть результат последней катки заново (ADMIN)
-         * @description Пробует по очереди: Game Coordinator через dota2api, затем Steam GetMatchDetails, затем пересборку из сохранённых live-снапшотов. Победителя не меняет — уже проставленный результат (в том числе технический) остаётся. В ответе видно, какой источник сработал и финальные ли это цифры.
+         * Подтянуть результат матча заново (ADMIN)
+         * @description Восстанавливает ВСЮ серию: находит все dota-катки матча (в том числе те, что доиграли в одном лобби и своей строки match_game не получили), заводит им катки, поднимает формат под их число и пересчитывает счёт серии по победителям каток. По каждой катке источник выбирается по убыванию качества: Game Coordinator через dota2api, затем Steam GetMatchDetails, затем пересборка из live-снапшотов. Победителя МАТЧА не меняет: если катки расходятся с записанным победителем, счёт не трогается и расхождение возвращается в seriesNote.
          */
         post: operations["adminRefetchMatchResult"];
         delete?: never;
@@ -6197,23 +6197,42 @@ export interface components {
             slotA?: components["schemas"]["SlotSourceDto"] | null;
             slotB?: components["schemas"]["SlotSourceDto"] | null;
         };
-        /** @description Итог ручного «подтянуть результат» для последней катки матча. */
-        RefetchResultDto: {
-            /**
-             * @description Откуда пришли данные. LIVE_SNAPSHOT — пересборка из realtime-ряда: GPM/XPM и урон/лечение там остаются нулями, фид их не несёт.
-             * @enum {string}
-             */
-            source: "GAME_COORDINATOR" | "STEAM_WEB_API" | "LIVE_SNAPSHOT";
+        /** @description Одна катка серии после восстановления. */
+        RefetchGameDto: {
+            gameNumber: number;
             /** Format: int64 */
             dotaMatchId?: number | null;
+            /**
+             * @description Откуда пришли данные; null — данных не нашлось нигде. LIVE_SNAPSHOT — пересборка из realtime-ряда: GPM/XPM и урон/лечение там остаются нулями, фид их не несёт.
+             * @enum {string|null}
+             */
+            source?: "GAME_COORDINATOR" | "STEAM_WEB_API" | "LIVE_SNAPSHOT" | null;
             /** @description Сколько строк статистики добавил этот вызов (уже существующие не трогаются) */
             statsWritten: number;
             teamAKills: number;
             teamBKills: number;
-            /** @description Длительность катки или игровое время использованного кадра */
-            durationSec: number;
-            /** @description true — это финальные цифры катки, false — срез до её конца */
+            /**
+             * @description Победитель катки; null — определить не удалось
+             * @enum {string|null}
+             */
+            winnerSide?: "A" | "B" | null;
+            /** @description true — финальные цифры катки, false — срез до её конца */
             finalNumbers: boolean;
+        };
+        /** @description Итог ручного «подтянуть результат» по всей серии матча. */
+        RefetchResultDto: {
+            games: components["schemas"]["RefetchGameDto"][];
+            /** @description Всего добавлено строк статистики этим вызовом */
+            statsWritten: number;
+            format: components["schemas"]["MatchFormat"];
+            /** @description Был ли формат поднят под число найденных каток */
+            formatRaised: boolean;
+            seriesScoreA: number;
+            seriesScoreB: number;
+            /** @description Записан ли пересчитанный счёт в матч */
+            seriesUpdated: boolean;
+            /** @description Почему счёт не записан; null — записан или менять было нечего */
+            seriesNote?: string | null;
         };
         MatchDto: {
             /** Format: uuid */
