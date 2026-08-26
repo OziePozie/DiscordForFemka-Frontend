@@ -181,12 +181,12 @@ function GroupMatchRow({ m }: { m: MatchDto }) {
   return (
     <Link
       to={`/matches/${m.id}`}
-      className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+      className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
     >
       <span className={`truncate ${aWin ? 'font-semibold text-green-700' : ''}`}>
         {m.teamA?.name ?? '—'}
       </span>
-      <span className="shrink-0 font-mono text-xs">
+      <span className="text-center font-mono text-xs">
         {m.scoreA}:{m.scoreB}
       </span>
       <span
