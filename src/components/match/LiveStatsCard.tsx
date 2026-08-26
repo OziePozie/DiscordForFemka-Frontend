@@ -2,6 +2,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
+import { sideTeam } from './sideTeam';
 import { formatGameTime, heroName } from '@/lib/dota/format';
 import { teamName } from '@/lib/format';
 import type {
@@ -27,24 +28,6 @@ interface Props {
  */
 const GRID_COLS =
   'grid w-full grid-cols-[46px_minmax(120px,1.6fr)_minmax(36px,0.5fr)_minmax(64px,0.8fr)_minmax(56px,0.8fr)_minmax(64px,0.9fr)_174px] [column-gap:12px] items-center';
-
-/**
- * Resolve which platform team is on a given Dota side. The backend attributes each
- * side to teamA/teamB via {@code radiantTeamId}/{@code direTeamId}, which stays correct
- * even when a coin toss flips sides mid-lobby. Falls back to the historical static
- * mapping (Radiant = teamA, Dire = teamB) when the id is absent or unrecognised.
- */
-function sideTeam(
-  match: MatchDto,
-  teamId: string | null | undefined,
-  side: 'radiant' | 'dire',
-) {
-  if (teamId) {
-    if (match.teamA?.id === teamId) return match.teamA;
-    if (match.teamB?.id === teamId) return match.teamB;
-  }
-  return side === 'radiant' ? match.teamA : match.teamB;
-}
 
 export function LiveStatsCard({ match, snapshot, meId }: Props) {
   if (!snapshot) {
