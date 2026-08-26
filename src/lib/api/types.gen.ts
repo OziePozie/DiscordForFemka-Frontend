@@ -6349,6 +6349,10 @@ export interface components {
             winnerTeamId?: string | null;
             /** Format: date-time */
             resultFetchedAt: string;
+            /** Format: uuid */
+            radiantTeamId?: string | null;
+            /** Format: uuid */
+            direTeamId?: string | null;
             radiant: components["schemas"]["MatchPlayerStatDto"][];
             dire: components["schemas"]["MatchPlayerStatDto"][];
             /** Format: int64 */

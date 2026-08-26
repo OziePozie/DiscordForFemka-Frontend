@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { HeroIcon } from './HeroIcon';
 import { ItemIcon } from './ItemIcon';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
+import { sideTeam } from './sideTeam';
 import { formatGameTime, heroName } from '@/lib/dota/format';
 import { teamName } from '@/lib/format';
 import type {
@@ -32,8 +33,28 @@ const GRID_COLS =
   'grid w-full grid-cols-[46px_minmax(120px,1.6fr)_minmax(36px,0.5fr)_minmax(64px,0.8fr)_minmax(56px,0.8fr)_minmax(48px,0.6fr)_minmax(48px,0.6fr)_minmax(64px,0.8fr)_minmax(60px,0.8fr)_minmax(52px,0.7fr)_minmax(44px,0.6fr)_174px] [column-gap:10px] items-center';
 
 export function ResultStatsCard({ match, result, meId }: Props) {
-  const radiantWon = result.winnerTeamId === match.teamA?.id;
-  const winnerName = radiantWon ? teamName(match.teamA) : teamName(match.teamB);
+  // Кто играл за какую сторону ИМЕННО В ЭТОЙ игре. Раньше здесь считалось
+  // Radiant = teamA, и при coin toss подписи команд стояли над чужими составами.
+  const radiantTeam = sideTeam(match, result.radiantTeamId, 'radiant');
+  const direTeam = sideTeam(match, result.direTeamId, 'dire');
+
+  // Именно «выиграл radiant», а не «выиграл teamA»: отсюда и бейдж победителя
+  // у состава, и подсветка счёта, и выделение банов. На старых играх без winnerTeamId
+  // откатываемся на счёт.
+  const radiantWon =
+    result.winnerTeamId != null && radiantTeam?.id != null
+      ? result.winnerTeamId === radiantTeam.id
+      : result.radiantScore > result.direScore;
+
+  const winnerTeam =
+    result.winnerTeamId != null && result.winnerTeamId === match.teamA?.id
+      ? match.teamA
+      : result.winnerTeamId != null && result.winnerTeamId === match.teamB?.id
+        ? match.teamB
+        : radiantWon
+          ? radiantTeam
+          : direTeam;
+  const winnerName = teamName(winnerTeam);
   const mvpId = result.mvpSteamAccountId ?? null;
 
   const bans = result.bans ?? [];
@@ -85,7 +106,7 @@ export function ResultStatsCard({ match, result, meId }: Props) {
       )}
 
       <ResultSide
-        teamName={teamName(match.teamA)}
+        teamName={teamName(radiantTeam)}
         sideLabel="Radiant"
         rows={result.radiant}
         won={radiantWon}
@@ -93,7 +114,7 @@ export function ResultStatsCard({ match, result, meId }: Props) {
         mvpId={mvpId}
       />
       <ResultSide
-        teamName={teamName(match.teamB)}
+        teamName={teamName(direTeam)}
         sideLabel="Dire"
         rows={result.dire}
         won={!radiantWon}

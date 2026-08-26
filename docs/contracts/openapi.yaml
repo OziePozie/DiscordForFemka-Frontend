@@ -3555,6 +3555,11 @@ components:
         direScore:       { type: integer }
         winnerTeamId:    { type: string, format: uuid, nullable: true }
         resultFetchedAt: { type: string, format: date-time }
+        # Какая команда стояла на какой стороне В ЭТОЙ игре. При включённом coin toss
+        # стороны меняются между играми серии, поэтому Radiant = teamA предполагать нельзя.
+        # null, если игроков игры не удалось сопоставить с командой.
+        radiantTeamId:   { type: string, format: uuid, nullable: true }
+        direTeamId:      { type: string, format: uuid, nullable: true }
         radiant:         { type: array, items: { $ref: "#/components/schemas/MatchPlayerStatDto" } }
         dire:            { type: array, items: { $ref: "#/components/schemas/MatchPlayerStatDto" } }
         # Derived at read time (no DB column): steam account id of the MVP on the
