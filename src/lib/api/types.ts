@@ -826,3 +826,10 @@ export const CODE_STATUS_LABEL: Record<CodeStatus, string> = {
   REVOKED: 'Отозван',
   EXPIRED: 'Истёк',
 };
+
+// --- Mix tournaments ---
+export type RegistrationMode = S['RegistrationMode'];
+export type MixPlayerDto = S['MixPlayerDto'];
+export type MixPlayerAdminDto = S['MixPlayerAdminDto'];
+export type MixRegisterRequest = S['MixRegisterRequest'];
+export type MixRejectRequest = S['MixRejectRequest'];

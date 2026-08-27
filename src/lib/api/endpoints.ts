@@ -86,6 +86,9 @@ import type {
   QuestDto,
   CreateQuestRequest,
   UpdateQuestRequest,
+  MixPlayerDto,
+  MixPlayerAdminDto,
+  MixRegisterRequest,
 } from './types';
 
 // ──────────────── Telegram Mini App ────────────────
@@ -393,6 +396,55 @@ export function registerTeamForTournament(
   return api<TournamentTeamDto>(
     `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/registrations?teamId=${encodeURIComponent(teamId)}`,
     { method: 'POST' },
+  );
+}
+
+// ──────────────── MIX registration (public) ────────────────
+
+export function registerForMix(
+  tournamentId: string,
+  body?: MixRegisterRequest,
+): Promise<MixPlayerDto> {
+  return api<MixPlayerDto>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/register`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+}
+
+export function withdrawFromMix(tournamentId: string): Promise<void> {
+  return api<void>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/register`,
+    { method: 'DELETE' },
+  );
+}
+
+export function checkInForMix(tournamentId: string): Promise<MixPlayerDto> {
+  return api<MixPlayerDto>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/check-in`,
+    { method: 'POST' },
+  );
+}
+
+export interface MixPlayersPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function listMixPlayers(
+  tournamentId: string,
+  params: MixPlayersPageParams = {},
+): Promise<PagedResponse<MixPlayerDto>> {
+  return api<PagedResponse<MixPlayerDto>>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/players${buildQuery(params)}`,
+  );
+}
+
+export function getMyMixEntry(tournamentId: string): Promise<MixPlayerDto> {
+  return api<MixPlayerDto>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/me`,
   );
 }
 
@@ -836,6 +888,37 @@ export function rejectTournamentTeam(
   return api<void>(
     `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/reject`,
     { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+// ──────────────── Admin: MIX registration ────────────────
+
+export function adminListMixPlayers(
+  tournamentId: string,
+): Promise<MixPlayerAdminDto[]> {
+  return api<MixPlayerAdminDto[]>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/mix/players`,
+  );
+}
+
+export function adminApproveMixPlayer(
+  tournamentId: string,
+  playerId: string,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/mix/players/${encodeURIComponent(playerId)}/approve`,
+    { method: 'POST' },
+  );
+}
+
+export function adminRejectMixPlayer(
+  tournamentId: string,
+  playerId: string,
+  reason?: string,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/mix/players/${encodeURIComponent(playerId)}/reject`,
+    { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) },
   );
 }
 
