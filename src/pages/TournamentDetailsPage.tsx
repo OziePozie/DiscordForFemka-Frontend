@@ -13,6 +13,8 @@ import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { GroupStageBlock } from '@/components/GroupStageBlock';
+import { MixRegistrationBlock } from '@/components/MixRegistrationBlock';
+import { MixPlayersList } from '@/components/MixPlayersList';
 import {
   useAssignBracketCell,
   useBracket,
@@ -194,7 +196,9 @@ export default function TournamentDetailsPage() {
         <TabsList>
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="regulations">Регламент</TabsTrigger>
-          <TabsTrigger value="teams">Команды</TabsTrigger>
+          <TabsTrigger value="teams">
+            {tournament.registrationMode === 'MIX' ? 'Игроки' : 'Команды'}
+          </TabsTrigger>
           <TabsTrigger value="matches">Матчи</TabsTrigger>
           <TabsTrigger value="bracket">Сетка</TabsTrigger>
         </TabsList>
@@ -213,7 +217,11 @@ export default function TournamentDetailsPage() {
         </TabsContent>
 
         <TabsContent value="teams">
-          <TeamsTab tournamentId={tournament.id} />
+          {tournament.registrationMode === 'MIX' ? (
+            <MixPlayersList tournamentId={tournament.id} />
+          ) : (
+            <TeamsTab tournamentId={tournament.id} />
+          )}
         </TabsContent>
 
         <TabsContent value="matches">
@@ -239,6 +247,13 @@ function Header({
   const me = useMe();
   const register = useRegisterTournament();
   const { toast } = useToast();
+
+  // MIX-турниры: игрок записывается сам, вместо капитана, регистрирующего
+  // готовую команду. Весь блок ниже (выбор команды + «Зарегистрироваться»)
+  // — TEAM-only; для MIX его целиком заменяет MixRegistrationBlock, а не
+  // canRegister (для MIX он теперь всегда false и описывает только
+  // командную регистрацию — им нельзя гейтить MIX-кнопку).
+  const isMix = tournament.registrationMode === 'MIX';
 
   // All active teams the player captains, ordered deterministically so the
   // selector (and its default pick) don't depend on the DB's row order.
@@ -349,7 +364,8 @@ function Header({
                 </a>
               </Button>
             )}
-            {captainTeams.length > 1 &&
+            {!isMix &&
+              captainTeams.length > 1 &&
               tournament.status === 'REGISTRATION_OPEN' && (
                 <Select
                   value={effectiveTeamId}
@@ -371,19 +387,22 @@ function Header({
                   </SelectContent>
                 </Select>
               )}
-            <Button
-              onClick={handleRegister}
-              disabled={!canRegBtn || register.isPending}
-              title={regHint || undefined}
-            >
-              {register.isPending ? 'Регистрируем…' : 'Зарегистрироваться'}
-            </Button>
+            {!isMix && (
+              <Button
+                onClick={handleRegister}
+                disabled={!canRegBtn || register.isPending}
+                title={regHint || undefined}
+              >
+                {register.isPending ? 'Регистрируем…' : 'Зарегистрироваться'}
+              </Button>
+            )}
           </div>
-          {regHint && (
+          {!isMix && regHint && (
             <span className="text-xs text-muted-foreground">{regHint}</span>
           )}
         </div>
       </div>
+      {isMix && <MixRegistrationBlock tournament={tournament} />}
     </header>
   );
 }
