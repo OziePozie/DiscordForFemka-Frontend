@@ -218,7 +218,10 @@ export default function TournamentDetailsPage() {
 
         <TabsContent value="teams">
           {tournament.registrationMode === 'MIX' ? (
-            <MixPlayersList tournamentId={tournament.id} />
+            <MixPlayersList
+              tournamentId={tournament.id}
+              mixTeamCount={tournament.mixTeamCount}
+            />
           ) : (
             <TeamsTab tournamentId={tournament.id} />
           )}

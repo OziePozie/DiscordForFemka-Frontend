@@ -6,10 +6,22 @@ import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { useMixPlayers } from '@/lib/queries';
 import { POSITION_LABEL, type PlayerPosition } from '@/lib/api/types';
 
+// Ростер MIX — всегда пятёрка (см. комментарий EligibilityValidator на
+// бэке: незаполненный expectedTeamSize тоже трактуется как 5). mixTeamCount
+// — число составов, а не игроков, поэтому нужное число голов — mixTeamCount
+// * ROSTER_SIZE.
+const ROSTER_SIZE = 5;
+
 // Публичный список записавшихся на MIX-турнир игроков. Живёт на месте
 // «Команд» для TEAM-турниров (TournamentDetailsPage переключает вкладку по
 // registrationMode) — тот же слот в навигации, тот же смысл: кто заявился.
-export function MixPlayersList({ tournamentId }: { tournamentId: string }) {
+export function MixPlayersList({
+  tournamentId,
+  mixTeamCount,
+}: {
+  tournamentId: string;
+  mixTeamCount?: number | null;
+}) {
   const [page, setPage] = useState(0);
   const q = useMixPlayers(tournamentId, { page, size: 20 });
 
@@ -24,15 +36,22 @@ export function MixPlayersList({ tournamentId }: { tournamentId: string }) {
 
   const players = q.data?.items ?? [];
   const total = q.data?.totalItems ?? players.length;
+  // null/undefined — организатор не зафиксировал число составов; тогда цели
+  // нет и считать нечего, показываем только фактическую явку.
+  const needed =
+    mixTeamCount != null ? mixTeamCount * ROSTER_SIZE : null;
 
   return (
     <div className="space-y-3">
       <div className="text-sm text-muted-foreground">
         Записалось: <span className="font-semibold text-foreground">{total}</span>
-        {/* mixTeamCount (сколько составов нужно набрать) есть только в
-            UpdateTournamentRequest — админской PATCH-модели — и не
-            возвращается игрокам в TournamentDto. Как только бэк отдаст поле
-            публично, здесь можно дописать "из N нужных". */}
+        {needed != null && (
+          <>
+            {' '}из{' '}
+            <span className="font-semibold text-foreground">{needed}</span>{' '}
+            нужных
+          </>
+        )}
       </div>
 
       {players.length === 0 ? (

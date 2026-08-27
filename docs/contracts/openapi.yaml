@@ -3366,6 +3366,11 @@ components:
         regulationsVersion: { type: string, nullable: true }
         regulationsUpdatedAt: { type: string, format: date-time, nullable: true }
         registrationMode: { $ref: "#/components/schemas/RegistrationMode" }
+        # MIX-настройки читаются здесь же: без окна чек-ина клиент не может
+        # показать ни таймер, ни то, открыт ли чек-ин прямо сейчас.
+        mixTeamCount:    { type: integer, nullable: true }
+        checkInOpensAt:  { type: string, format: date-time, nullable: true }
+        checkInClosesAt: { type: string, format: date-time, nullable: true }
     CreateTournamentRequest:
       type: object
       required: [name, slug, format]

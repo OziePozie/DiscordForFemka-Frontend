@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -24,6 +24,63 @@ import {
   type TournamentDto,
 } from '@/lib/api/types';
 
+function fmtDateTime(iso?: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// "H:MM:SS", падает до "MM:SS" внутри одного часа — та же идея, что и
+// countdown() в OpenLobbyDetailsDialog (там таймер короче и часы не нужны).
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const mm = m.toString().padStart(2, '0');
+  const ss = s.toString().padStart(2, '0');
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+type CheckInPhase = 'no-window' | 'before' | 'open' | 'closed';
+
+/**
+ * 'no-window' — организатор не настроил окно чек-ина (одно или оба поля
+ * пустые). Это не «неизвестно», это осознанный фолбэк: гейтить нечем, так
+ * что показываем CTA без ограничений и оставляем 409 бэка последним словом.
+ */
+function checkInPhase(
+  nowMs: number,
+  opensAt: string | null | undefined,
+  closesAt: string | null | undefined,
+): CheckInPhase {
+  if (!opensAt || !closesAt) return 'no-window';
+  const opens = new Date(opensAt).getTime();
+  const closes = new Date(closesAt).getTime();
+  if (nowMs < opens) return 'before';
+  if (nowMs < closes) return 'open';
+  return 'closed';
+}
+
+// Тикает раз в секунду, пока enabled — реальный интервал, а не пересчёт на
+// каждый чужой ререндер, иначе окно "открылось"/"закрылось" не переключится
+// само, пока страница открыта (требование задачи). Чистим таймер при
+// размонтировании и при выключении enabled.
+function useNow(enabled: boolean, intervalMs = 1000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [enabled, intervalMs]);
+  return now;
+}
+
 // Игрок записывается на MIX-турнир сам — вместо капитана, который заявляет
 // готовую команду (см. TEAM-ветку в Header). Организатор потом сам собирает
 // составы из отметившихся игроков, поэтому здесь нет ни выбора состава, ни
@@ -40,6 +97,23 @@ export function MixRegistrationBlock({
   const withdrawMut = useWithdrawFromMix();
   const checkInMut = useCheckInForMix();
   const [selected, setSelected] = useState<PlayerPosition[]>([]);
+
+  // Считаем от сырых данных запроса (не от `entry` ниже, который появляется
+  // только после ранних return'ов) — иначе хук вызывался бы условно. Тикает
+  // только пока есть смысл: игрок записан, не отметился и окно настроено;
+  // как только отметился/отозвал заявку/окно не задано — таймер сам не
+  // заводится, лишних тиков нет.
+  const myData = myEntryQ.data;
+  const hasCheckInWindow = Boolean(
+    tournament.checkInOpensAt && tournament.checkInClosesAt,
+  );
+  const tickingEnabled = Boolean(myData) && !myData?.checkedIn && hasCheckInWindow;
+  const now = useNow(tickingEnabled);
+  const checkInPhaseNow = checkInPhase(
+    now,
+    tournament.checkInOpensAt,
+    tournament.checkInClosesAt,
+  );
 
   function toggleRole(pos: PlayerPosition) {
     setSelected((prev) =>
@@ -221,14 +295,39 @@ export function MixRegistrationBlock({
           <div className="rounded-md border border-green-300 bg-green-50 px-4 py-3 text-green-900">
             Вы отметились и готовы к турниру.
           </div>
+        ) : checkInPhaseNow === 'before' ? (
+          <div className="rounded-md border px-4 py-3 text-sm text-muted-foreground">
+            Чек-ин ещё не открылся. Он начнётся{' '}
+            {fmtDateTime(tournament.checkInOpensAt)} — возвращайтесь сюда, когда
+            откроется, и отметьтесь, что будете играть.
+          </div>
+        ) : checkInPhaseNow === 'closed' ? (
+          <div className="space-y-1 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-red-900">
+            <p className="font-medium">Окно чек-ина закрылось</p>
+            <p className="text-xs">
+              Чек-ин закрылся {fmtDateTime(tournament.checkInClosesAt)}, а вы не
+              отметились — скорее всего, место в составе уже потеряно. Это не
+              ошибка страницы: если считаете, что так быть не должно, пишите
+              организатору турнира, самостоятельно отметиться больше нельзя.
+            </p>
+          </div>
         ) : (
           <div className="space-y-2 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-yellow-900">
             <p className="font-medium">Подтвердите участие в турнире</p>
             <p className="text-xs">
               Отметьтесь, что будете играть — организатор собирает составы
-              только из отметившихся игроков. Открытие и закрытие чек-ина
-              объявит организатор.
+              только из отметившихся игроков.
+              {checkInPhaseNow === 'no-window' &&
+                ' Открытие и закрытие чек-ина объявит организатор.'}
             </p>
+            {checkInPhaseNow === 'open' && tournament.checkInClosesAt && (
+              <p className="font-mono text-lg font-semibold tabular-nums">
+                Осталось{' '}
+                {formatCountdown(
+                  new Date(tournament.checkInClosesAt).getTime() - now,
+                )}
+              </p>
+            )}
             <Button
               size="sm"
               onClick={handleCheckIn}

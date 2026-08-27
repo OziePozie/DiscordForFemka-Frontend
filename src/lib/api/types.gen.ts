@@ -6395,6 +6395,11 @@ export interface components {
             /** Format: date-time */
             regulationsUpdatedAt?: string | null;
             registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number | null;
+            /** Format: date-time */
+            checkInOpensAt?: string | null;
+            /** Format: date-time */
+            checkInClosesAt?: string | null;
         };
         CreateTournamentRequest: {
             name: string;
