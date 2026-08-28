@@ -449,17 +449,31 @@ function OverviewTab({
           <CardDescription>Слоты и сроки</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div>
-            <span className="text-muted-foreground">Команд:</span>{' '}
-            <span className="font-semibold">{approvedTeamsCount}</span>
-            {pendingTeamsCount > 0 ? (
-              <span className="text-muted-foreground">
-                {' '}
-                (+{pendingTeamsCount} на модерации)
+          {tournament.registrationMode === 'MIX' ? (
+            // approvedTeamsCount/pendingTeamsCount считают командные заявки
+            // (TournamentRegistrationService) — для MIX их структурно нет,
+            // играют по одиночке через MixRegistrationService, поэтому
+            // здесь всегда были бы нули. Показываем то, что применимо к
+            // MIX: сколько составов планирует организатор.
+            <div>
+              <span className="text-muted-foreground">Составов:</span>{' '}
+              <span className="font-semibold">
+                {tournament.mixTeamCount ?? '—'}
               </span>
-            ) : null}
-            {tournament.maxTeams ? ` / ${tournament.maxTeams}` : ''}
-          </div>
+            </div>
+          ) : (
+            <div>
+              <span className="text-muted-foreground">Команд:</span>{' '}
+              <span className="font-semibold">{approvedTeamsCount}</span>
+              {pendingTeamsCount > 0 ? (
+                <span className="text-muted-foreground">
+                  {' '}
+                  (+{pendingTeamsCount} на модерации)
+                </span>
+              ) : null}
+              {tournament.maxTeams ? ` / ${tournament.maxTeams}` : ''}
+            </div>
+          )}
           <div>
             <span className="text-muted-foreground">Открыта:</span>{' '}
             {fmtDateTime(tournament.registrationOpensAt)}

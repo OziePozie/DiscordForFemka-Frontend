@@ -50,9 +50,13 @@ function formatCountdown(ms: number): string {
 type CheckInPhase = 'no-window' | 'before' | 'open' | 'closed';
 
 /**
- * 'no-window' — организатор не настроил окно чек-ина (одно или оба поля
- * пустые). Это не «неизвестно», это осознанный фолбэк: гейтить нечем, так
- * что показываем CTA без ограничений и оставляем 409 бэка последним словом.
+ * 'no-window' — организатор ещё не назначил окно чек-ина (одно или оба поля
+ * пустые). Бэк требует ОБА таймстампа и без них 409-ит детерминированно —
+ * не «может быть отклонит», а гарантированно всегда (см.
+ * MixRegistrationService.checkIn: `open = opensAt != null && closesAt !=
+ * null && ...`, иначе сразу throw). Успешного чек-ина в этой фазе не бывает
+ * никогда, поэтому 'no-window' рендерится как отдельная информационная
+ * фаза без кнопки — как и 'before', а не как CTA «на всякий случай».
  */
 function checkInPhase(
   nowMs: number,
@@ -98,16 +102,24 @@ export function MixRegistrationBlock({
   const checkInMut = useCheckInForMix();
   const [selected, setSelected] = useState<PlayerPosition[]>([]);
 
-  // Считаем от сырых данных запроса (не от `entry` ниже, который появляется
-  // только после ранних return'ов) — иначе хук вызывался бы условно. Тикает
-  // только пока есть смысл: игрок записан, не отметился и окно настроено;
-  // как только отметился/отозвал заявку/окно не задано — таймер сам не
-  // заводится, лишних тиков нет.
-  const myData = myEntryQ.data;
+  // Резолвим заявку здесь же, а не только после ранних return'ов ниже —
+  // это обычные производные значения (не вызовы хуков), так что правилам
+  // хуков это не мешает, а useNow() дальше может опираться на них.
+  // Важно: `entry`, а не сырой `myEntryQ.data` — TanStack Query держит
+  // последний успешный `data` даже когда запрос перешёл в error (например
+  // после отзыва заявки: /me возвращает 404, но `data` ещё хранит старую
+  // запись), так что тикер на сыром `data` продолжал бы тикать и после
+  // отзыва, пока компонент не размонтируется.
+  const notRegistered =
+    myEntryQ.isError &&
+    myEntryQ.error instanceof ProblemDetailError &&
+    myEntryQ.error.status === 404;
+  const entry = notRegistered ? null : (myEntryQ.data ?? null);
+
   const hasCheckInWindow = Boolean(
     tournament.checkInOpensAt && tournament.checkInClosesAt,
   );
-  const tickingEnabled = Boolean(myData) && !myData?.checkedIn && hasCheckInWindow;
+  const tickingEnabled = Boolean(entry) && !entry?.checkedIn && hasCheckInWindow;
   const now = useNow(tickingEnabled);
   const checkInPhaseNow = checkInPhase(
     now,
@@ -130,6 +142,11 @@ export function MixRegistrationBlock({
             'Без MMR организатор не сможет сбалансировать составы. Добавьте MMR в профиле и повторите запись.',
         };
       }
+      // Текстовая эвристика: бэк не отдаёт отдельный код ошибки для «заявку
+      // отклонил модератор» (это тот же PLATFORM_CONFLICT, что и любой
+      // другой 409 регистрации), только detail на английском. Хрупко, но
+      // альтернативы нет без нового кода на бэке — если локализуете это
+      // сообщение бэка, поправьте и проверку здесь.
       if (e.status === 409 && e.detail?.toLowerCase().includes('rejected')) {
         return {
           title: 'Заявку отклонил модератор',
@@ -200,11 +217,7 @@ export function MixRegistrationBlock({
     return <Skeleton className="h-32 w-full" />;
   }
 
-  const notRegistered =
-    myEntryQ.isError &&
-    myEntryQ.error instanceof ProblemDetailError &&
-    myEntryQ.error.status === 404;
-
+  // notRegistered/entry уже посчитаны выше (нужны были раньше useNow()).
   if (myEntryQ.isError && !notRegistered) {
     return (
       <div className="text-sm text-destructive">
@@ -213,8 +226,6 @@ export function MixRegistrationBlock({
       </div>
     );
   }
-
-  const entry = notRegistered ? null : (myEntryQ.data ?? null);
 
   if (!entry) {
     if (tournament.status !== 'REGISTRATION_OPEN') {
@@ -292,7 +303,7 @@ export function MixRegistrationBlock({
         </div>
 
         {entry.checkedIn ? (
-          <div className="rounded-md border border-green-300 bg-green-50 px-4 py-3 text-green-900">
+          <div className="rounded-md border border-green-300 bg-green-50 px-4 py-3 text-green-700 dark:border-green-500/40 dark:bg-green-500/10 dark:text-green-400">
             Вы отметились и готовы к турниру.
           </div>
         ) : checkInPhaseNow === 'before' ? (
@@ -301,8 +312,18 @@ export function MixRegistrationBlock({
             {fmtDateTime(tournament.checkInOpensAt)} — возвращайтесь сюда, когда
             откроется, и отметьтесь, что будете играть.
           </div>
+        ) : checkInPhaseNow === 'no-window' ? (
+          // Своя ветка, а не запасной вариант CTA: бэк требует оба
+          // таймстампа окна и без них 409-ит всегда (см. checkInPhase()
+          // выше) — предлагать кнопку, которая гарантированно не сработает,
+          // хуже, чем не предлагать её вовсе.
+          <div className="rounded-md border px-4 py-3 text-sm text-muted-foreground">
+            Организатор ещё не назначил окно чек-ина для этого турнира. Как
+            только это произойдёт, здесь появится кнопка «Отметиться» — а
+            пока отмечаться не нужно.
+          </div>
         ) : checkInPhaseNow === 'closed' ? (
-          <div className="space-y-1 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-red-900">
+          <div className="space-y-1 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-400">
             <p className="font-medium">Окно чек-ина закрылось</p>
             <p className="text-xs">
               Чек-ин закрылся {fmtDateTime(tournament.checkInClosesAt)}, а вы не
@@ -312,15 +333,15 @@ export function MixRegistrationBlock({
             </p>
           </div>
         ) : (
-          <div className="space-y-2 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-yellow-900">
+          // Единственная оставшаяся ветка — 'open': и только в ней чек-ин
+          // действительно может пройти.
+          <div className="space-y-2 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-yellow-700 dark:border-yellow-500/40 dark:bg-yellow-500/10 dark:text-yellow-400">
             <p className="font-medium">Подтвердите участие в турнире</p>
             <p className="text-xs">
               Отметьтесь, что будете играть — организатор собирает составы
               только из отметившихся игроков.
-              {checkInPhaseNow === 'no-window' &&
-                ' Открытие и закрытие чек-ина объявит организатор.'}
             </p>
-            {checkInPhaseNow === 'open' && tournament.checkInClosesAt && (
+            {tournament.checkInClosesAt && (
               <p className="font-mono text-lg font-semibold tabular-nums">
                 Осталось{' '}
                 {formatCountdown(

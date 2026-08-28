@@ -449,10 +449,13 @@ export default function AdminTournamentsPage() {
         });
         return;
       }
-      if (form.mixTeamCount && !/^\d+$/.test(form.mixTeamCount)) {
+      if (
+        form.mixTeamCount &&
+        (!/^\d+$/.test(form.mixTeamCount) || Number(form.mixTeamCount) < 1)
+      ) {
         toast({
           title: 'Ошибка',
-          description: 'Число составов должно быть целым числом',
+          description: 'Число составов должно быть целым числом не меньше 1',
           variant: 'destructive',
         });
         return;
@@ -469,19 +472,12 @@ export default function AdminTournamentsPage() {
           return;
         }
       }
-      if (form.checkInOpensAt && form.registrationClosesAt) {
-        const checkInOpens = parseLocalDateTime(form.checkInOpensAt);
-        const regCloses = parseLocalDateTime(form.registrationClosesAt);
-        if (checkInOpens && regCloses && checkInOpens < regCloses) {
-          toast({
-            title: 'Ошибка',
-            description:
-              'Чек-ин не может открываться раньше закрытия регистрации',
-            variant: 'destructive',
-          });
-          return;
-        }
-      }
+      // Раньше здесь была ещё проверка «чек-ин не может открываться раньше
+      // закрытия регистрации» — своя выдумка, не бэковое ограничение.
+      // Организатор вправе держать чек-ин открытым уже во время хвоста
+      // регистрации (RegistrationService и MixRegistrationService друг о
+      // друге ничего не знают), так что убрали: остаётся только «закрытие
+      // после открытия» проверкой чуть выше.
       try {
         await updateMut.mutateAsync({
           id: dialog.tournament.id,
@@ -1205,7 +1201,7 @@ export default function AdminTournamentsPage() {
                         <Input
                           id="tn-mixteamcount"
                           type="number"
-                          min={0}
+                          min={1}
                           value={form.mixTeamCount}
                           onChange={(e) =>
                             setForm({
@@ -1250,6 +1246,12 @@ export default function AdminTournamentsPage() {
                           />
                         </div>
                       </div>
+                      <p className="text-xs text-muted-foreground">
+                        Число составов и время чек-ина можно только задать
+                        или заменить новым значением — очистить поле и
+                        сохранить не получится: PATCH игнорирует пустые
+                        MIX-поля, а не стирает их.
+                      </p>
                     </>
                   )}
                 </div>
@@ -2771,9 +2773,11 @@ function TournamentRow({
             <DropdownMenuItem onClick={onEligibility}>
               Правила (eligibility)
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onTeamRequests}>
-              Заявки команд
-            </DropdownMenuItem>
+            {t.registrationMode !== 'MIX' && (
+              <DropdownMenuItem onClick={onTeamRequests}>
+                Заявки команд
+              </DropdownMenuItem>
+            )}
             {t.registrationMode === 'MIX' && (
               <DropdownMenuItem onClick={onMixPlayers}>
                 Заявки MIX-игроков

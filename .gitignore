@@ -14,3 +14,6 @@ vite.config.js
 
 # Brainstorming visual companion mockups
 .superpowers/
+
+# Per-worktree dev-server config (agent tooling), not part of the app
+.claude/launch.json

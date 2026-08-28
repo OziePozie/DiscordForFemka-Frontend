@@ -3,14 +3,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
-import { useMixPlayers } from '@/lib/queries';
+import { useMixPlayers, useTournamentEligibility } from '@/lib/queries';
 import { POSITION_LABEL, type PlayerPosition } from '@/lib/api/types';
 
-// Ростер MIX — всегда пятёрка (см. комментарий EligibilityValidator на
-// бэке: незаполненный expectedTeamSize тоже трактуется как 5). mixTeamCount
-// — число составов, а не игроков, поэтому нужное число голов — mixTeamCount
-// * ROSTER_SIZE.
-const ROSTER_SIZE = 5;
+// Дефолт, если организатор не задал размер ростера явно (см. комментарий
+// EligibilityValidator на бэке: незаполненный expectedTeamSize трактуется
+// как 5) — и запасной вариант, пока не пришёл ответ /eligibility или если
+// он вовсе недоступен.
+const DEFAULT_ROSTER_SIZE = 5;
 
 // Публичный список записавшихся на MIX-турнир игроков. Живёт на месте
 // «Команд» для TEAM-турниров (TournamentDetailsPage переключает вкладку по
@@ -24,6 +24,14 @@ export function MixPlayersList({
 }) {
   const [page, setPage] = useState(0);
   const q = useMixPlayers(tournamentId, { page, size: 20 });
+  // /eligibility — публичный GET (security: [] в контракте), так что это
+  // читает и анонимный посетитель, не только персонал. expectedTeamSize —
+  // тот же размер ростера, что MixRegistrationService.checkEligibility()
+  // использует на бэке при записи; если организатор его не задавал (или
+  // запрос ещё грузится/упал), считаем дефолтную пятёрку — ровно то же
+  // допущение, что и на бэке для незаполненного поля.
+  const eligibilityQ = useTournamentEligibility(tournamentId);
+  const rosterSize = eligibilityQ.data?.expectedTeamSize ?? DEFAULT_ROSTER_SIZE;
 
   if (q.isLoading) return <Skeleton className="h-60 w-full" />;
   if (q.isError)
@@ -38,8 +46,7 @@ export function MixPlayersList({
   const total = q.data?.totalItems ?? players.length;
   // null/undefined — организатор не зафиксировал число составов; тогда цели
   // нет и считать нечего, показываем только фактическую явку.
-  const needed =
-    mixTeamCount != null ? mixTeamCount * ROSTER_SIZE : null;
+  const needed = mixTeamCount != null ? mixTeamCount * rosterSize : null;
 
   return (
     <div className="space-y-3">

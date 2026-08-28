@@ -780,7 +780,13 @@ export function useRegisterForMix() {
     { tournamentId: string; body?: MixRegisterRequest }
   >({
     mutationFn: ({ tournamentId, body }) => registerForMix(tournamentId, body),
-    onSuccess: (_data, { tournamentId }) => {
+    onSuccess: (data, { tournamentId }) => {
+      // Пишем ответ в кэш сразу, а не только invalidate: инвалидация лишь
+      // помечает запрос устаревшим и планирует рефетч, а не обновляет
+      // данные синхронно, так что без setQueryData между success-тостом и
+      // приездом рефетча UI ещё кадр-другой показывал бы дозаписной
+      // экран/старую запись.
+      qc.setQueryData(qk.myMixEntry(tournamentId), data);
       qc.invalidateQueries({ queryKey: qk.myMixEntry(tournamentId) });
       qc.invalidateQueries({
         queryKey: ['tournament', tournamentId, 'mix', 'players'],
@@ -808,7 +814,11 @@ export function useCheckInForMix() {
   const qc = useQueryClient();
   return useMutation<MixPlayerDto, Error, { tournamentId: string }>({
     mutationFn: ({ tournamentId }) => checkInForMix(tournamentId),
-    onSuccess: (_data, { tournamentId }) => {
+    onSuccess: (data, { tournamentId }) => {
+      // См. комментарий в useRegisterForMix — тот же разрыв между success и
+      // рефетчем: без этого "Вы отметились" всплывал бы тостом, пока сам
+      // блок ещё держал жёлтый CTA со счётчиком.
+      qc.setQueryData(qk.myMixEntry(tournamentId), data);
       qc.invalidateQueries({ queryKey: qk.myMixEntry(tournamentId) });
       qc.invalidateQueries({
         queryKey: ['tournament', tournamentId, 'mix', 'players'],
