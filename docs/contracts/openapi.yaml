@@ -3399,6 +3399,12 @@ components:
           type: array
           items: { type: integer, format: int64 }
           description: Опционально. Отсутствие или null = пустой список. Нормализуется на сервере.
+        # Режим регистрации и MIX-настройки. Отсутствие registrationMode = TEAM,
+        # чтобы клиенты, не знающие о поле, продолжали создавать командные турниры.
+        registrationMode:  { $ref: "#/components/schemas/RegistrationMode" }
+        mixTeamCount:      { type: integer, nullable: true }
+        checkInOpensAt:    { type: string, format: date-time, nullable: true }
+        checkInClosesAt:   { type: string, format: date-time, nullable: true }
     UpdateTournamentRequest:
       description: PATCH-семантика — поля со значением `null` или отсутствующие не меняются.
       type: object

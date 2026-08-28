@@ -353,6 +353,29 @@ export default function AdminTournamentsPage() {
     if (form.dotaLeagueId && !/^\d+$/.test(form.dotaLeagueId)) {
       return 'Dota league ID должен быть целым числом';
     }
+    return validateMix();
+  }
+
+  /**
+   * MIX-поля проверяются одинаково при создании и при редактировании —
+   * общий хелпер, чтобы правила не разъехались между двумя формами.
+   * Окно чек-ина дублируется проверкой на бэке (PLATFORM_VALIDATION);
+   * здесь она нужна, чтобы не гонять заведомо неверный запрос.
+   */
+  function validateMix(): string | null {
+    if (
+      form.mixTeamCount &&
+      (!/^\d+$/.test(form.mixTeamCount) || Number(form.mixTeamCount) < 1)
+    ) {
+      return 'Число составов должно быть целым числом не меньше 1';
+    }
+    if (form.checkInOpensAt && form.checkInClosesAt) {
+      const opens = parseLocalDateTime(form.checkInOpensAt);
+      const closes = parseLocalDateTime(form.checkInClosesAt);
+      if (opens && closes && closes <= opens) {
+        return 'Чек-ин должен закрываться позже, чем открывается';
+      }
+    }
     return null;
   }
 
@@ -411,6 +434,12 @@ export default function AdminTournamentsPage() {
           regulationsUrl: form.regulationsUrl.trim() || null,
           regulationsContent: form.regulationsContent.trim() || null,
           regulationsVersion: form.regulationsVersion.trim() || null,
+          // MIX-турнир создаётся сразу в нужном режиме: раньше приходилось
+          // создавать командный и переключать его отдельным сохранением.
+          registrationMode: form.registrationMode,
+          mixTeamCount: form.mixTeamCount ? Number(form.mixTeamCount) : null,
+          checkInOpensAt: parseLocalDateTime(form.checkInOpensAt),
+          checkInClosesAt: parseLocalDateTime(form.checkInClosesAt),
         });
         toast({ title: 'Турнир создан', description: t.name });
         closeDialog();
@@ -449,35 +478,11 @@ export default function AdminTournamentsPage() {
         });
         return;
       }
-      if (
-        form.mixTeamCount &&
-        (!/^\d+$/.test(form.mixTeamCount) || Number(form.mixTeamCount) < 1)
-      ) {
-        toast({
-          title: 'Ошибка',
-          description: 'Число составов должно быть целым числом не меньше 1',
-          variant: 'destructive',
-        });
+      const mixErr = validateMix();
+      if (mixErr) {
+        toast({ title: 'Ошибка', description: mixErr, variant: 'destructive' });
         return;
       }
-      if (form.checkInOpensAt && form.checkInClosesAt) {
-        const opens = parseLocalDateTime(form.checkInOpensAt);
-        const closes = parseLocalDateTime(form.checkInClosesAt);
-        if (opens && closes && closes <= opens) {
-          toast({
-            title: 'Ошибка',
-            description: 'Чек-ин должен закрываться позже, чем открывается',
-            variant: 'destructive',
-          });
-          return;
-        }
-      }
-      // Раньше здесь была ещё проверка «чек-ин не может открываться раньше
-      // закрытия регистрации» — своя выдумка, не бэковое ограничение.
-      // Организатор вправе держать чек-ин открытым уже во время хвоста
-      // регистрации (RegistrationService и MixRegistrationService друг о
-      // друге ничего не знают), так что убрали: остаётся только «закрытие
-      // после открытия» проверкой чуть выше.
       try {
         await updateMut.mutateAsync({
           id: dialog.tournament.id,
@@ -1156,14 +1161,21 @@ export default function AdminTournamentsPage() {
               </div>
             </details>
 
-            {/* MIX-регистрация переключается только PATCH'ем существующего
-                турнира — бэкенд не принимает эти поля при создании, поэтому
-                блок скрыт целиком в create-форме. */}
-            {dialog?.kind === 'edit' && (
-              <details className="rounded-md border bg-muted/30 px-3 py-2">
-                <summary className="cursor-pointer select-none text-sm font-medium">
-                  MIX-регистрация
-                </summary>
+            {/* Блок показывается и при создании: бэкенд принимает режим
+                регистрации в CreateTournamentRequest, так что MIX-турнир
+                заводится сразу, без переключения отдельным сохранением. */}
+            {/* Заголовок называет текущий режим, а не просто «MIX-регистрация»:
+                админ, который ищет, где переключается тип регистрации, находит
+                его по названию, не разворачивая блок наугад. Автораскрытие по
+                режиму не делаем — оно захлопывало бы блок при переключении
+                обратно на командный, пряча только что использованный селект. */}
+            <details className="rounded-md border bg-muted/30 px-3 py-2">
+              <summary className="cursor-pointer select-none text-sm font-medium">
+                Тип регистрации —{' '}
+                {form.registrationMode === 'MIX'
+                  ? 'игроками по одному (MIX)'
+                  : 'командами'}
+              </summary>
                 <div className="mt-3 space-y-3">
                   <div className="space-y-1">
                     <Label htmlFor="tn-regmode">Тип регистрации</Label>
@@ -1246,17 +1258,20 @@ export default function AdminTournamentsPage() {
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Число составов и время чек-ина можно только задать
-                        или заменить новым значением — очистить поле и
-                        сохранить не получится: PATCH игнорирует пустые
-                        MIX-поля, а не стирает их.
-                      </p>
+                      {/* Оговорка про PATCH верна только при редактировании:
+                          при создании стирать ещё нечего. */}
+                      {dialog?.kind === 'edit' && (
+                        <p className="text-xs text-muted-foreground">
+                          Число составов и время чек-ина можно только задать
+                          или заменить новым значением — очистить поле и
+                          сохранить не получится: PATCH игнорирует пустые
+                          MIX-поля, а не стирает их.
+                        </p>
+                      )}
                     </>
                   )}
                 </div>
-              </details>
-            )}
+            </details>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeDialog}>
@@ -2758,6 +2773,10 @@ function TournamentRow({
             {TOURNAMENT_STATUS_LABEL[t.status]}
           </Badge>
           {t.hidden && <Badge variant="secondary">Скрыт</Badge>}
+          {/* MIX-турниры устроены принципиально иначе (записываются игроки,
+              а не команды), поэтому видны прямо в списке — иначе отличить их
+              можно только открыв редактирование. */}
+          {t.registrationMode === 'MIX' && <Badge variant="outline">MIX</Badge>}
         </div>
       </td>
       <td className="px-4 py-3 text-muted-foreground">{t.maxTeams ?? '—'}</td>

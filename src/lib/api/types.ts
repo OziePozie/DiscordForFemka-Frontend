@@ -410,6 +410,11 @@ export interface CreateTournamentRequest {
   regulationsUrl?: string | null;
   regulationsContent?: string | null;
   regulationsVersion?: string | null;
+  // Режим регистрации и MIX-настройки. Отсутствие registrationMode = TEAM.
+  registrationMode?: RegistrationMode | null;
+  mixTeamCount?: number | null;
+  checkInOpensAt?: string | null;
+  checkInClosesAt?: string | null;
 }
 
 export interface UpdateTournamentRequest {
