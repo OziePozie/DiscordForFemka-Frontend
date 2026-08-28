@@ -2412,6 +2412,223 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tournaments/{id}/mix/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register for a MIX tournament
+         * @description Registers the authenticated player for the MIX tournament, using the preferred
+         *     positions from the request body or falling back to the player's profile.
+         *     Returns 200 rather than 201 even on a first-time registration: this call does
+         *     not always insert a new row — re-registering after a withdrawal or a rejection
+         *     overwrites the player's existing (withdrawn/rejected) entry in place, so there
+         *     is no single "created vs. not" answer to hang a 201 on.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MixRegisterRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        /**
+         * Withdraw from a MIX tournament
+         * @description Withdraws the authenticated player's registration from the MIX tournament.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/mix/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check in for a MIX tournament
+         * @description Marks the authenticated player as checked in and refreshes their MMR snapshot.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/mix/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List MIX tournament registrations
+         * @description Returns a paginated public list of approved, non-withdrawn registrations for
+         *     the MIX tournament. MMR and preferred positions are omitted for players who
+         *     hid them in their privacy settings. 404s for a hidden tournament unless the
+         *     caller is staff, same as the team-side /teams, /matches, /bracket and
+         *     /eligibility endpoints.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["MixPlayerDto"][];
+                        };
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/mix/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get own MIX tournament registration
+         * @description Returns the authenticated player's own registration for the MIX tournament.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tournaments/{id}/eligibility": {
         parameters: {
             query?: never;
@@ -3227,6 +3444,141 @@ export interface paths {
                 409: components["responses"]["Conflict"];
             };
         };
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/mix/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List MIX tournament registrations (admin)
+         * @description Returns all registrations for the MIX tournament, including rejected and
+         *     withdrawn ones. MMR and the reject reason are always visible.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerAdminDto"][];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/mix/players/{playerId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a MIX tournament registration
+         * @description Returns a previously rejected registration back to play.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    playerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/mix/players/{playerId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a MIX tournament registration
+         * @description Rejects the player's registration for the MIX tournament with an optional reason.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    playerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MixRejectRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/admin/teams": {
@@ -5483,6 +5835,8 @@ export interface components {
         /** @enum {string} */
         TournamentStatus: "ANNOUNCED" | "REGISTRATION_OPEN" | "REGISTRATION_CLOSED" | "LIVE" | "FINISHED" | "CANCELLED";
         /** @enum {string} */
+        RegistrationMode: "TEAM" | "MIX";
+        /** @enum {string} */
         MatchKind: "TOURNAMENT" | "CLAN_WAR" | "SHOWMATCH";
         /** @enum {string} */
         MatchFormat: "BO1" | "BO3" | "BO5";
@@ -6040,6 +6394,12 @@ export interface components {
             regulationsVersion?: string | null;
             /** Format: date-time */
             regulationsUpdatedAt?: string | null;
+            registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number | null;
+            /** Format: date-time */
+            checkInOpensAt?: string | null;
+            /** Format: date-time */
+            checkInClosesAt?: string | null;
         };
         CreateTournamentRequest: {
             name: string;
@@ -6103,6 +6463,12 @@ export interface components {
             regulationsUrl?: string;
             regulationsContent?: string;
             regulationsVersion?: string;
+            registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number;
+            /** Format: date-time */
+            checkInOpensAt?: string;
+            /** Format: date-time */
+            checkInClosesAt?: string;
         };
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];
@@ -6677,6 +7043,49 @@ export interface components {
             roster?: components["schemas"]["RosterMemberAdminDto"][];
         };
         RejectTeamRequest: {
+            reason?: string | null;
+        };
+        MixPlayerDto: {
+            /** Format: uuid */
+            playerId?: string;
+            nickname?: string;
+            avatarUrl?: string | null;
+            mmr?: number | null;
+            /**
+             * @description Пустой список — согласен на любую позицию; null — игрок скрыл
+             *     позиции в настройках приватности (как и mmr выше — не то же самое,
+             *     что пустой список).
+             */
+            preferredPositions?: components["schemas"]["PlayerPosition"][] | null;
+            status?: components["schemas"]["RequestStatus"];
+            checkedIn?: boolean;
+            teamNo?: number | null;
+            position?: components["schemas"]["PlayerPosition"];
+        };
+        MixPlayerAdminDto: {
+            /** Format: uuid */
+            playerId?: string;
+            nickname?: string;
+            mmr?: number;
+            preferredPositions?: components["schemas"]["PlayerPosition"][];
+            status?: components["schemas"]["RequestStatus"];
+            rejectReason?: string | null;
+            /** Format: date-time */
+            checkedInAt?: string | null;
+            teamNo?: number | null;
+            position?: components["schemas"]["PlayerPosition"];
+            /**
+             * Format: date-time
+             * @description null — заявка не отозвана. listAdmin() возвращает и отозванные
+             *     заявки, поэтому без этого поля отозванная APPROVED-запись
+             *     неотличима от активной.
+             */
+            withdrawnAt?: string | null;
+        };
+        MixRegisterRequest: {
+            preferredPositions?: components["schemas"]["PlayerPosition"][] | null;
+        };
+        MixRejectRequest: {
             reason?: string | null;
         };
         AuditLogDto: {

@@ -59,6 +59,15 @@ import {
   generateBracket,
   getTournamentEligibility,
   putTournamentEligibility,
+  registerForMix,
+  withdrawFromMix,
+  checkInForMix,
+  listMixPlayers,
+  getMyMixEntry,
+  adminListMixPlayers,
+  adminApproveMixPlayer,
+  adminRejectMixPlayer,
+  type MixPlayersPageParams,
   createTeam,
   updateTeam,
   uploadAttachment,
@@ -187,6 +196,9 @@ import type {
   CreateTournamentRequest,
   UpdateTournamentRequest,
   TournamentEligibilityDto,
+  MixPlayerDto,
+  MixPlayerAdminDto,
+  MixRegisterRequest,
   CreateTeamRequest,
   UpdateTeamRequest,
   TeamInviteDto,
@@ -246,6 +258,12 @@ export const qk = {
   bracket: (id: string) => ['tournament', id, 'bracket'] as const,
   stages: (id: string) => ['tournament', id, 'stages'] as const,
   standings: (id: string) => ['tournament', id, 'standings'] as const,
+  mixPlayers: (tournamentId: string, params: MixPlayersPageParams) =>
+    ['tournament', tournamentId, 'mix', 'players', params] as const,
+  myMixEntry: (tournamentId: string) =>
+    ['tournament', tournamentId, 'mix', 'me'] as const,
+  adminMixPlayers: (tournamentId: string) =>
+    ['admin', 'tournament', tournamentId, 'mix', 'players'] as const,
   team: (id: string) => ['team', id] as const,
   adminMmr: ['adminMmr'] as const,
   adminMmrPage: (params: AdminMmrRequestsParams) =>
@@ -705,6 +723,139 @@ export function useRegisterTournament() {
     onSuccess: (_data, { tournamentId }) => {
       qc.invalidateQueries({ queryKey: ['tournament'] });
       qc.invalidateQueries({ queryKey: ['tournament', tournamentId, 'teams'] });
+    },
+  });
+}
+
+// ──────────────── MIX registration ────────────────
+
+export function useMixPlayers(
+  tournamentId: string | undefined,
+  params: MixPlayersPageParams = {},
+) {
+  return useQuery({
+    queryKey: tournamentId
+      ? qk.mixPlayers(tournamentId, params)
+      : ['tournament', 'none', 'mix', 'players', params],
+    queryFn: () => listMixPlayers(tournamentId!, params),
+    enabled: Boolean(tournamentId),
+  });
+}
+
+// Своя заявка на MIX-турнир. 404 тут — ожидаемое состояние «не
+// зарегистрирован», а не ошибка. В файле нет прецедента хука, который сам
+// превращает ожидаемый 404 в null/undefined (useSession/useCurrentSeason
+// решают другую задачу: там бэкенд отвечает 200 с пустым телом, а не кодом
+// ошибки, поэтому там достаточно `data ?? null` в самой api-функции). Здесь
+// endpoints.getMyMixEntry() специально не глотает 404 — оставляем retry
+// выключенным и даём вызывающей стороне самой отличить "ещё не пришёл ответ"
+// от "точно не зарегистрирован" через isError/error (ProblemDetailError с
+// status === 404).
+export function useMyMixEntry(tournamentId: string | undefined) {
+  return useQuery({
+    queryKey: tournamentId
+      ? qk.myMixEntry(tournamentId)
+      : ['tournament', 'none', 'mix', 'me'],
+    queryFn: () => getMyMixEntry(tournamentId!),
+    enabled: Boolean(tournamentId),
+    retry: false,
+  });
+}
+
+export function useAdminMixPlayers(tournamentId: string | undefined) {
+  return useQuery({
+    queryKey: tournamentId
+      ? qk.adminMixPlayers(tournamentId)
+      : ['admin', 'tournament', 'none', 'mix', 'players'],
+    queryFn: () => adminListMixPlayers(tournamentId!),
+    enabled: Boolean(tournamentId),
+  });
+}
+
+export function useRegisterForMix() {
+  const qc = useQueryClient();
+  return useMutation<
+    MixPlayerDto,
+    Error,
+    { tournamentId: string; body?: MixRegisterRequest }
+  >({
+    mutationFn: ({ tournamentId, body }) => registerForMix(tournamentId, body),
+    onSuccess: (data, { tournamentId }) => {
+      // Пишем ответ в кэш сразу, а не только invalidate: инвалидация лишь
+      // помечает запрос устаревшим и планирует рефетч, а не обновляет
+      // данные синхронно, так что без setQueryData между success-тостом и
+      // приездом рефетча UI ещё кадр-другой показывал бы дозаписной
+      // экран/старую запись.
+      qc.setQueryData(qk.myMixEntry(tournamentId), data);
+      qc.invalidateQueries({ queryKey: qk.myMixEntry(tournamentId) });
+      qc.invalidateQueries({
+        queryKey: ['tournament', tournamentId, 'mix', 'players'],
+      });
+      qc.invalidateQueries({ queryKey: qk.adminMixPlayers(tournamentId) });
+    },
+  });
+}
+
+export function useWithdrawFromMix() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { tournamentId: string }>({
+    mutationFn: ({ tournamentId }) => withdrawFromMix(tournamentId),
+    onSuccess: (_data, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.myMixEntry(tournamentId) });
+      qc.invalidateQueries({
+        queryKey: ['tournament', tournamentId, 'mix', 'players'],
+      });
+      qc.invalidateQueries({ queryKey: qk.adminMixPlayers(tournamentId) });
+    },
+  });
+}
+
+export function useCheckInForMix() {
+  const qc = useQueryClient();
+  return useMutation<MixPlayerDto, Error, { tournamentId: string }>({
+    mutationFn: ({ tournamentId }) => checkInForMix(tournamentId),
+    onSuccess: (data, { tournamentId }) => {
+      // См. комментарий в useRegisterForMix — тот же разрыв между success и
+      // рефетчем: без этого "Вы отметились" всплывал бы тостом, пока сам
+      // блок ещё держал жёлтый CTA со счётчиком.
+      qc.setQueryData(qk.myMixEntry(tournamentId), data);
+      qc.invalidateQueries({ queryKey: qk.myMixEntry(tournamentId) });
+      qc.invalidateQueries({
+        queryKey: ['tournament', tournamentId, 'mix', 'players'],
+      });
+      qc.invalidateQueries({ queryKey: qk.adminMixPlayers(tournamentId) });
+    },
+  });
+}
+
+export function useAdminApproveMixPlayer() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, { tournamentId: string; playerId: string }>({
+    mutationFn: ({ tournamentId, playerId }) =>
+      adminApproveMixPlayer(tournamentId, playerId),
+    onSuccess: (_data, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.adminMixPlayers(tournamentId) });
+      qc.invalidateQueries({
+        queryKey: ['tournament', tournamentId, 'mix', 'players'],
+      });
+    },
+  });
+}
+
+export function useAdminRejectMixPlayer() {
+  const qc = useQueryClient();
+  return useMutation<
+    void,
+    Error,
+    { tournamentId: string; playerId: string; reason?: string }
+  >({
+    mutationFn: ({ tournamentId, playerId, reason }) =>
+      adminRejectMixPlayer(tournamentId, playerId, reason),
+    onSuccess: (_data, { tournamentId }) => {
+      qc.invalidateQueries({ queryKey: qk.adminMixPlayers(tournamentId) });
+      qc.invalidateQueries({
+        queryKey: ['tournament', tournamentId, 'mix', 'players'],
+      });
     },
   });
 }
