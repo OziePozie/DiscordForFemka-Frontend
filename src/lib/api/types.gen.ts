@@ -6430,6 +6430,12 @@ export interface components {
             grandFinalFormat?: components["schemas"]["MatchFormat"];
             /** @description Опционально. Отсутствие или null = пустой список. Нормализуется на сервере. */
             broadcasterAccountIds?: number[];
+            registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number | null;
+            /** Format: date-time */
+            checkInOpensAt?: string | null;
+            /** Format: date-time */
+            checkInClosesAt?: string | null;
         };
         /** @description PATCH-семантика — поля со значением `null` или отсутствующие не меняются. */
         UpdateTournamentRequest: {
