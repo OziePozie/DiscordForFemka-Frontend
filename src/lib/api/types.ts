@@ -436,6 +436,13 @@ export interface UpdateTournamentRequest {
   regulationsUrl?: string | null;
   regulationsContent?: string | null;
   regulationsVersion?: string | null;
+  // MIX-регистрация: уже есть в types.gen.ts, дублируем здесь по той же
+  // причине, что и остальные поля этого интерфейса. Бэкенд принимает их
+  // только через PATCH — CreateTournamentRequest их сознательно не получает.
+  registrationMode?: RegistrationMode | null;
+  mixTeamCount?: number | null;
+  checkInOpensAt?: string | null;
+  checkInClosesAt?: string | null;
 }
 
 // Gamification: hero groups, achievements, quests
