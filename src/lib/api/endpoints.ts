@@ -13,9 +13,14 @@ import type {
   TournamentDetailsDto,
   TournamentTeamDto,
   BracketDto,
+  TournamentStageDto,
+  GroupStandingsDto,
+  GenerateStagesRequest,
   MatchDto,
   TeamDto,
   TeamPublicDto,
+  TeamStatus,
+  TeamMemberRole,
   MmrChangeRequestAdminDto,
   MmrChangeRequestDto,
   CreateMmrChangeRequest,
@@ -36,9 +41,11 @@ import type {
   CreateMatchRequestDto,
   PlayerAdminDto,
   AdminUpdatePlayerRequest,
+  AdminCreatePlayerRequest,
   AuditLogDto,
   BotStatusDto,
   CreateBotRequest,
+  AdminLobbyDto,
   ActivityStatus,
   PlayerRole,
   UpdateMatchRequest,
@@ -47,16 +54,118 @@ import type {
   ChangeFormatRequest,
   SeasonChampionDto,
   PlayerHistoryDto,
+  PlayerAchievementDto,
   TeamHistoryDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
+  RefetchResultDto,
   CreateOpenLobbyRequest,
   OpenLobbyDto,
   LeaderboardEntryDto,
   PlayerRatingDto,
   PlayerMatchSummaryDto,
   PlayerStatsDto,
+  InviteResultDto,
+  NotificationDto,
+  TournamentTeamAdminDto,
+  RejectTeamRequest,
+  TelegramInitResponse,
+  PrivacySettings,
+  AccessCodeDto,
+  IssuedCodeDto,
+  IssueCodeRequest,
+  CodeStatus,
+  CodeType,
+  HeroGroupDto,
+  CreateHeroGroupRequest,
+  UpdateHeroGroupRequest,
+  DotaHeroDto,
+  AchievementDto,
+  CreateAchievementRequest,
+  UpdateAchievementRequest,
+  ConditionRowDto,
+  QuestDto,
+  CreateQuestRequest,
+  UpdateQuestRequest,
+  MixPlayerDto,
+  MixPlayerAdminDto,
+  MixRegisterRequest,
 } from './types';
+
+// ──────────────── Telegram Mini App ────────────────
+
+/**
+ * Логин по подписанной Telegram initData. Вызывается при каждом открытии
+ * Mini App: cookie сессии в вебвью (особенно на iOS) ненадёжна, а повторный
+ * вызов идемпотентен.
+ */
+export function telegramInit(initData: string): Promise<TelegramInitResponse> {
+  return api<TelegramInitResponse>('/oauth/telegram/init', {
+    method: 'POST',
+    body: JSON.stringify({ initData }),
+  });
+}
+
+/** Привязка профиля по одноразовому AUTH-коду. */
+export function telegramClaim(
+  initData: string,
+  code: string,
+): Promise<TelegramInitResponse> {
+  return api<TelegramInitResponse>('/oauth/telegram/claim', {
+    method: 'POST',
+    body: JSON.stringify({ initData, code }),
+  });
+}
+
+// ──────────────── Profile privacy ────────────────
+
+export function getPrivacySettings(): Promise<PrivacySettings> {
+  return api<PrivacySettings>('/api/v1/me/privacy');
+}
+
+export function updatePrivacySettings(
+  changes: PrivacySettings,
+): Promise<PrivacySettings> {
+  return api<PrivacySettings>('/api/v1/me/privacy', {
+    method: 'PUT',
+    body: JSON.stringify(changes),
+  });
+}
+
+// ──────────────── Admin: access codes ────────────────
+
+export function issueAccessCode(
+  playerId: string,
+  body: IssueCodeRequest = {},
+): Promise<IssuedCodeDto> {
+  return api<IssuedCodeDto>(
+    `/api/v1/admin/players/${encodeURIComponent(playerId)}/codes`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export interface AccessCodesPageParams {
+  playerId?: string;
+  status?: CodeStatus;
+  type?: CodeType;
+  page?: number;
+  size?: number;
+}
+
+export function getAccessCodesPage(
+  params: AccessCodesPageParams = {},
+): Promise<PagedResponse<AccessCodeDto>> {
+  return api<PagedResponse<AccessCodeDto>>(
+    `/api/v1/admin/codes${buildQuery(params)}`,
+  );
+}
+
+export function revokeAccessCode(id: string): Promise<AccessCodeDto> {
+  return api<AccessCodeDto>(
+    `/api/v1/admin/codes/${encodeURIComponent(id)}/revoke`,
+    { method: 'POST' },
+  );
+}
 
 export async function getSession(): Promise<SessionDto | null> {
   // Backend may return either body `null` or HTTP 200 with literal null in body.
@@ -113,6 +222,9 @@ export interface PlayersPageParams {
   country?: string;
   role?: string;
   activity?: 'active' | 'inactive' | 'all';
+  /** Границы MMR применяются к текущему MMR игрока (включительно). */
+  mmrMin?: number;
+  mmrMax?: number;
   page?: number;
   size?: number;
 }
@@ -132,21 +244,26 @@ export function logout(): Promise<void> {
 // ──────────────── Internal rating (public) ────────────────
 
 export interface LeaderboardPageParams {
+  /** Slug сцены (сезона) — обязателен: рейтинг посезонный. */
+  season: string;
   page?: number;
   size?: number;
 }
 
 export function getLeaderboardPage(
-  params: LeaderboardPageParams = {},
+  params: LeaderboardPageParams,
 ): Promise<PagedResponse<LeaderboardEntryDto>> {
   return api<PagedResponse<LeaderboardEntryDto>>(
     `/api/v1/ratings/leaderboard${buildQuery(params)}`,
   );
 }
 
-export function getPlayerRating(id: string): Promise<PlayerRatingDto> {
+export function getPlayerRating(
+  id: string,
+  season: string,
+): Promise<PlayerRatingDto> {
   return api<PlayerRatingDto>(
-    `/api/v1/ratings/players/${encodeURIComponent(id)}`,
+    `/api/v1/ratings/players/${encodeURIComponent(id)}${buildQuery({ season })}`,
   );
 }
 
@@ -257,6 +374,22 @@ export function getTournamentBracket(tournamentId: string): Promise<BracketDto> 
   );
 }
 
+export function getTournamentStages(
+  tournamentId: string,
+): Promise<TournamentStageDto[]> {
+  return api<TournamentStageDto[]>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/stages`,
+  );
+}
+
+export function getTournamentStandings(
+  tournamentId: string,
+): Promise<GroupStandingsDto[]> {
+  return api<GroupStandingsDto[]>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/standings`,
+  );
+}
+
 export function registerTeamForTournament(
   tournamentId: string,
   teamId: string,
@@ -267,22 +400,56 @@ export function registerTeamForTournament(
   );
 }
 
-// ──────────────── Teams (public) ────────────────
+// ──────────────── MIX registration (public) ────────────────
 
-export interface TeamsPageParams {
-  q?: string;
-  status?: string;
+export function registerForMix(
+  tournamentId: string,
+  body?: MixRegisterRequest,
+): Promise<MixPlayerDto> {
+  return api<MixPlayerDto>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/register`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    },
+  );
+}
+
+export function withdrawFromMix(tournamentId: string): Promise<void> {
+  return api<void>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/register`,
+    { method: 'DELETE' },
+  );
+}
+
+export function checkInForMix(tournamentId: string): Promise<MixPlayerDto> {
+  return api<MixPlayerDto>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/check-in`,
+    { method: 'POST' },
+  );
+}
+
+export interface MixPlayersPageParams {
   page?: number;
   size?: number;
 }
 
-export function getTeamsPage(
-  params: TeamsPageParams = {},
-): Promise<PagedResponse<TeamPublicDto>> {
-  return api<PagedResponse<TeamPublicDto>>(
-    `/api/v1/teams${buildQuery(params)}`,
+export function listMixPlayers(
+  tournamentId: string,
+  params: MixPlayersPageParams = {},
+): Promise<PagedResponse<MixPlayerDto>> {
+  return api<PagedResponse<MixPlayerDto>>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/players${buildQuery(params)}`,
   );
 }
+
+export function getMyMixEntry(tournamentId: string): Promise<MixPlayerDto> {
+  return api<MixPlayerDto>(
+    `/api/v1/tournaments/${encodeURIComponent(tournamentId)}/mix/me`,
+  );
+}
+
+// ──────────────── Teams (public) ────────────────
 
 export function getTeamById(id: string): Promise<TeamDto> {
   return api<TeamDto>(`/api/v1/teams/${encodeURIComponent(id)}`);
@@ -328,6 +495,20 @@ export function leaveTeamMember(
   return api<TeamDto>(
     `/api/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(playerId)}/leave`,
     { method: 'POST' },
+  );
+}
+
+export function changeTeamMemberRole(
+  teamId: string,
+  playerId: string,
+  role: TeamMemberRole,
+): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(playerId)}/role`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    },
   );
 }
 
@@ -434,6 +615,168 @@ export function finishSeason(id: string): Promise<SeasonDto> {
   );
 }
 
+// ──────────────── Admin: Hero groups ────────────────
+
+export interface HeroGroupsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getHeroGroupsPage(
+  params: HeroGroupsPageParams = {},
+): Promise<PagedResponse<HeroGroupDto>> {
+  return api<PagedResponse<HeroGroupDto>>(
+    `/api/v1/admin/hero-groups${buildQuery(params)}`,
+  );
+}
+
+export function createHeroGroup(
+  body: CreateHeroGroupRequest,
+): Promise<HeroGroupDto> {
+  return api<HeroGroupDto>('/api/v1/admin/hero-groups', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateHeroGroup(
+  id: string,
+  patch: UpdateHeroGroupRequest,
+): Promise<HeroGroupDto> {
+  return api<HeroGroupDto>(
+    `/api/v1/admin/hero-groups/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+  );
+}
+
+export function deleteHeroGroup(id: string): Promise<void> {
+  return api<void>(`/api/v1/admin/hero-groups/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ──────────────── Dota heroes catalog ────────────────
+
+export function getDotaHeroesCatalog(): Promise<DotaHeroDto[]> {
+  return api<DotaHeroDto[]>('/api/v1/dota/heroes');
+}
+
+// ──────────────── Admin: Achievements ────────────────
+
+export interface AchievementsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getAchievementsPage(
+  params: AchievementsPageParams = {},
+): Promise<PagedResponse<AchievementDto>> {
+  return api<PagedResponse<AchievementDto>>(
+    `/api/v1/admin/achievements${buildQuery(params)}`,
+  );
+}
+
+export function createAchievement(
+  body: CreateAchievementRequest,
+): Promise<AchievementDto> {
+  return api<AchievementDto>('/api/v1/admin/achievements', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateAchievement(
+  id: string,
+  patch: UpdateAchievementRequest,
+): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+  );
+}
+
+export function replaceAchievementConditions(
+  id: string,
+  conditions: ConditionRowDto[],
+): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/conditions`,
+    { method: 'PUT', body: JSON.stringify(conditions) },
+  );
+}
+
+export function publishAchievement(id: string): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/publish`,
+    { method: 'POST' },
+  );
+}
+
+export function archiveAchievement(id: string): Promise<AchievementDto> {
+  return api<AchievementDto>(
+    `/api/v1/admin/achievements/${encodeURIComponent(id)}/archive`,
+    { method: 'POST' },
+  );
+}
+
+// ──────────────── Admin: Tournament quests ────────────────
+
+export interface QuestsPageParams {
+  page?: number;
+  size?: number;
+}
+
+export function getTournamentQuestsPage(
+  tournamentId: string,
+  params: QuestsPageParams = {},
+): Promise<PagedResponse<QuestDto>> {
+  return api<PagedResponse<QuestDto>>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/quests${buildQuery(params)}`,
+  );
+}
+
+export function createQuest(
+  tournamentId: string,
+  body: CreateQuestRequest,
+): Promise<QuestDto> {
+  return api<QuestDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/quests`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function updateQuest(
+  id: string,
+  patch: UpdateQuestRequest,
+): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function replaceQuestConditions(
+  id: string,
+  conditions: ConditionRowDto[],
+): Promise<QuestDto> {
+  return api<QuestDto>(
+    `/api/v1/admin/quests/${encodeURIComponent(id)}/conditions`,
+    { method: 'PUT', body: JSON.stringify(conditions) },
+  );
+}
+
+export function publishQuest(id: string): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}/publish`, {
+    method: 'POST',
+  });
+}
+
+export function archiveQuest(id: string): Promise<QuestDto> {
+  return api<QuestDto>(`/api/v1/admin/quests/${encodeURIComponent(id)}/archive`, {
+    method: 'POST',
+  });
+}
+
 // ──────────────── Admin Tournaments ────────────────
 
 export function createTournament(
@@ -494,6 +837,92 @@ export function finishTournament(
   );
 }
 
+export function hideTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/hide`,
+    { method: 'POST' },
+  );
+}
+
+export function unhideTournament(id: string): Promise<TournamentDto> {
+  return api<TournamentDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/unhide`,
+    { method: 'POST' },
+  );
+}
+
+export function getAdminTournamentTeams(
+  tournamentId: string,
+): Promise<TournamentTeamAdminDto[]> {
+  return api<TournamentTeamAdminDto[]>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams`,
+  );
+}
+
+// Админ-регистрация произвольной команды: минует проверку капитана, окно
+// регистрации и лимит команд; команда попадает сразу в статусе APPROVED.
+export function adminRegisterTeam(
+  tournamentId: string,
+  teamId: string,
+): Promise<TournamentTeamDto> {
+  return api<TournamentTeamDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams`,
+    { method: 'POST', body: JSON.stringify({ teamId }) },
+  );
+}
+
+export function approveTournamentTeam(
+  tournamentId: string,
+  teamId: string,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/approve`,
+    { method: 'POST' },
+  );
+}
+
+export function rejectTournamentTeam(
+  tournamentId: string,
+  teamId: string,
+  body: RejectTeamRequest,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/reject`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+// ──────────────── Admin: MIX registration ────────────────
+
+export function adminListMixPlayers(
+  tournamentId: string,
+): Promise<MixPlayerAdminDto[]> {
+  return api<MixPlayerAdminDto[]>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/mix/players`,
+  );
+}
+
+export function adminApproveMixPlayer(
+  tournamentId: string,
+  playerId: string,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/mix/players/${encodeURIComponent(playerId)}/approve`,
+    { method: 'POST' },
+  );
+}
+
+export function adminRejectMixPlayer(
+  tournamentId: string,
+  playerId: string,
+  reason?: string,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/mix/players/${encodeURIComponent(playerId)}/reject`,
+    { method: 'POST', body: JSON.stringify({ reason: reason ?? null }) },
+  );
+}
+
 export function getTournamentEligibility(
   id: string,
 ): Promise<TournamentEligibilityDto> {
@@ -518,6 +947,53 @@ export function putTournamentEligibility(
 export function generateBracket(id: string): Promise<BracketDto> {
   return api<BracketDto>(
     `/api/v1/admin/tournaments/${encodeURIComponent(id)}/bracket/generate`,
+    { method: 'POST' },
+  );
+}
+
+// Назначить команды в ячейку сетки по координате. Работает и для пустых ячеек
+// (BYE / ожидающих) — бэкенд создаёт SCHEDULED-матч на лету. teamAId/teamBId
+// = null оставляет соответствующий слот без изменений.
+export function assignBracketCell(
+  tournamentId: string,
+  body: {
+    section: 'WB' | 'LB' | 'GF';
+    roundIndex: number;
+    matchIndex: number;
+    teamAId: string | null;
+    teamBId: string | null;
+  },
+): Promise<MatchDto> {
+  return api<MatchDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/bracket/cell`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function generateStages(
+  id: string,
+  body: GenerateStagesRequest,
+): Promise<TournamentStageDto[]> {
+  return api<TournamentStageDto[]>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/stages/generate`,
+    { method: 'POST', body: JSON.stringify(body) },
+  );
+}
+
+export function moveTeamGroup(
+  tournamentId: string,
+  teamId: string,
+  groupNo: number,
+): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(tournamentId)}/teams/${encodeURIComponent(teamId)}/group`,
+    { method: 'PATCH', body: JSON.stringify({ groupNo }) },
+  );
+}
+
+export function generatePlayoff(id: string): Promise<BracketDto> {
+  return api<BracketDto>(
+    `/api/v1/admin/tournaments/${encodeURIComponent(id)}/stages/playoff/generate`,
     { method: 'POST' },
   );
 }
@@ -678,6 +1154,13 @@ export function markMatchUnready(matchId: string): Promise<MatchDto> {
   );
 }
 
+export function inviteMe(matchId: string): Promise<InviteResultDto> {
+  return api<InviteResultDto>(
+    `/api/v1/matches/${encodeURIComponent(matchId)}/invite-me`,
+    { method: 'POST' },
+  );
+}
+
 // ──────────────── Admin: match lobby ────────────────
 
 export function recreateLobby(matchId: string): Promise<MatchDto> {
@@ -720,6 +1203,17 @@ export function finishMatch(
 export function repropagateMatch(id: string): Promise<MatchDto> {
   return api<MatchDto>(
     `/api/v1/admin/matches/${encodeURIComponent(id)}/repropagate`,
+    { method: 'POST' },
+  );
+}
+
+/**
+ * Подтянуть результат последней катки заново: GC → Steam → live-снапшоты.
+ * Победителя не меняет, только достаёт статистику, которую автопуллер упустил.
+ */
+export function refetchMatchResult(id: string): Promise<RefetchResultDto> {
+  return api<RefetchResultDto>(
+    `/api/v1/admin/matches/${encodeURIComponent(id)}/refetch-result`,
     { method: 'POST' },
   );
 }
@@ -780,6 +1274,15 @@ export function getAdminPlayersPage(
   );
 }
 
+export function createAdminPlayer(
+  body: AdminCreatePlayerRequest,
+): Promise<PlayerAdminDto> {
+  return api<PlayerAdminDto>('/api/v1/admin/players', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export function updateAdminPlayer(
   id: string,
   patch: AdminUpdatePlayerRequest,
@@ -826,6 +1329,39 @@ export function setAdminPlayerFemaleVerified(
   );
 }
 
+// ──────────────── Admin Teams ────────────────
+
+export interface AdminTeamsPageParams {
+  q?: string;
+  status?: TeamStatus;
+  hidden?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
+export function getAdminTeamsPage(
+  params: AdminTeamsPageParams = {},
+): Promise<PagedResponse<TeamPublicDto>> {
+  return api<PagedResponse<TeamPublicDto>>(
+    `/api/v1/admin/teams${buildQuery(params)}`,
+  );
+}
+
+export function hideTeam(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/admin/teams/${encodeURIComponent(id)}/hide`,
+    { method: 'POST' },
+  );
+}
+
+export function unhideTeam(id: string): Promise<TeamDto> {
+  return api<TeamDto>(
+    `/api/v1/admin/teams/${encodeURIComponent(id)}/unhide`,
+    { method: 'POST' },
+  );
+}
+
 // ──────────────── Admin Audit ────────────────
 
 export interface AdminAuditPageParams {
@@ -843,6 +1379,19 @@ export function getAdminAuditPage(
 ): Promise<PagedResponse<AuditLogDto>> {
   return api<PagedResponse<AuditLogDto>>(
     `/api/v1/admin/audit${buildQuery(params)}`,
+  );
+}
+
+// ──────────────── Admin: Dota lobbies ────────────────
+
+export function listAdminLobbies(): Promise<AdminLobbyDto[]> {
+  return api<AdminLobbyDto[]>('/api/v1/admin/lobbies');
+}
+
+export function adminKickLobbyPlayer(lobbyId: string, accountId: number): Promise<void> {
+  return api<void>(
+    `/api/v1/admin/lobbies/${lobbyId}/players/${accountId}`,
+    { method: 'DELETE' },
   );
 }
 
@@ -891,6 +1440,12 @@ export function getSeasonChampions(slug: string): Promise<SeasonChampionDto[]> {
 export function getPlayerHistory(id: string): Promise<PlayerHistoryDto> {
   return api<PlayerHistoryDto>(
     `/api/v1/players/${encodeURIComponent(id)}/history`,
+  );
+}
+
+export function getPlayerAchievements(id: string): Promise<PlayerAchievementDto[]> {
+  return api<PlayerAchievementDto[]>(
+    `/api/v1/players/${encodeURIComponent(id)}/achievements`,
   );
 }
 
@@ -968,4 +1523,28 @@ export function cancelOpenLobby(id: string): Promise<void> {
   return api<void>(`/api/v1/open-lobbies/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
+}
+
+// ──────────────── Notifications ────────────────
+
+export async function getNotifications(
+  page = 0,
+  size = 20,
+  unreadOnly = true,
+): Promise<PagedResponse<NotificationDto>> {
+  return api<PagedResponse<NotificationDto>>(
+    `/api/v1/notifications?page=${page}&size=${size}&unreadOnly=${unreadOnly}`,
+  );
+}
+
+export async function getUnreadCount(): Promise<{ count: number }> {
+  return api<{ count: number }>('/api/v1/notifications/unread-count');
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  await api<void>(`/api/v1/notifications/${id}/read`, { method: 'POST' });
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api<void>('/api/v1/notifications/read-all', { method: 'POST' });
 }

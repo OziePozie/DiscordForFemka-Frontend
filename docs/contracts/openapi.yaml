@@ -21,6 +21,7 @@ tags:
   - { name: Tournament,     description: "Турниры" }
   - { name: Match,          description: "Матчи и открытые лобби (КВ/шоу-матчи)" }
   - { name: Admin,          description: "Админ-панель: модерация, аудит" }
+  - { name: Notification,   description: "Уведомления игрока (колокольчик, SSE)" }
 
 security:
   - cookieAuth: []
@@ -48,6 +49,53 @@ paths:
       responses:
         "204": { description: ок }
 
+  # =================== TELEGRAM MINI APP ===================
+  /oauth/telegram/init:
+    post:
+      tags: [Auth]
+      summary: Аутентификация Mini App по initData
+      description: >
+        Проверяет подпись Telegram WebApp initData. Если Telegram-аккаунт привязан
+        к игроку — устанавливает сессию (LINKED), иначе возвращает UNLINKED для
+        экрана ввода кода. CSRF не требуется (подпись initData — сама по себе proof).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TelegramInitRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TelegramInitResponse" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /oauth/telegram/claim:
+    post:
+      tags: [Auth]
+      summary: Привязка профиля по AUTH-коду
+      description: >
+        Проверяет initData, гасит одноразовый AUTH-код, привязывает Telegram к
+        игроку кода (снимая stub), устанавливает сессию.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TelegramClaimRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TelegramInitResponse" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /api/v1/me/links/{provider}:
     delete:
       tags: [Auth]
@@ -56,7 +104,7 @@ paths:
         - in: path
           name: provider
           required: true
-          schema: { type: string, enum: [discord, twitch] }
+          schema: { type: string, enum: [discord, twitch, telegram] }
       responses:
         "204": { description: ок }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -88,6 +136,36 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/MeDto" }
         "400": { $ref: "#/components/responses/Validation" }
+
+  /api/v1/me/privacy:
+    get:
+      tags: [Player]
+      summary: Настройки приватности профиля
+      description: Эффективная видимость по каждому полю (дефолты + явные переопределения).
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivacySettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    put:
+      tags: [Player]
+      summary: Изменить настройки приватности
+      description: Применяет переданные поля (отсутствующие не меняются) и возвращает эффективные настройки.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PrivacySettings" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PrivacySettings" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
 
   /api/v1/me/avatar:
     post:
@@ -128,6 +206,14 @@ paths:
         - in: query
           name: activity
           schema: { type: string, enum: [active, inactive, all], default: all }
+        - in: query
+          name: mmrMin
+          description: Минимальный MMR (включительно)
+          schema: { type: integer }
+        - in: query
+          name: mmrMax
+          description: Максимальный MMR (включительно)
+          schema: { type: integer }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - $ref: "#/components/parameters/Sort"
@@ -227,12 +313,19 @@ paths:
   /api/v1/ratings/leaderboard:
     get:
       tags: [Rating]
-      summary: Таблица лидеров по внутреннему рейтингу платформы
+      summary: Таблица лидеров по внутреннему рейтингу платформы (в рамках сцены)
       description: |
-        Игроки, отсортированные по внутреннему рейтингу (по убыванию). Рейтинг
-        отдельный от импортированного Dota MMR.
+        Игроки выбранной сцены (сезона), отсортированные по внутреннему рейтингу
+        (по убыванию). Рейтинг посезонный и отдельный от импортированного Dota MMR.
+        В выдачу попадают только игроки, сыгравшие в этой сцене хотя бы один матч.
+        Параметр `season` обязателен.
       security: []
       parameters:
+        - in: query
+          name: season
+          required: true
+          description: Slug сцены (сезона), в рамках которой строится таблица лидеров.
+          schema: { type: string }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
       responses:
@@ -248,23 +341,33 @@ paths:
                       items:
                         type: array
                         items: { $ref: "#/components/schemas/LeaderboardEntryDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/ratings/players/{id}:
     get:
       tags: [Rating]
-      summary: Внутренний рейтинг игрока
+      summary: Внутренний рейтинг игрока (в рамках сцены)
       description: |
-        Текущий внутренний рейтинг игрока. Для игрока без сыгранных матчей
-        возвращается синтетическая запись со стартовым рейтингом (ранг Blossom).
+        Текущий внутренний рейтинг игрока в выбранной сцене (сезоне). Для игрока
+        без сыгранных матчей в этой сцене возвращается синтетическая запись со
+        стартовым рейтингом (ранг Blossom). Параметр `season` обязателен.
       security: []
       parameters:
         - $ref: "#/components/parameters/IdInPath"
+        - in: query
+          name: season
+          required: true
+          description: Slug сцены (сезона), в рамках которой возвращается рейтинг.
+          schema: { type: string }
       responses:
         "200":
           description: ок
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PlayerRatingDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/admin/ratings/recalculate:
     post:
@@ -393,6 +496,27 @@ paths:
                         type: array
                         items: { $ref: "#/components/schemas/PlayerAdminDto" }
         "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Admin, Player]
+      summary: Создать профиль-заглушку игрока (steamId + ник + MMR).
+      description: |
+        Создаёт админский профиль-заглушку для игрока, который ещё не входил.
+        Первый реальный вход через Steam с этим steamId «подхватывает» профиль
+        вместо создания дубликата. Только ADMIN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminCreatePlayerRequest" }
+      responses:
+        "201":
+          description: Заглушка создана
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerAdminDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/admin/players/{id}:
     patch:
@@ -473,6 +597,75 @@ paths:
               schema: { $ref: "#/components/schemas/PlayerAdminDto" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  # =================== ADMIN ACCESS CODES ===================
+  /api/v1/admin/players/{id}/codes:
+    post:
+      tags: [Admin, AccessCode]
+      summary: Выдать одноразовый код игроку
+      description: >
+        Возвращает plaintext-код ровно один раз (в базе хранится только SHA-256-хеш).
+        Предыдущий ACTIVE-код того же типа автоматически отзывается.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IssueCodeRequest" }
+      responses:
+        "201":
+          description: код выпущен
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IssuedCodeDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/codes:
+    get:
+      tags: [Admin, AccessCode]
+      summary: Список кодов
+      parameters:
+        - in: query
+          name: playerId
+          schema: { type: string, format: uuid }
+        - in: query
+          name: status
+          schema: { $ref: "#/components/schemas/CodeStatus" }
+        - in: query
+          name: type
+          schema: { $ref: "#/components/schemas/CodeType" }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/AccessCodeDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/codes/{id}/revoke:
+    post:
+      tags: [Admin, AccessCode]
+      summary: Отозвать код
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccessCodeDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /api/v1/admin/mmr/requests:
     get:
@@ -921,6 +1114,32 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BracketDto" }
 
+  /api/v1/tournaments/{id}/stages:
+    get:
+      tags: [Tournament]
+      summary: Список этапов турнира
+      security: []
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TournamentStageDto" } }
+
+  /api/v1/tournaments/{id}/standings:
+    get:
+      tags: [Tournament]
+      summary: Турнирные таблицы групповой стадии
+      security: []
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/GroupStandingsDto" } }
+
   /api/v1/tournaments/{id}/registrations:
     post:
       tags: [Tournament]
@@ -951,6 +1170,111 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/tournaments/{id}/mix/register:
+    post:
+      tags: [Tournament]
+      summary: Register for a MIX tournament
+      description: |
+        Registers the authenticated player for the MIX tournament, using the preferred
+        positions from the request body or falling back to the player's profile.
+        Returns 200 rather than 201 even on a first-time registration: this call does
+        not always insert a new row — re-registering after a withdrawal or a rejection
+        overwrites the player's existing (withdrawn/rejected) entry in place, so there
+        is no single "created vs. not" answer to hang a 201 on.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MixRegisterRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MixPlayerDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [Tournament]
+      summary: Withdraw from a MIX tournament
+      description: |
+        Withdraws the authenticated player's registration from the MIX tournament.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "204": { description: ок }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/tournaments/{id}/mix/check-in:
+    post:
+      tags: [Tournament]
+      summary: Check in for a MIX tournament
+      description: |
+        Marks the authenticated player as checked in and refreshes their MMR snapshot.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MixPlayerDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/tournaments/{id}/mix/players:
+    get:
+      tags: [Tournament]
+      summary: List MIX tournament registrations
+      description: |
+        Returns a paginated public list of approved, non-withdrawn registrations for
+        the MIX tournament. MMR and preferred positions are omitted for players who
+        hid them in their privacy settings. 404s for a hidden tournament unless the
+        caller is staff, same as the team-side /teams, /matches, /bracket and
+        /eligibility endpoints.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/MixPlayerDto" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/tournaments/{id}/mix/me:
+    get:
+      tags: [Tournament]
+      summary: Get own MIX tournament registration
+      description: |
+        Returns the authenticated player's own registration for the MIX tournament.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MixPlayerDto" }
+        # 403, not 401: this GET falls under /api/v1/tournaments/**, which the
+        # security filter chain permits for every HTTP method — @PreAuthorize
+        # is the only gate here, and its denial always resolves to 403
+        # regardless of anonymous vs. wrong-role (see MixRegistrationController.me()).
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/tournaments/{id}/eligibility:
     get:
@@ -984,6 +1308,11 @@ paths:
           required: false
           description: Фильтр по подстроке имени (case-insensitive).
           schema: { type: string }
+        - in: query
+          name: hidden
+          required: false
+          description: Фильтр по признаку скрытости.
+          schema: { type: boolean }
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/Size"
         - in: query
@@ -1107,10 +1436,99 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/admin/tournaments/{id}/hide:
+    post:
+      tags: [Admin, Tournament]
+      summary: Скрыть турнир с публичной части.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/unhide:
+    post:
+      tags: [Admin, Tournament]
+      summary: Вернуть турнир на публичную часть.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/v1/admin/tournaments/{id}/bracket/generate:
     post:
       tags: [Admin, Tournament]
       summary: Сгенерировать турнирную сетку.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BracketDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/tournaments/{id}/stages/generate:
+    post:
+      tags: [Admin, Tournament]
+      summary: Сгенерировать групповую + плей-офф стадии турнира.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GenerateStagesRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/TournamentStageDto" } }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/tournaments/{id}/stages/{stageId}:
+    patch:
+      tags: [Admin, Tournament]
+      summary: Обновить конфигурацию этапа турнира.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: stageId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateStageRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TournamentStageDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/stages/playoff/generate:
+    post:
+      tags: [Admin, Tournament]
+      summary: Сгенерировать плей-офф сетку по итогам групповой стадии.
       parameters: [{ $ref: "#/components/parameters/IdInPath" }]
       responses:
         "200":
@@ -1206,6 +1624,158 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/admin/tournaments/{id}/teams/{teamId}/group:
+    patch:
+      tags: [Admin, Tournament]
+      summary: Перенести команду в другую группу.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: teamId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MoveTeamGroupRequest" }
+      responses:
+        "204": { description: команда перенесена }
+        "400": { $ref: "#/components/responses/Validation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/tournaments/{id}/mix/players:
+    get:
+      tags: [Admin, Tournament]
+      summary: List MIX tournament registrations (admin)
+      description: |
+        Returns all registrations for the MIX tournament, including rejected and
+        withdrawn ones. MMR and the reject reason are always visible.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MixPlayerAdminDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/mix/players/{playerId}/approve:
+    post:
+      tags: [Admin, Tournament]
+      summary: Approve a MIX tournament registration
+      description: |
+        Returns a previously rejected registration back to play.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: playerId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204": { description: ок }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/tournaments/{id}/mix/players/{playerId}/reject:
+    post:
+      tags: [Admin, Tournament]
+      summary: Reject a MIX tournament registration
+      description: |
+        Rejects the player's registration for the MIX tournament with an optional reason.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: playerId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MixRejectRequest" }
+      responses:
+        "204": { description: ок }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/teams:
+    get:
+      tags: [Admin, Team]
+      summary: Админский листинг команд с фильтрами и пагинацией.
+      parameters:
+        - in: query
+          name: q
+          required: false
+          description: Фильтр по подстроке имени/тега (case-insensitive).
+          schema: { type: string }
+        - in: query
+          name: status
+          required: false
+          schema: { $ref: "#/components/schemas/TeamStatus" }
+        - in: query
+          name: hidden
+          required: false
+          description: Фильтр по признаку скрытости.
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - in: query
+          name: sort
+          required: false
+          description: "field[,asc|desc]; default createdAt,desc"
+          schema: { type: string }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/TeamPublicDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/v1/admin/teams/{id}/hide:
+    post:
+      tags: [Admin, Team]
+      summary: Скрыть команду с публичной части.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/admin/teams/{id}/unhide:
+    post:
+      tags: [Admin, Team]
+      summary: Вернуть команду на публичную часть.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # =================== MATCH ===================
   /api/v1/matches/{id}:
     get:
@@ -1257,6 +1827,28 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/matches/{id}/invite-me:
+    post:
+      tags: [Match]
+      summary: Roster member asks the bot to invite them to the active lobby.
+      description: |
+        Caller must be a roster member of `teamA` or `teamB` and the match must
+        have an active (LIVE) Dota lobby. The bot sends a Steam lobby invite to
+        the caller. Rate-limited per player — repeat calls within the cooldown
+        window return 429 with the remaining cooldown.
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InviteResultDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/RateLimited" }
 
   /api/v1/matches/{id}/live:
     get:
@@ -1724,6 +2316,36 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /api/v1/teams/{id}/members/{playerId}/role:
+    patch:
+      tags: [Team]
+      summary: Сменить роль участника (MAIN ↔ SUB)
+      description: >-
+        Меняет роль текущего участника между основой и запасом. Только капитан.
+        Роль капитана меняется через передачу капитанства, не здесь.
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+        - in: path
+          name: playerId
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChangeMemberRoleRequest" }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeamDto" }
+        "400": { $ref: "#/components/responses/Validation" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   # =================== MATCH (доп.) ===================
   /api/v1/match-requests/{id}:
     delete:
@@ -1807,6 +2429,30 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MatchDto" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /api/v1/admin/matches/{id}/refetch-result:
+    post:
+      tags: [Admin, Match]
+      summary: Подтянуть результат матча заново (ADMIN)
+      description: >
+        Восстанавливает ВСЮ серию: находит все dota-катки матча (в том числе те, что
+        доиграли в одном лобби и своей строки match_game не получили), заводит им катки,
+        поднимает формат под их число и пересчитывает счёт серии по победителям каток.
+        По каждой катке источник выбирается по убыванию качества: Game Coordinator через
+        dota2api, затем Steam GetMatchDetails, затем пересборка из live-снапшотов.
+        Победителя МАТЧА не меняет: если катки расходятся с записанным победителем, счёт
+        не трогается и расхождение возвращается в seriesNote.
+      operationId: adminRefetchMatchResult
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RefetchResultDto" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -1994,6 +2640,80 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /api/v1/notifications:
+    get:
+      tags: [Notification]
+      summary: Список уведомлений текущего игрока (новые сверху)
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Size"
+        - in: query
+          name: unreadOnly
+          description: Вернуть только непрочитанные уведомления.
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/NotificationDto" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/unread-count:
+    get:
+      tags: [Notification]
+      summary: Количество непрочитанных уведомлений
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count: { type: integer, format: int64 }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/{id}/read:
+    post:
+      tags: [Notification]
+      summary: Отметить уведомление прочитанным
+      parameters:
+        - $ref: "#/components/parameters/IdInPath"
+      responses:
+        "204": { description: отмечено }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/notifications/read-all:
+    post:
+      tags: [Notification]
+      summary: Отметить все уведомления прочитанными
+      responses:
+        "204": { description: отмечено }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/notifications/stream:
+    get:
+      tags: [Notification]
+      summary: Поток уведомлений (SSE)
+      description: >-
+        Server-Sent Events. Каждое событие notification несёт в data JSON одного NotificationDto.
+      responses:
+        "200":
+          description: поток
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
 components:
   securitySchemes:
     cookieAuth:
@@ -2092,6 +2812,7 @@ components:
     SeasonStatus:      { type: string, enum: [PLANNED, ACTIVE, FINISHED] }
     TournamentFormat:  { type: string, enum: [SINGLE_ELIM, DOUBLE_ELIM, ROUND_ROBIN, SWISS, SHOWMATCH] }
     TournamentStatus:  { type: string, enum: [ANNOUNCED, REGISTRATION_OPEN, REGISTRATION_CLOSED, LIVE, FINISHED, CANCELLED] }
+    RegistrationMode:  { type: string, enum: [TEAM, MIX] }
     MatchKind:         { type: string, enum: [TOURNAMENT, CLAN_WAR, SHOWMATCH] }
     MatchFormat:       { type: string, enum: [BO1, BO3, BO5] }
     MatchResultType:   { type: string, enum: [NORMAL, TECH_WIN, TECH_LOSS, CANCELLED] }
@@ -2163,6 +2884,7 @@ components:
         activity:        { $ref: "#/components/schemas/ActivityStatus" }
         discordId:       { type: string, format: int64, pattern: '^[0-9]+$', nullable: true }
         twitchLogin:     { type: string, nullable: true }
+        telegramUsername: { type: string, nullable: true, description: "Telegram-логин; по умолчанию скрыт от анонимных зрителей." }
         dotabuffUrl:     { type: string, nullable: true }
         stratzUrl:       { type: string, nullable: true }
         teams:           { type: array, items: { $ref: "#/components/schemas/TeamMembershipDto" } }
@@ -2175,13 +2897,84 @@ components:
       properties:
         nickname:        { type: string, nullable: true }
         changedAt:       { type: string, format: date-time }
+
+    # ---- Privacy ----
+    ProfileFieldKey:
+      type: string
+      description: Поля профиля с управляемой видимостью.
+      enum: [COUNTRY, MMR, POSITIONS, DOTA_LINKS, DISCORD, TWITCH, TELEGRAM, NICKNAME_HISTORY]
+    FieldVisibility:
+      type: string
+      description: PUBLIC — все; PLAYERS — зарегистрированные игроки; PRIVATE — владелец и администрация.
+      enum: [PUBLIC, PLAYERS, PRIVATE]
+    PrivacySettings:
+      type: object
+      description: Карта «поле профиля → уровень видимости».
+      additionalProperties: { $ref: "#/components/schemas/FieldVisibility" }
+
+    # ---- Telegram Mini App ----
+    TelegramInitRequest:
+      type: object
+      required: [initData]
+      properties:
+        initData: { type: string, description: "Сырая строка window.Telegram.WebApp.initData" }
+    TelegramClaimRequest:
+      type: object
+      required: [initData, code]
+      properties:
+        initData: { type: string }
+        code:     { type: string, example: "7K2M-9PQR-X4VZ" }
+    TelegramInitResponse:
+      type: object
+      required: [status]
+      properties:
+        status:           { type: string, enum: [LINKED, UNLINKED] }
+        session:          { allOf: [{ $ref: "#/components/schemas/SessionDto" }], nullable: true }
+        telegramUsername: { type: string, nullable: true }
+
+    # ---- Access codes ----
+    CodeType:
+      type: string
+      enum: [AUTH, START_RATING, TOURNAMENT_RATING]
+    CodeStatus:
+      type: string
+      enum: [ACTIVE, USED, REVOKED, EXPIRED]
+    IssueCodeRequest:
+      type: object
+      properties:
+        type:     { allOf: [{ $ref: "#/components/schemas/CodeType" }], nullable: true }
+        ttlHours: { type: integer, nullable: true, description: "null или 0 — код без срока действия" }
+    IssuedCodeDto:
+      type: object
+      required: [id, code]
+      properties:
+        id:        { type: string, format: uuid }
+        code:      { type: string, description: "Показывается один раз и не восстанавливается", example: "7K2M-9PQR-X4VZ" }
+        expiresAt: { type: string, format: date-time, nullable: true }
+    AccessCodeDto:
+      type: object
+      required: [id, codeType, status, playerId]
+      properties:
+        id:              { type: string, format: uuid }
+        codeHint:        { type: string, nullable: true, description: "Последние 4 символа кода" }
+        codeType:        { $ref: "#/components/schemas/CodeType" }
+        status:          { $ref: "#/components/schemas/CodeStatus" }
+        playerId:        { type: string, format: uuid }
+        issuedBy:        { type: string, format: uuid, nullable: true }
+        usedBy:          { type: string, format: uuid, nullable: true }
+        revokedBy:       { type: string, format: uuid, nullable: true }
+        usedTelegramId:  { type: integer, format: int64, nullable: true }
+        expiresAt:       { type: string, format: date-time, nullable: true }
+        usedAt:          { type: string, format: date-time, nullable: true }
+        revokedAt:       { type: string, format: date-time, nullable: true }
+        createdAt:       { type: string, format: date-time }
     RankTier:
       type: string
       description: Внутренний ранг по порогам рейтинга.
       enum: [BLOSSOM, SAPPHIRE, DIAMOND, IMMORTAL, CELESTIAL]
     PlayerRatingDto:
       type: object
-      required: [playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName]
+      required: [playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName, seasonId, seasonSlug]
       properties:
         playerId:       { type: string, format: uuid }
         rating:         { type: integer, format: int32 }
@@ -2192,9 +2985,11 @@ components:
         rankTier:       { $ref: "#/components/schemas/RankTier" }
         rankName:       { type: string }
         updatedAt:      { type: string, format: date-time, nullable: true }
+        seasonId:       { type: string, format: uuid }
+        seasonSlug:     { type: string }
     LeaderboardEntryDto:
       type: object
-      required: [rank, playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName]
+      required: [rank, playerId, rating, gamesPlayed, wins, losses, currentStreak, rankTier, rankName, seasonId, seasonSlug]
       properties:
         rank:           { type: integer, format: int32 }
         playerId:       { type: string, format: uuid }
@@ -2208,6 +3003,8 @@ components:
         currentStreak:  { type: integer, format: int32 }
         rankTier:       { $ref: "#/components/schemas/RankTier" }
         rankName:       { type: string }
+        seasonId:       { type: string, format: uuid }
+        seasonSlug:     { type: string }
     GenderType:
       type: string
       enum: [MALE, FEMALE]
@@ -2268,7 +3065,7 @@ components:
         stratzUrl:      { type: string }
     PlayerAdminDto:
       type: object
-      required: [profile, steamId, banned, roles, mmr, activity]
+      required: [profile, steamId, banned, roles, mmr, activity, stub]
       properties:
         profile:     { $ref: "#/components/schemas/PlayerPublicDto" }
         steamId:     { type: string, format: int64, pattern: '^[0-9]+$' }
@@ -2279,6 +3076,15 @@ components:
         roles:       { type: array, items: { $ref: "#/components/schemas/PlayerRole" } }
         mmr:         { $ref: "#/components/schemas/PlayerMmrDto" }
         activity:    { $ref: "#/components/schemas/PlayerActivityDto" }
+        stub:        { type: boolean, description: "Admin-created stub profile not yet claimed by a real login." }
+        claimedAt:   { type: string, format: date-time, nullable: true, description: "When the real player first logged in and claimed this stub; null if unclaimed or not a stub." }
+    AdminCreatePlayerRequest:
+      type: object
+      required: [steamId, nickname, mmr]
+      properties:
+        steamId:  { type: string, description: "SteamID64 or 32-bit Dota account/friend id; normalized to SteamID64 server-side." }
+        nickname: { type: string, maxLength: 64 }
+        mmr:      { type: integer, minimum: 0 }
     AdminUpdatePlayerRequest:
       type: object
       properties:
@@ -2338,7 +3144,7 @@ components:
     # ---- Team ----
     TeamPublicDto:
       type: object
-      required: [id, name, tag, captain, status, memberCount, createdAt]
+      required: [id, name, tag, captain, status, hidden, memberCount, createdAt]
       properties:
         id:           { type: string, format: uuid }
         name:         { type: string }
@@ -2347,6 +3153,10 @@ components:
         captain:      { $ref: "#/components/schemas/PlayerPublicDto" }
         avgMmr:       { type: integer, nullable: true }
         status:       { $ref: "#/components/schemas/TeamStatus" }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         memberCount:  { type: integer }
         createdAt:    { type: string, format: date-time }
     TeamMemberDto:
@@ -2359,7 +3169,7 @@ components:
         joinedAt:  { type: string, format: date-time }
     TeamDto:
       type: object
-      required: [id, name, tag, captain, status, members, createdAt, updatedAt]
+      required: [id, name, tag, captain, status, hidden, members, createdAt, updatedAt]
       properties:
         id:               { type: string, format: uuid }
         name:             { type: string }
@@ -2368,6 +3178,10 @@ components:
         captain:          { $ref: "#/components/schemas/PlayerPublicDto" }
         avgMmr:           { type: integer, nullable: true }
         status:           { $ref: "#/components/schemas/TeamStatus" }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         inactiveReasons:  { type: array, items: { $ref: "#/components/schemas/InactiveReason" } }
         members:          { type: array, items: { $ref: "#/components/schemas/TeamMemberDto" } }
         frozenUntil:      { type: string, format: date-time, nullable: true }
@@ -2392,6 +3206,11 @@ components:
         inviteePlayerId: { type: string, format: uuid }
         proposedRole:    { $ref: "#/components/schemas/TeamMemberRole" }
         position:        { $ref: "#/components/schemas/PlayerPosition" }
+    ChangeMemberRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { $ref: "#/components/schemas/TeamMemberRole" }
     TeamInviteDto:
       type: object
       required: [id, team, invitee, inviter, proposedRole, status, expiresAt, createdAt]
@@ -2505,13 +3324,17 @@ components:
     # ---- Tournament ----
     TournamentDto:
       type: object
-      required: [id, name, slug, format, status, defaultCoinToss, defaultAutoLaunch, broadcasterAccountIds]
+      required: [id, name, slug, format, status, hidden, defaultCoinToss, defaultAutoLaunch, broadcasterAccountIds]
       properties:
         id:                     { type: string, format: uuid }
         seasonId:               { type: string, format: uuid, nullable: true }
         winnerTeamId:           { type: string, format: uuid, nullable: true }
         name:                   { type: string }
         slug:                   { type: string }
+        hidden:
+          type: boolean
+          description: Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+          example: false
         format:                 { $ref: "#/components/schemas/TournamentFormat" }
         description:            { type: string, nullable: true }
         prizePoolText:          { type: string, nullable: true }
@@ -2542,6 +3365,12 @@ components:
         regulationsContent: { type: string, nullable: true }
         regulationsVersion: { type: string, nullable: true }
         regulationsUpdatedAt: { type: string, format: date-time, nullable: true }
+        registrationMode: { $ref: "#/components/schemas/RegistrationMode" }
+        # MIX-настройки читаются здесь же: без окна чек-ина клиент не может
+        # показать ни таймер, ни то, открыт ли чек-ин прямо сейчас.
+        mixTeamCount:    { type: integer, nullable: true }
+        checkInOpensAt:  { type: string, format: date-time, nullable: true }
+        checkInClosesAt: { type: string, format: date-time, nullable: true }
     CreateTournamentRequest:
       type: object
       required: [name, slug, format]
@@ -2570,6 +3399,12 @@ components:
           type: array
           items: { type: integer, format: int64 }
           description: Опционально. Отсутствие или null = пустой список. Нормализуется на сервере.
+        # Режим регистрации и MIX-настройки. Отсутствие registrationMode = TEAM,
+        # чтобы клиенты, не знающие о поле, продолжали создавать командные турниры.
+        registrationMode:  { $ref: "#/components/schemas/RegistrationMode" }
+        mixTeamCount:      { type: integer, nullable: true }
+        checkInOpensAt:    { type: string, format: date-time, nullable: true }
+        checkInClosesAt:   { type: string, format: date-time, nullable: true }
     UpdateTournamentRequest:
       description: PATCH-семантика — поля со значением `null` или отсутствующие не меняются.
       type: object
@@ -2602,12 +3437,21 @@ components:
         regulationsUrl:     { type: string }
         regulationsContent: { type: string }
         regulationsVersion: { type: string }
+        # Режим регистрации и MIX-настройки. Та же PATCH-семантика null = не менять.
+        # Единственный способ создать/настроить MIX-турнир — CreateTournamentRequest
+        # им не занимается: создать как TEAM и переключить через PATCH — штатный путь.
+        registrationMode:  { $ref: "#/components/schemas/RegistrationMode" }
+        mixTeamCount:      { type: integer }
+        checkInOpensAt:    { type: string, format: date-time }
+        checkInClosesAt:   { type: string, format: date-time }
     TournamentDetailsDto:
       type: object
       required: [tournament, registeredTeamsCount, canRegister]
       properties:
         tournament:           { $ref: "#/components/schemas/TournamentDto" }
         registeredTeamsCount: { type: integer }
+        approvedTeamsCount:   { type: integer }
+        pendingTeamsCount:    { type: integer }
         canRegister:          { type: boolean }
         topTeams:             { type: array, items: { $ref: "#/components/schemas/TournamentTeamDto" } }
         rules:                { type: string, nullable: true }
@@ -2619,6 +3463,7 @@ components:
         seed:         { type: integer, nullable: true }
         registeredAt: { type: string, format: date-time }
         withdrawn:    { type: boolean }
+        status:       { $ref: "#/components/schemas/RequestStatus" }
     BracketDto:
       type: object
       required: [format, rounds]
@@ -2633,6 +3478,65 @@ components:
         roundIndex: { type: integer }
         title:      { type: string }
         matches:    { type: array, items: { $ref: "#/components/schemas/BracketCellDto" } }
+
+    # ---- Group stage ----
+    StageType:   { type: string, enum: [GROUP, PLAYOFF] }
+    StageStatus: { type: string, enum: [PENDING, LIVE, FINISHED] }
+    StageConfigDto:
+      type: object
+      properties:
+        numGroups:         { type: integer, nullable: true }
+        groupSeriesFormat: { allOf: [{ $ref: "#/components/schemas/MatchFormat" }], nullable: true }
+        advanceToUpper:    { type: integer, nullable: true }
+        advanceToLower:    { type: integer, nullable: true }
+        bracketType:       { allOf: [{ $ref: "#/components/schemas/TournamentFormat" }], nullable: true }
+    TournamentStageDto:
+      type: object
+      required: [id, stageType, ordinal, status]
+      properties:
+        id:        { type: string, format: uuid }
+        stageType: { $ref: "#/components/schemas/StageType" }
+        ordinal:   { type: integer }
+        status:    { $ref: "#/components/schemas/StageStatus" }
+        config:    { allOf: [{ $ref: "#/components/schemas/StageConfigDto" }], nullable: true }
+    StandingRowDto:
+      type: object
+      required: [rank, points, seriesWon, seriesLost, gamesWon, gamesLost, gameDiff, tied]
+      properties:
+        rank:       { type: integer }
+        team:       { $ref: "#/components/schemas/TeamPublicDto" }
+        points:     { type: integer }
+        seriesWon:  { type: integer }
+        seriesLost: { type: integer }
+        gamesWon:   { type: integer }
+        gamesLost:  { type: integer }
+        gameDiff:   { type: integer }
+        tied:       { type: boolean }
+    GroupStandingsDto:
+      type: object
+      required: [groupNo, rows]
+      properties:
+        groupNo: { type: integer }
+        rows:    { type: array, items: { $ref: "#/components/schemas/StandingRowDto" } }
+    GenerateStagesRequest:
+      type: object
+      required: [numGroups, groupSeriesFormat, advanceToUpper, advanceToLower, playoffBracketType]
+      properties:
+        numGroups:          { type: integer, minimum: 1 }
+        groupSeriesFormat:  { $ref: "#/components/schemas/MatchFormat" }
+        advanceToUpper:     { type: integer, minimum: 1 }
+        advanceToLower:     { type: integer, minimum: 0 }
+        playoffBracketType: { $ref: "#/components/schemas/TournamentFormat" }
+    UpdateStageRequest:
+      type: object
+      properties:
+        config: { allOf: [{ $ref: "#/components/schemas/StageConfigDto" }], nullable: true }
+
+    MoveTeamGroupRequest:
+      type: object
+      required: [groupNo]
+      properties:
+        groupNo: { type: integer, minimum: 0 }
 
     # Source of a bracket cell slot: a winner/loser of another match, a seeded
     # team (R1 bye cell), or an empty BYE pass. `label` is render-ready text.
@@ -2651,20 +3555,77 @@ components:
         label:      { type: string }
 
     # One bracket cell. `match` is the real materialized match (or absent for a
-    # placeholder); slotA/slotB always carry the slot provenance for empty slots.
+    # placeholder). slotA/slotB carry the slot provenance used to render empty
+    # slots, but they are NULL whenever the backend assembles the bracket
+    # without a skeleton - legacy/non-elimination formats and materialized
+    # matches whose coordinate the skeleton did not produce.
     BracketCellDto:
       type: object
-      required: [section, roundIndex, matchIndex, placeholder, slotA, slotB]
+      required: [section, roundIndex, matchIndex, placeholder]
       properties:
         section:     { $ref: "#/components/schemas/BracketSection" }
         roundIndex:  { type: integer }
         matchIndex:  { type: integer }
         placeholder: { type: boolean }
         match:       { $ref: "#/components/schemas/MatchDto" }
-        slotA:       { $ref: "#/components/schemas/SlotSourceDto" }
-        slotB:       { $ref: "#/components/schemas/SlotSourceDto" }
+        slotA:       { allOf: [{ $ref: "#/components/schemas/SlotSourceDto" }], nullable: true }
+        slotB:       { allOf: [{ $ref: "#/components/schemas/SlotSourceDto" }], nullable: true }
 
     # ---- Match ----
+    RefetchGameDto:
+      type: object
+      description: Одна катка серии после восстановления.
+      required: [gameNumber, statsWritten, teamAKills, teamBKills, finalNumbers]
+      properties:
+        gameNumber:  { type: integer }
+        dotaMatchId: { type: integer, format: int64, nullable: true }
+        source:
+          type: string
+          nullable: true
+          enum: [GAME_COORDINATOR, STEAM_WEB_API, LIVE_SNAPSHOT]
+          description: >
+            Откуда пришли данные; null — данных не нашлось нигде. LIVE_SNAPSHOT —
+            пересборка из realtime-ряда: GPM/XPM и урон/лечение там остаются нулями,
+            фид их не несёт.
+        statsWritten:
+          type: integer
+          description: Сколько строк статистики добавил этот вызов (уже существующие не трогаются)
+        teamAKills:  { type: integer }
+        teamBKills:  { type: integer }
+        winnerSide:
+          type: string
+          nullable: true
+          enum: [A, B]
+          description: Победитель катки; null — определить не удалось
+        finalNumbers:
+          type: boolean
+          description: true — финальные цифры катки, false — срез до её конца
+
+    RefetchResultDto:
+      type: object
+      description: Итог ручного «подтянуть результат» по всей серии матча.
+      required: [games, statsWritten, format, formatRaised, seriesScoreA, seriesScoreB, seriesUpdated]
+      properties:
+        games:
+          type: array
+          items: { $ref: "#/components/schemas/RefetchGameDto" }
+        statsWritten:
+          type: integer
+          description: Всего добавлено строк статистики этим вызовом
+        format:       { $ref: "#/components/schemas/MatchFormat" }
+        formatRaised:
+          type: boolean
+          description: Был ли формат поднят под число найденных каток
+        seriesScoreA: { type: integer }
+        seriesScoreB: { type: integer }
+        seriesUpdated:
+          type: boolean
+          description: Записан ли пересчитанный счёт в матч
+        seriesNote:
+          type: string
+          nullable: true
+          description: Почему счёт не записан; null — записан или менять было нечего
+
     MatchDto:
       type: object
       required: [id, kind, teamA, teamB, format, status, scoreA, scoreB,
@@ -2717,6 +3678,22 @@ components:
         bracketSection: { $ref: "#/components/schemas/BracketSection", nullable: true }
         roundIndex:     { type: integer, nullable: true }
         matchIndex:     { type: integer, nullable: true }
+        # Group stage — populated when the match belongs to a GROUP stage.
+        stageId:    { type: string, format: uuid, nullable: true }
+        groupNo:    { type: integer, nullable: true }
+        groupRound: { type: integer, nullable: true }
+        # True only when the authenticated viewer is a roster member of teamA or
+        # teamB AND the match has an active (LIVE) lobby. Always false for
+        # anonymous requests. Gates the «Пригласить меня в лобби» button.
+        viewerCanInvite: { type: boolean, default: false }
+    InviteResultDto:
+      type: object
+      required: [invited, cooldownRemainingMs]
+      properties:
+        # Whether an invite was actually dispatched this call.
+        invited:             { type: boolean }
+        # Milliseconds the caller must wait before requesting another invite.
+        cooldownRemainingMs: { type: integer, format: int64 }
     MatchLiveSnapshotDto:
       type: object
       required: [gameTime, startTimestamp, gameState, radiant, dire, fetchedAt]
@@ -2726,6 +3703,8 @@ components:
         gameState:      { type: integer, description: "Dota internal game state enum (e.g. 5 = playing)" }
         radiant:        { $ref: "#/components/schemas/TeamLiveDto" }
         dire:           { $ref: "#/components/schemas/TeamLiveDto" }
+        radiantTeamId:  { type: string, format: uuid, nullable: true, description: "Id of the platform team (teamA or teamB) currently on Radiant; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed." }
+        direTeamId:     { type: string, format: uuid, nullable: true, description: "Id of the platform team (teamA or teamB) currently on Dire; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed." }
         fetchedAt:      { type: string, format: date-time, description: "When the backend last polled Dota2API for this snapshot" }
     TeamLiveDto:
       type: object
@@ -2762,11 +3741,41 @@ components:
         direScore:       { type: integer }
         winnerTeamId:    { type: string, format: uuid, nullable: true }
         resultFetchedAt: { type: string, format: date-time }
+        # Какая команда стояла на какой стороне В ЭТОЙ игре. При включённом coin toss
+        # стороны меняются между играми серии, поэтому Radiant = teamA предполагать нельзя.
+        # null, если игроков игры не удалось сопоставить с командой.
+        radiantTeamId:   { type: string, format: uuid, nullable: true }
+        direTeamId:      { type: string, format: uuid, nullable: true }
         radiant:         { type: array, items: { $ref: "#/components/schemas/MatchPlayerStatDto" } }
         dire:            { type: array, items: { $ref: "#/components/schemas/MatchPlayerStatDto" } }
         # Derived at read time (no DB column): steam account id of the MVP on the
         # winning side. Null when no stats are available.
         mvpSteamAccountId: { type: integer, format: int64, nullable: true }
+        bans:
+          type: array
+          description: Heroes banned during the draft (empty if the match had no ban phase).
+          items:
+            $ref: '#/components/schemas/MatchBanDto'
+    MatchBanDto:
+      type: object
+      description: A hero banned during the draft.
+      required: [heroId, team, order]
+      properties:
+        heroId:
+          type: integer
+          format: int32
+          description: Dota 2 hero id that was banned.
+          example: 1
+        team:
+          type: string
+          enum: [RADIANT, DIRE]
+          description: Side that banned the hero.
+          example: RADIANT
+        order:
+          type: integer
+          format: int32
+          description: Order within the ban phase (0-based).
+          example: 0
     MatchPlayerStatDto:
       type: object
       required: [steamAccountId, heroId, kills, deaths, assists, lastHits, denies, gpm, xpm, level, heroDamage, towerDamage, heroHealing, netWorth, gold, leaverStatus, items, isWin]
@@ -3057,17 +4066,74 @@ components:
       properties:
         reason: { type: string, nullable: true }
 
+    # --- Mix tournaments ---
+    MixPlayerDto:
+      type: object
+      properties:
+        playerId:   { type: string, format: uuid }
+        nickname:   { type: string }
+        avatarUrl:  { type: string, nullable: true }
+        mmr:        { type: integer, nullable: true }
+        preferredPositions:
+          type: array
+          nullable: true
+          items: { $ref: "#/components/schemas/PlayerPosition" }
+          description: |
+            Пустой список — согласен на любую позицию; null — игрок скрыл
+            позиции в настройках приватности (как и mmr выше — не то же самое,
+            что пустой список).
+        status:     { $ref: "#/components/schemas/RequestStatus" }
+        checkedIn:  { type: boolean }
+        teamNo:     { type: integer, nullable: true }
+        position:   { $ref: "#/components/schemas/PlayerPosition", nullable: true }
+    MixPlayerAdminDto:
+      type: object
+      properties:
+        playerId:      { type: string, format: uuid }
+        nickname:      { type: string }
+        mmr:           { type: integer }
+        preferredPositions:
+          type: array
+          items: { $ref: "#/components/schemas/PlayerPosition" }
+        status:        { $ref: "#/components/schemas/RequestStatus" }
+        rejectReason:  { type: string, nullable: true }
+        checkedInAt:   { type: string, format: date-time, nullable: true }
+        teamNo:        { type: integer, nullable: true }
+        position:      { $ref: "#/components/schemas/PlayerPosition", nullable: true }
+        withdrawnAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            null — заявка не отозвана. listAdmin() возвращает и отозванные
+            заявки, поэтому без этого поля отозванная APPROVED-запись
+            неотличима от активной.
+    MixRegisterRequest:
+      type: object
+      properties:
+        preferredPositions:
+          type: array
+          nullable: true
+          items: { $ref: "#/components/schemas/PlayerPosition" }
+    MixRejectRequest:
+      type: object
+      properties:
+        reason: { type: string, nullable: true }
+
     # --- Admin: audit ---
     AuditLogDto:
       type: object
       properties:
         id:         { type: string, format: uuid }
+        actorId:    { type: string, format: uuid, nullable: true }
         actor:
           allOf: [{ $ref: "#/components/schemas/PlayerPublicDto" }]
           nullable: true
         action:     { type: string }
         targetType: { type: string }
         targetId:   { type: string, format: uuid }
+        targetLabel: { type: string, nullable: true }
+        targetSlug:  { type: string, nullable: true }
         payload:    { type: object, additionalProperties: true }
         at:         { type: string, format: date-time }
 
@@ -3082,3 +4148,19 @@ components:
         inLobby:         { type: boolean }
         currentLobbyId:  { type: integer, format: int64, nullable: true }
         healthy:         { type: boolean }
+
+    # --- Notification ---
+    NotificationType:
+      type: string
+      enum: [MATCH_READY_CHECK, MATCH_LIVE]
+    NotificationDto:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/NotificationType" }
+        title: { type: string }
+        body: { type: string }
+        link: { type: string, nullable: true }
+        matchId: { type: string, format: uuid, nullable: true }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }

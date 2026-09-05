@@ -13,12 +13,33 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['Unbounded', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['"Golos Text"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        // Editorial Clean palette — flat brand tokens через CSS-переменные,
+        // чтобы переключались вместе с темой (значения — в src/index.css).
+        ink: {
+          DEFAULT: 'hsl(var(--ink) / <alpha-value>)',
+          muted: 'hsl(var(--ink-muted) / <alpha-value>)',
+          faint: 'hsl(var(--ink-faint) / <alpha-value>)',
+          disabled: 'hsl(var(--ink-disabled) / <alpha-value>)',
+        },
+        line: {
+          DEFAULT: 'hsl(var(--line) / <alpha-value>)',
+          strong: 'hsl(var(--line-strong) / <alpha-value>)',
+          num: 'hsl(var(--line-num) / <alpha-value>)',
+        },
+        brand: 'hsl(var(--brand) / <alpha-value>)',
+        success: 'hsl(var(--success) / <alpha-value>)',
+        live: 'hsl(var(--live) / <alpha-value>)',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
@@ -52,6 +73,7 @@ const config: Config = {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        pill: '999px',
       },
       keyframes: {
         'accordion-down': {

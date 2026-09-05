@@ -8,7 +8,6 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import SeasonsListPage from '@/pages/SeasonsListPage';
 import SeasonDetailsPage from '@/pages/SeasonDetailsPage';
 import TournamentDetailsPage from '@/pages/TournamentDetailsPage';
-import TeamsListPage from '@/pages/TeamsListPage';
 import TeamDetailsPage from '@/pages/TeamDetailsPage';
 import TeamCreatePage from '@/pages/TeamCreatePage';
 import LobbiesPage from '@/pages/LobbiesPage';
@@ -19,9 +18,14 @@ import AdminMmrPage from '@/pages/admin/AdminMmrPage';
 import AdminSeasonsPage from '@/pages/admin/AdminSeasonsPage';
 import AdminTournamentsPage from '@/pages/admin/AdminTournamentsPage';
 import AdminPlayersPage from '@/pages/admin/AdminPlayersPage';
+import AdminTeamsPage from '@/pages/admin/AdminTeamsPage';
 import AdminMatchesPage from '@/pages/admin/AdminMatchesPage';
 import AdminAuditPage from '@/pages/admin/AdminAuditPage';
 import AdminBotsPage from '@/pages/admin/AdminBotsPage';
+import AdminLobbiesPage from '@/pages/admin/AdminLobbiesPage';
+import AdminCodesPage from '@/pages/admin/AdminCodesPage';
+import AdminHeroGroupsPage from '@/pages/admin/AdminHeroGroupsPage';
+import AdminAchievementsPage from '@/pages/admin/AdminAchievementsPage';
 import ArchivePage from '@/pages/ArchivePage';
 import LeaderboardPage from '@/pages/LeaderboardPage';
 
@@ -43,7 +47,6 @@ export default function App() {
         <Route path="/scenes" element={<SeasonsListPage />} />
         <Route path="/scenes/:slug" element={<SeasonDetailsPage />} />
         <Route path="/tournaments/:slug" element={<TournamentDetailsPage />} />
-        <Route path="/teams" element={<TeamsListPage />} />
         <Route
           path="/teams/new"
           element={
@@ -80,8 +83,13 @@ export default function App() {
           <Route path="tournaments" element={<AdminTournamentsPage />} />
           <Route path="matches" element={<AdminMatchesPage />} />
           <Route path="players" element={<AdminPlayersPage />} />
+          <Route path="teams" element={<AdminTeamsPage />} />
           <Route path="audit" element={<AdminAuditPage />} />
           <Route path="bots" element={<AdminBotsPage />} />
+          <Route path="lobbies" element={<AdminLobbiesPage />} />
+          <Route path="codes" element={<AdminCodesPage />} />
+          <Route path="hero-groups" element={<AdminHeroGroupsPage />} />
+          <Route path="achievements" element={<AdminAchievementsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

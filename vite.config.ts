@@ -34,6 +34,14 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: false,
+      rollupOptions: {
+        // Второй вход — Telegram Mini App (/tg). Свой shell и свой бандл,
+        // чтобы вебвью не тянул админку и сетку турниров.
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          tg: path.resolve(__dirname, 'tg.html'),
+        },
+      },
     },
   };
 });

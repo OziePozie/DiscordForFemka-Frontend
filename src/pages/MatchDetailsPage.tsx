@@ -6,10 +6,12 @@ import {
   useMatch,
   useMarkMatchReady,
   useMarkMatchUnready,
+  useInviteMe,
   useRecreateLobby,
   useMe,
 } from '@/lib/queries';
 import { useMatchLive, useMatchResult } from '@/lib/queries';
+import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { LiveStatsCard } from '@/components/match/LiveStatsCard';
 import { ResultStatsCard } from '@/components/match/ResultStatsCard';
 import { useAuth } from '@/lib/auth';
@@ -47,17 +49,40 @@ import {
   type TeamPublicDto,
 } from '@/lib/api/types';
 
-function statusVariant(s: MatchStatus) {
-  switch (s) {
-    case 'LIVE':
-      return 'default' as const;
-    case 'SCHEDULED':
-      return 'secondary' as const;
-    case 'FINISHED':
-      return 'outline' as const;
-    case 'CANCELLED':
-      return 'destructive' as const;
-  }
+/**
+ * Хлебокрошка-строка вместо цветных бейджей: СТАТУС / ФОРМАТ / ТУРНИР.
+ * Разделитель «/» — цветом #d5d7e0, турнир — акцентом #7c5cff (ссылка,
+ * если есть slug).
+ */
+function MatchBreadcrumb({ match }: { match: MatchDto }) {
+  const sep = <span className="text-line-num">/</span>;
+  return (
+    <div className="ec-kicker flex flex-wrap items-center gap-2.5 text-[0.75rem] normal-case text-ink-faint [letter-spacing:0.1em]">
+      <span className="uppercase">{MATCH_STATUS_LABEL[match.status]}</span>
+      {sep}
+      <span className="uppercase">{MATCH_FORMAT_LABEL[match.format]}</span>
+      {sep}
+      <span className="uppercase">{MATCH_KIND_LABEL[match.kind]}</span>
+      {match.tournamentId && (
+        <>
+          {sep}
+          {match.tournamentSlug ? (
+            <Link
+              to={`/tournaments/${match.tournamentSlug}`}
+              className="uppercase text-brand hover:underline"
+              title={match.tournamentId}
+            >
+              {match.tournamentSlug}
+            </Link>
+          ) : (
+            <span className="uppercase text-brand" title={match.tournamentId}>
+              Турнир
+            </span>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function fmtDateTime(iso?: string | null): string {
@@ -85,30 +110,38 @@ function TeamBlock({
   team,
   align,
   highlight,
+  finished,
 }: {
   team: TeamPublicDto;
   align: 'left' | 'right';
   highlight: boolean;
+  finished: boolean;
 }) {
   return (
     <div
-      className={`flex min-w-0 flex-1 flex-col gap-1 ${
+      className={`flex min-w-0 flex-col gap-1 ${
         align === 'right' ? 'items-end text-right' : 'items-start text-left'
       }`}
     >
       <TeamNameLink
         teamId={team.id}
         name={team.name}
-        className={`truncate text-xl font-semibold ${
-          highlight ? 'text-green-700' : ''
-        }`}
+        className="ec-display block max-w-full truncate whitespace-nowrap text-[2.125rem] text-ink"
       />
-      <div className="text-sm text-muted-foreground">[{team.tag}]</div>
-      {team.avgMmr != null && (
-        <div className="text-xs text-muted-foreground">
-          Средний MMR: {team.avgMmr}
+      <div className="ec-num text-[0.8125rem] text-ink-faint">[{team.tag}]</div>
+      {highlight ? (
+        <div className="mt-1 text-[0.8125rem] font-bold text-success">
+          Победа
         </div>
+      ) : (
+        team.avgMmr != null && (
+          <div className="ec-num mt-1 text-[0.75rem] text-ink-faint">
+            MMR {team.avgMmr}
+          </div>
+        )
       )}
+      {/* заглушка, чтобы обе колонки были одной высоты при незавершённом матче */}
+      {!finished && <div className="h-0" aria-hidden />}
     </div>
   );
 }
@@ -185,20 +218,69 @@ interface LobbyCardProps {
   isAdmin: boolean;
 }
 
+// Fallback cooldown (ms) applied when a 429 error carries no explicit remaining
+// time — keeps the button briefly disabled so we don't hammer the endpoint.
+const INVITE_FALLBACK_COOLDOWN_MS = 15_000;
+
 function LobbyCard({ match, isAdmin }: LobbyCardProps) {
   const { toast } = useToast();
   const recreate = useRecreateLobby();
+  const invite = useInviteMe();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Timestamp (ms epoch) until which the invite button stays disabled. 0 = ready.
+  const [inviteCooldownUntil, setInviteCooldownUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
 
-  const lobbyId = currentGame(match)?.lobbyId ?? '';
+  const inviteCoolingDown = inviteCooldownUntil > now;
+  // Tick once a second while cooling down so the button re-enables on time.
+  useEffect(() => {
+    if (!inviteCoolingDown) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [inviteCoolingDown]);
+
+  async function handleInvite() {
+    try {
+      const res = await invite.mutateAsync(match.id);
+      toast({ title: 'Приглашение отправлено' });
+      if (res.cooldownRemainingMs > 0) {
+        setInviteCooldownUntil(Date.now() + res.cooldownRemainingMs);
+        setNow(Date.now());
+      }
+    } catch (e) {
+      if (e instanceof ProblemDetailError) {
+        if (e.status === 429) {
+          toast({ title: 'Подождите перед повторным приглашением' });
+          setInviteCooldownUntil(Date.now() + INVITE_FALLBACK_COOLDOWN_MS);
+          setNow(Date.now());
+          return;
+        }
+        if (e.status === 409) {
+          toast({ title: 'Лобби ещё не создано', variant: 'destructive' });
+          return;
+        }
+        if (e.status === 403) {
+          toast({ title: 'Вы не участник этого матча', variant: 'destructive' });
+          return;
+        }
+      }
+      toast({
+        title: 'Не удалось отправить приглашение',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  const lobbyName = currentGame(match)?.lobbyName ?? '';
   const createdAt = currentGame(match)?.createdAt;
   const gameMode = match.gameMode as GameMode | null | undefined;
   const region = match.region as Region | null | undefined;
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(lobbyId);
+      await navigator.clipboard.writeText(lobbyName);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -243,11 +325,11 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
       <CardContent className="space-y-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            ID лобби
+            Название лобби
           </div>
           <div className="mt-1 flex items-center gap-2">
-            <code className="rounded-md bg-muted px-3 py-2 font-mono text-2xl font-bold tracking-wider">
-              {lobbyId}
+            <code className="break-all rounded-md bg-muted px-3 py-2 font-mono text-lg font-bold tracking-wider">
+              {lobbyName}
             </code>
             <Button size="sm" variant="outline" onClick={handleCopy}>
               {copied ? 'Скопировано' : 'Копировать'}
@@ -294,6 +376,21 @@ function LobbyCard({ match, isAdmin }: LobbyCardProps) {
         <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           В клиенте Dota 2 → Custom Lobbies → найди ID или жди приглашения.
         </div>
+
+        {match.viewerCanInvite && (
+          <Button
+            onClick={handleInvite}
+            disabled={invite.isPending || inviteCoolingDown}
+          >
+            {invite.isPending
+              ? 'Отправка…'
+              : inviteCoolingDown
+                ? `Приглашение отправлено (${Math.ceil(
+                    (inviteCooldownUntil - now) / 1000,
+                  )}с)`
+                : 'Пригласить меня в лобби'}
+          </Button>
+        )}
       </CardContent>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -462,7 +559,7 @@ export default function MatchDetailsPage() {
   const cur = q.data;
   const isLobbyPending =
     !!cur &&
-    !currentGame(cur)?.lobbyId &&
+    !currentGame(cur)?.lobbyName &&
     !!cur.lobbyCreateStartedAt &&
     !cur.lobbyCreateFailedAt &&
     cur.status === 'SCHEDULED';
@@ -473,9 +570,10 @@ export default function MatchDetailsPage() {
     setPollMs(isLobbyPending || isLive ? 5000 : undefined);
   }, [isLobbyPending, isLive]);
 
+  const curGameForLive = cur ? currentGame(cur) : undefined;
   const live = useMatchLive(
     id,
-    q.data?.status === 'LIVE' && !!currentGame(q.data)?.lobbyId,
+    curGameForLive?.status === 'LIVE' && !!curGameForLive?.lobbyName,
   );
   const result = useMatchResult(id, q.data?.status === 'FINISHED');
   const meId = me.data?.profile.id;
@@ -505,13 +603,7 @@ export default function MatchDetailsPage() {
     // to render until the bracket propagates teams in.
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant(m.status)}>
-            {MATCH_STATUS_LABEL[m.status]}
-          </Badge>
-          <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
-          <Badge variant="secondary">{MATCH_KIND_LABEL[m.kind]}</Badge>
-        </div>
+        <MatchBreadcrumb match={m} />
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             Команды ещё не определены — матч ожидает результатов предыдущего
@@ -527,6 +619,8 @@ export default function MatchDetailsPage() {
   const bWin = finished && m.winnerTeamId === m.teamB.id;
 
   const isAdmin = !!session?.roles?.includes('ADMIN');
+  const isStaff =
+    !!session?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR');
   const captainOfA = !!me.data?.teams?.some(
     (t) => t.role === 'CAPTAIN' && t.teamId === m.teamA?.id,
   );
@@ -535,10 +629,15 @@ export default function MatchDetailsPage() {
   );
 
   const curGameOfM = currentGame(m);
-  const canToggleReady =
-    m.status === 'SCHEDULED' &&
-    !curGameOfM?.lobbyId &&
-    (captainOfA || captainOfB);
+  // «Окно готовности»: серия ещё идёт (SCHEDULED до первой катки либо LIVE между
+  // катками BO3/BO5) и прямо сейчас нет живой катки. Между катками статус серии —
+  // LIVE (не SCHEDULED), а последняя катка уже FINISHED, поэтому опираемся на
+  // статус текущей катки, а не на статус серии и не на наличие её lobbyId
+  // (у только что завершившейся катки lobbyId ещё висит).
+  const awaitingNextGame =
+    (m.status === 'SCHEDULED' || m.status === 'LIVE') &&
+    curGameOfM?.status !== 'LIVE';
+  const canToggleReady = awaitingNextGame && (captainOfA || captainOfB);
 
   async function handleToggle(side: 'A' | 'B') {
     if (!m) return;
@@ -560,69 +659,46 @@ export default function MatchDetailsPage() {
     }
   }
 
-  const showLobby = !!curGameOfM?.lobbyId;
+  // Лобби показываем только для реально идущей катки (статус катки LIVE), а не
+  // для только что завершившейся катки серии, у которой lobbyId ещё висит.
+  const showLobby = curGameOfM?.status === 'LIVE' && !!curGameOfM?.lobbyName;
   const showPending =
-    m.status === 'SCHEDULED' &&
-    !curGameOfM?.lobbyId &&
+    awaitingNextGame &&
     !!m.lobbyCreateStartedAt &&
     !m.lobbyCreateFailedAt;
-  const showFailed =
-    m.status === 'SCHEDULED' && !curGameOfM?.lobbyId && !!m.lobbyCreateFailedAt;
+  const showFailed = awaitingNextGame && !!m.lobbyCreateFailedAt;
   // Hide readiness card while the «creating lobby…» card is showing — captains
   // can't toggle ready during that window anyway, and the buttons are
   // visually replaced by the pending card.
-  const showReadiness =
-    m.status === 'SCHEDULED' && !curGameOfM?.lobbyId && !showPending;
+  const showReadiness = awaitingNextGame && !showPending;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={statusVariant(m.status)}>
-          {MATCH_STATUS_LABEL[m.status]}
-        </Badge>
-        <Badge variant="outline">{MATCH_FORMAT_LABEL[m.format]}</Badge>
-        <Badge variant="secondary">{MATCH_KIND_LABEL[m.kind]}</Badge>
-        {m.tournamentId && (
-          m.tournamentSlug ? (
-            <Link to={`/tournaments/${m.tournamentSlug}`}>
-              <Badge
-                variant="outline"
-                className="cursor-pointer hover:bg-accent"
-                title={m.tournamentId}
-              >
-                Турнир
-              </Badge>
-            </Link>
-          ) : (
-            <Badge variant="outline" title={m.tournamentId}>
-              Турнир
-            </Badge>
-          )
-        )}
+      {/* Админские действия по матчу — здесь, а не только в админке и сетке:
+          «резы зависли» замечают именно на этой странице. */}
+      <div className="flex items-start justify-between gap-3">
+        <MatchBreadcrumb match={m} />
+        {isStaff && <MatchAdminMenu match={m} />}
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-6">
-            <TeamBlock team={m.teamA} align="left" highlight={aWin} />
-            <div className="flex flex-col items-center gap-1">
-              <div className="font-mono text-4xl font-bold tracking-tight">
-                <span className={aWin ? 'text-green-700' : ''}>
-                  {m.scoreA}
-                </span>
-                <span className="px-2 text-muted-foreground">:</span>
-                <span className={bWin ? 'text-green-700' : ''}>
-                  {m.scoreB}
-                </span>
-              </div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                {MATCH_FORMAT_LABEL[m.format]}
-              </div>
-            </div>
-            <TeamBlock team={m.teamB} align="right" highlight={bWin} />
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6 border-b border-line pb-8">
+        <TeamBlock team={m.teamA} align="left" highlight={aWin} finished={finished} />
+        <div className="flex flex-col items-center">
+          <div className="ec-display flex items-baseline gap-2 text-[2.5rem] leading-none sm:gap-3 sm:text-[4rem]">
+            <span className={finished && !aWin ? 'text-ink-disabled' : 'text-ink'}>
+              {m.scoreA}
+            </span>
+            <span className="text-line-num">—</span>
+            <span className={finished && !bWin ? 'text-ink-disabled' : 'text-ink'}>
+              {m.scoreB}
+            </span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="ec-num mt-2 text-[0.75rem] uppercase tracking-wider text-ink-faint">
+            {MATCH_FORMAT_LABEL[m.format]}
+          </div>
+        </div>
+        <TeamBlock team={m.teamB} align="right" highlight={bWin} finished={finished} />
+      </div>
 
       {(() => {
         const isSeries = m.format === 'BO3' || m.format === 'BO5';
@@ -632,7 +708,7 @@ export default function MatchDetailsPage() {
           // BO1 (и вырожденный случай без каток) — прежнее поведение.
           return (
             <>
-              {m.status === 'LIVE' && curGameOfM?.lobbyId && (
+              {m.status === 'LIVE' && curGameOfM?.lobbyName && (
                 <LiveStatsCard match={m} snapshot={live.data} meId={meId} />
               )}
               {m.status === 'FINISHED' && result.data && (
@@ -649,8 +725,8 @@ export default function MatchDetailsPage() {
         return (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Счёт серии:</span>
-              <span className="font-semibold tabular-nums">
+              <span className="text-ink-muted">Счёт серии:</span>
+              <span className="ec-num font-semibold text-ink">
                 {m.scoreA} : {m.scoreB}
               </span>
             </div>

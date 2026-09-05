@@ -7,11 +7,33 @@ import {
   useCloseTournamentRegistration,
   useStartTournament,
   useFinishTournament,
+  useHideTournament,
+  useUnhideTournament,
   useGenerateBracket,
+  useGenerateStages,
+  useGeneratePlayoff,
+  useStages,
+  useStandings,
+  useMoveTeamGroup,
   useTournamentEligibility,
   useUpdateTournamentEligibility,
+  useAdminTournamentTeams,
+  useAdminRegisterTeam,
+  useAdminTeams,
+  useApproveTournamentTeam,
+  useRejectTournamentTeam,
+  useAdminMixPlayers,
+  useAdminApproveMixPlayer,
+  useAdminRejectMixPlayer,
+  useTournamentQuestsList,
+  useCreateQuest,
+  useUpdateQuest,
+  useReplaceQuestConditions,
+  usePublishQuest,
+  useArchiveQuest,
 } from '@/lib/queries';
 import { getSeasonsPage, getSeasonBySlug } from '@/lib/api/endpoints';
+import { ConditionBuilder } from '@/components/admin/ConditionBuilder';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,18 +65,30 @@ import { ProblemDetailError } from '@/lib/api/client';
 import {
   GAME_MODES,
   GAME_MODE_LABEL,
+  MATCH_FORMATS,
   REGIONS,
   REGION_LABEL,
+  REQUEST_STATUS_LABEL,
   TOURNAMENT_FORMAT_LABEL,
   TOURNAMENT_STATUS_LABEL,
+  POSITION_LABEL,
   type BracketDto,
   type GameMode,
+  type GenerateStagesRequest,
+  type MatchFormat,
+  type PlayerPosition,
   type Region,
+  type RegistrationMode,
+  type MixPlayerAdminDto,
   type SeasonDto,
   type TournamentDto,
   type TournamentEligibilityDto,
+  type TournamentTeamAdminDto,
   type TournamentFormat,
   type TournamentStatus,
+  GAMIFICATION_STATUS_LABEL,
+  type QuestDto,
+  type ConditionRowDto,
 } from '@/lib/api/types';
 import { formatDateTimeLocal, parseLocalDateTime } from '@/lib/utils';
 
@@ -102,6 +136,13 @@ type FormState = {
   regulationsUrl: string;
   regulationsContent: string;
   regulationsVersion: string;
+  // Режим регистрации (MIX). Меняется только через PATCH (edit-форма) —
+  // бэкенд не принимает эти поля при создании, поэтому их нет в
+  // create-запросе ниже, только в edit.
+  registrationMode: RegistrationMode;
+  mixTeamCount: string;
+  checkInOpensAt: string;
+  checkInClosesAt: string;
 };
 
 function emptyForm(seasonId: string | null): FormState {
@@ -129,6 +170,10 @@ function emptyForm(seasonId: string | null): FormState {
     regulationsUrl: '',
     regulationsContent: '',
     regulationsVersion: '',
+    registrationMode: 'TEAM',
+    mixTeamCount: '',
+    checkInOpensAt: '',
+    checkInClosesAt: '',
   };
 }
 
@@ -139,6 +184,12 @@ type DialogState =
   | { kind: 'confirm-bracket'; tournament: TournamentDto }
   | { kind: 'finish'; tournament: TournamentDto }
   | { kind: 'bracket-result'; tournament: TournamentDto; bracket: BracketDto }
+  | { kind: 'generate-stages'; tournament: TournamentDto }
+  | { kind: 'stages-result'; tournament: TournamentDto; stageCount: number }
+  | { kind: 'team-requests'; tournament: TournamentDto }
+  | { kind: 'mix-players'; tournament: TournamentDto }
+  | { kind: 'group-edit'; tournament: TournamentDto }
+  | { kind: 'quests'; tournament: TournamentDto }
   | null;
 
 function statusVariant(s: TournamentStatus) {
@@ -213,7 +264,11 @@ export default function AdminTournamentsPage() {
   const closeRegMut = useCloseTournamentRegistration();
   const startMut = useStartTournament();
   const finishMut = useFinishTournament();
+  const hideMut = useHideTournament();
+  const unhideMut = useUnhideTournament();
   const bracketMut = useGenerateBracket();
+  const stagesMut = useGenerateStages();
+  const playoffMut = useGeneratePlayoff();
 
   const mutating =
     createMut.isPending ||
@@ -222,11 +277,22 @@ export default function AdminTournamentsPage() {
     closeRegMut.isPending ||
     startMut.isPending ||
     finishMut.isPending ||
-    bracketMut.isPending;
+    hideMut.isPending ||
+    unhideMut.isPending ||
+    bracketMut.isPending ||
+    stagesMut.isPending ||
+    playoffMut.isPending;
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [form, setForm] = useState<FormState>(emptyForm(null));
   const [winnerTeamId, setWinnerTeamId] = useState('');
+  const [stagesForm, setStagesForm] = useState({
+    numGroups: '2',
+    groupSeriesFormat: 'BO1' as MatchFormat,
+    advanceToUpper: '1',
+    advanceToLower: '1',
+    playoffBracketType: 'DOUBLE_ELIM' as TournamentFormat,
+  });
 
   function openCreate() {
     const currentSeason = seasons.find((s) => s.slug === seasonSlug);
@@ -260,6 +326,10 @@ export default function AdminTournamentsPage() {
       regulationsUrl: t.regulationsUrl ?? '',
       regulationsContent: t.regulationsContent ?? '',
       regulationsVersion: t.regulationsVersion ?? '',
+      registrationMode: t.registrationMode ?? 'TEAM',
+      mixTeamCount: t.mixTeamCount != null ? String(t.mixTeamCount) : '',
+      checkInOpensAt: formatDateTimeLocal(t.checkInOpensAt),
+      checkInClosesAt: formatDateTimeLocal(t.checkInClosesAt),
     });
     setDialog({ kind: 'edit', tournament: t });
   }
@@ -282,6 +352,29 @@ export default function AdminTournamentsPage() {
     }
     if (form.dotaLeagueId && !/^\d+$/.test(form.dotaLeagueId)) {
       return 'Dota league ID должен быть целым числом';
+    }
+    return validateMix();
+  }
+
+  /**
+   * MIX-поля проверяются одинаково при создании и при редактировании —
+   * общий хелпер, чтобы правила не разъехались между двумя формами.
+   * Окно чек-ина дублируется проверкой на бэке (PLATFORM_VALIDATION);
+   * здесь она нужна, чтобы не гонять заведомо неверный запрос.
+   */
+  function validateMix(): string | null {
+    if (
+      form.mixTeamCount &&
+      (!/^\d+$/.test(form.mixTeamCount) || Number(form.mixTeamCount) < 1)
+    ) {
+      return 'Число составов должно быть целым числом не меньше 1';
+    }
+    if (form.checkInOpensAt && form.checkInClosesAt) {
+      const opens = parseLocalDateTime(form.checkInOpensAt);
+      const closes = parseLocalDateTime(form.checkInClosesAt);
+      if (opens && closes && closes <= opens) {
+        return 'Чек-ин должен закрываться позже, чем открывается';
+      }
     }
     return null;
   }
@@ -341,6 +434,12 @@ export default function AdminTournamentsPage() {
           regulationsUrl: form.regulationsUrl.trim() || null,
           regulationsContent: form.regulationsContent.trim() || null,
           regulationsVersion: form.regulationsVersion.trim() || null,
+          // MIX-турнир создаётся сразу в нужном режиме: раньше приходилось
+          // создавать командный и переключать его отдельным сохранением.
+          registrationMode: form.registrationMode,
+          mixTeamCount: form.mixTeamCount ? Number(form.mixTeamCount) : null,
+          checkInOpensAt: parseLocalDateTime(form.checkInOpensAt),
+          checkInClosesAt: parseLocalDateTime(form.checkInClosesAt),
         });
         toast({ title: 'Турнир создан', description: t.name });
         closeDialog();
@@ -379,6 +478,11 @@ export default function AdminTournamentsPage() {
         });
         return;
       }
+      const mixErr = validateMix();
+      if (mixErr) {
+        toast({ title: 'Ошибка', description: mixErr, variant: 'destructive' });
+        return;
+      }
       try {
         await updateMut.mutateAsync({
           id: dialog.tournament.id,
@@ -397,6 +501,10 @@ export default function AdminTournamentsPage() {
             regulationsUrl: form.regulationsUrl.trim(),
             regulationsContent: form.regulationsContent.trim(),
             regulationsVersion: form.regulationsVersion.trim(),
+            registrationMode: form.registrationMode,
+            mixTeamCount: form.mixTeamCount ? Number(form.mixTeamCount) : null,
+            checkInOpensAt: parseLocalDateTime(form.checkInOpensAt),
+            checkInClosesAt: parseLocalDateTime(form.checkInClosesAt),
           },
         });
         toast({ title: 'Турнир обновлён' });
@@ -429,6 +537,47 @@ export default function AdminTournamentsPage() {
     }
   }
 
+  async function handleGenerateStages() {
+    if (!dialog || dialog.kind !== 'generate-stages') return;
+    const body: GenerateStagesRequest = {
+      numGroups: Number(stagesForm.numGroups),
+      groupSeriesFormat: stagesForm.groupSeriesFormat,
+      advanceToUpper: Number(stagesForm.advanceToUpper),
+      advanceToLower: Number(stagesForm.advanceToLower),
+      playoffBracketType: stagesForm.playoffBracketType,
+    };
+    try {
+      const stages = await stagesMut.mutateAsync({
+        id: dialog.tournament.id,
+        body,
+      });
+      setDialog({
+        kind: 'stages-result',
+        tournament: dialog.tournament,
+        stageCount: stages.length,
+      });
+    } catch (e) {
+      toast({
+        title: 'Не удалось сгенерировать группы',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleGeneratePlayoff(t: TournamentDto) {
+    try {
+      await playoffMut.mutateAsync(t.id);
+      toast({ title: 'Плей-офф сгенерирован', description: t.name });
+    } catch (e) {
+      toast({
+        title: 'Не удалось сгенерировать плей-офф',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
   async function handleFinish() {
     if (!dialog || dialog.kind !== 'finish') return;
     const id = winnerTeamId.trim();
@@ -450,6 +599,24 @@ export default function AdminTournamentsPage() {
     } catch (e) {
       toast({
         title: 'Не удалось завершить',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleToggleHidden(t: TournamentDto) {
+    try {
+      if (t.hidden) {
+        await unhideMut.mutateAsync(t.id);
+        toast({ title: 'Турнир показан' });
+      } else {
+        await hideMut.mutateAsync(t.id);
+        toast({ title: 'Турнир скрыт' });
+      }
+    } catch (e) {
+      toast({
+        title: 'Не удалось изменить видимость',
         description: describeError(e),
         variant: 'destructive',
       });
@@ -556,13 +723,30 @@ export default function AdminTournamentsPage() {
                   onEligibility={() =>
                     setDialog({ kind: 'eligibility', tournament: t })
                   }
+                  onTeamRequests={() =>
+                    setDialog({ kind: 'team-requests', tournament: t })
+                  }
+                  onMixPlayers={() =>
+                    setDialog({ kind: 'mix-players', tournament: t })
+                  }
                   onOpenReg={() => runTransition(t, 'open')}
                   onCloseReg={() => runTransition(t, 'close')}
                   onGenerateBracket={() =>
                     setDialog({ kind: 'confirm-bracket', tournament: t })
                   }
+                  onGenerateStages={() =>
+                    setDialog({ kind: 'generate-stages', tournament: t })
+                  }
+                  onGroupEdit={() =>
+                    setDialog({ kind: 'group-edit', tournament: t })
+                  }
+                  onQuests={() =>
+                    setDialog({ kind: 'quests', tournament: t })
+                  }
+                  onGeneratePlayoff={() => handleGeneratePlayoff(t)}
                   onStart={() => runTransition(t, 'start')}
                   onFinish={() => setDialog({ kind: 'finish', tournament: t })}
+                  onToggleHidden={() => handleToggleHidden(t)}
                 />
               ))}
             </tbody>
@@ -976,6 +1160,118 @@ export default function AdminTournamentsPage() {
                 </div>
               </div>
             </details>
+
+            {/* Блок показывается и при создании: бэкенд принимает режим
+                регистрации в CreateTournamentRequest, так что MIX-турнир
+                заводится сразу, без переключения отдельным сохранением. */}
+            {/* Заголовок называет текущий режим, а не просто «MIX-регистрация»:
+                админ, который ищет, где переключается тип регистрации, находит
+                его по названию, не разворачивая блок наугад. Автораскрытие по
+                режиму не делаем — оно захлопывало бы блок при переключении
+                обратно на командный, пряча только что использованный селект. */}
+            <details className="rounded-md border bg-muted/30 px-3 py-2">
+              <summary className="cursor-pointer select-none text-sm font-medium">
+                Тип регистрации —{' '}
+                {form.registrationMode === 'MIX'
+                  ? 'игроками по одному (MIX)'
+                  : 'командами'}
+              </summary>
+                <div className="mt-3 space-y-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tn-regmode">Тип регистрации</Label>
+                    <Select
+                      value={form.registrationMode}
+                      onValueChange={(v) =>
+                        setForm({
+                          ...form,
+                          registrationMode: v as RegistrationMode,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="tn-regmode">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="TEAM">Команды</SelectItem>
+                        <SelectItem value="MIX">
+                          MIX (игроки записываются сами)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Создать турнир можно только в режиме «Команды» — MIX
+                      включается здесь, после создания.
+                    </p>
+                  </div>
+
+                  {form.registrationMode === 'MIX' && (
+                    <>
+                      <div className="space-y-1">
+                        <Label htmlFor="tn-mixteamcount">
+                          Число составов
+                        </Label>
+                        <Input
+                          id="tn-mixteamcount"
+                          type="number"
+                          min={1}
+                          value={form.mixTeamCount}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              mixTeamCount: e.target.value,
+                            })
+                          }
+                          placeholder="опционально"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label htmlFor="tn-checkinopen">
+                            Чек-ин откр.
+                          </Label>
+                          <Input
+                            id="tn-checkinopen"
+                            type="datetime-local"
+                            value={form.checkInOpensAt}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                checkInOpensAt: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="tn-checkinclose">
+                            Чек-ин закр.
+                          </Label>
+                          <Input
+                            id="tn-checkinclose"
+                            type="datetime-local"
+                            value={form.checkInClosesAt}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                checkInClosesAt: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                      {/* Оговорка про PATCH верна только при редактировании:
+                          при создании стирать ещё нечего. */}
+                      {dialog?.kind === 'edit' && (
+                        <p className="text-xs text-muted-foreground">
+                          Число составов и время чек-ина можно только задать
+                          или заменить новым значением — очистить поле и
+                          сохранить не получится: PATCH игнорирует пустые
+                          MIX-поля, а не стирает их.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+            </details>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={closeDialog}>
@@ -1044,6 +1340,152 @@ export default function AdminTournamentsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Generate group stages */}
+      <Dialog
+        open={dialog?.kind === 'generate-stages'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Сгенерировать группы?</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'generate-stages'
+                ? dialog.tournament.name
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="stages-num-groups">Число групп</Label>
+              <Input
+                id="stages-num-groups"
+                type="number"
+                min={1}
+                value={stagesForm.numGroups}
+                onChange={(e) =>
+                  setStagesForm((f) => ({ ...f, numGroups: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-series-format">
+                Формат серий группы
+              </Label>
+              <Select
+                value={stagesForm.groupSeriesFormat}
+                onValueChange={(v) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    groupSeriesFormat: v as MatchFormat,
+                  }))
+                }
+              >
+                <SelectTrigger id="stages-series-format">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MATCH_FORMATS.map((mf) => (
+                    <SelectItem key={mf} value={mf}>
+                      {mf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-advance-upper">
+                Выходят в верхнюю сетку (из группы)
+              </Label>
+              <Input
+                id="stages-advance-upper"
+                type="number"
+                min={1}
+                value={stagesForm.advanceToUpper}
+                onChange={(e) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    advanceToUpper: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-advance-lower">
+                Выходят в нижнюю сетку (из группы, 0 для SE)
+              </Label>
+              <Input
+                id="stages-advance-lower"
+                type="number"
+                min={0}
+                value={stagesForm.advanceToLower}
+                onChange={(e) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    advanceToLower: e.target.value,
+                  }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stages-playoff-type">Тип плей-оффа</Label>
+              <Select
+                value={stagesForm.playoffBracketType}
+                onValueChange={(v) =>
+                  setStagesForm((f) => ({
+                    ...f,
+                    playoffBracketType: v as TournamentFormat,
+                  }))
+                }
+              >
+                <SelectTrigger id="stages-playoff-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SINGLE_ELIM">
+                    Single elimination
+                  </SelectItem>
+                  <SelectItem value="DOUBLE_ELIM">
+                    Double elimination
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleGenerateStages} disabled={stagesMut.isPending}>
+              {stagesMut.isPending ? 'Генерация…' : 'Сгенерировать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stages result */}
+      <Dialog
+        open={dialog?.kind === 'stages-result'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Группы сгенерированы</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'stages-result'
+                ? `${dialog.tournament.name}: создано стадий — ${dialog.stageCount}. Групповые матчи сгенерированы; плей-офф генерируется отдельной кнопкой после завершения групп.`
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={closeDialog}>OK</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Finish dialog */}
       <Dialog
         open={dialog?.kind === 'finish'}
@@ -1096,7 +1538,965 @@ export default function AdminTournamentsPage() {
           onClose={closeDialog}
         />
       )}
+
+      {/* Team requests (approve / reject) dialog. Mounted only while open so the
+          GET fires exactly once per open. */}
+      {dialog?.kind === 'team-requests' && (
+        <TeamRequestsDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
+
+      {/* MIX player registrations (approve / reject). Mounted only while
+          open so the GET fires exactly once per open, same as team requests
+          above. */}
+      {dialog?.kind === 'mix-players' && (
+        <MixPlayersDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
+
+      {/* Group composition editor. Mounted only while open so the GETs
+          (stages/standings) fire exactly once per open. */}
+      {dialog?.kind === 'group-edit' && (
+        <GroupEditDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
+
+      {/* Tournament quests. Mounted only while open so the quests-list GET fires
+          exactly once per open, matching the group-edit dialog above. */}
+      {dialog?.kind === 'quests' && (
+        <QuestsDialogBody
+          tournament={dialog.tournament}
+          onClose={closeDialog}
+        />
+      )}
     </div>
+  );
+}
+
+function GroupEditDialogBody({
+  tournament,
+  onClose,
+}: {
+  tournament: TournamentDto;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const stagesQ = useStages(tournament.id);
+  const standingsQ = useStandings(tournament.id);
+  const moveMut = useMoveTeamGroup();
+
+  const groupStage = (stagesQ.data ?? []).find((s) => s.stageType === 'GROUP');
+  const numGroups = groupStage?.config?.numGroups ?? 0;
+
+  const groups = [...(standingsQ.data ?? [])].sort(
+    (a, b) => a.groupNo - b.groupNo,
+  );
+
+  async function handleMove(teamId: string, groupNo: number) {
+    try {
+      await moveMut.mutateAsync({
+        tournamentId: tournament.id,
+        teamId,
+        groupNo,
+      });
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Не удалось перенести команду',
+        description: describeError(e),
+      });
+    }
+  }
+
+  const isLoading = stagesQ.isLoading || standingsQ.isLoading;
+  const isError = stagesQ.isError || standingsQ.isError;
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Состав групп — {tournament.name}</DialogTitle>
+        </DialogHeader>
+
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : isError ? (
+          <div className="text-sm text-destructive">
+            {describeError(stagesQ.error ?? standingsQ.error)}
+          </div>
+        ) : !groupStage ? (
+          <div className="text-sm text-muted-foreground">
+            Группы ещё не сгенерированы
+          </div>
+        ) : (
+          <div className="max-h-[60vh] space-y-4 overflow-y-auto">
+            {groups.map((group) => (
+              <div
+                key={group.groupNo}
+                className="space-y-2 rounded-md border p-3"
+              >
+                <div className="font-medium">
+                  Группа {String.fromCharCode(65 + group.groupNo)}
+                </div>
+                <div className="space-y-2">
+                  {group.rows.map((row) => {
+                    const teamId = row.team?.id;
+                    if (!teamId) return null;
+                    return (
+                      <div
+                        key={teamId}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">{row.team?.name}</span>
+                        <Select
+                          value={String(group.groupNo)}
+                          onValueChange={(v) => handleMove(teamId, Number(v))}
+                          disabled={moveMut.isPending}
+                        >
+                          <SelectTrigger className="w-40">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: numGroups }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>
+                                Группа {String.fromCharCode(65 + i)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Закрыть
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function QuestsDialogBody({
+  tournament,
+  onClose,
+}: {
+  tournament: TournamentDto;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const questsQ = useTournamentQuestsList(tournament.id, { size: 50 });
+  const createMut = useCreateQuest();
+  const updateMut = useUpdateQuest();
+  const conditionsMut = useReplaceQuestConditions();
+  const publishMut = usePublishQuest();
+  const archiveMut = useArchiveQuest();
+
+  type QuestFormState = { name: string; description: string };
+  const EMPTY_QUEST_FORM: QuestFormState = { name: '', description: '' };
+
+  type QuestDialogState =
+    | { kind: 'create' }
+    | { kind: 'edit'; quest: QuestDto }
+    | { kind: 'conditions'; quest: QuestDto }
+    | null;
+
+  const [subDialog, setSubDialog] = useState<QuestDialogState>(null);
+  const [form, setForm] = useState<QuestFormState>(EMPTY_QUEST_FORM);
+  const [conditions, setConditions] = useState<ConditionRowDto[]>([]);
+
+  function closeSubDialog() {
+    setSubDialog(null);
+    setForm(EMPTY_QUEST_FORM);
+    setConditions([]);
+  }
+
+  function isRowBusy(id: string): boolean {
+    return (
+      (publishMut.isPending && publishMut.variables === id) ||
+      (archiveMut.isPending && archiveMut.variables === id)
+    );
+  }
+
+  async function handleSubmit() {
+    if (!subDialog) return;
+    if (!form.name.trim()) {
+      toast({ title: 'Ошибка', description: 'Укажите название', variant: 'destructive' });
+      return;
+    }
+    if (subDialog.kind === 'create') {
+      try {
+        await createMut.mutateAsync({
+          tournamentId: tournament.id,
+          body: { name: form.name.trim(), description: form.description.trim() || null },
+        });
+        toast({ title: 'Квест создан' });
+        closeSubDialog();
+      } catch (e) {
+        toast({ title: 'Не удалось создать', description: describeError(e), variant: 'destructive' });
+      }
+      return;
+    }
+    if (subDialog.kind === 'edit') {
+      try {
+        await updateMut.mutateAsync({
+          id: subDialog.quest.id,
+          patch: { name: form.name.trim(), description: form.description.trim() || null },
+        });
+        toast({ title: 'Квест обновлён' });
+        closeSubDialog();
+      } catch (e) {
+        toast({ title: 'Не удалось обновить', description: describeError(e), variant: 'destructive' });
+      }
+    }
+  }
+
+  async function handleSaveConditions() {
+    if (!subDialog || subDialog.kind !== 'conditions') return;
+    try {
+      await conditionsMut.mutateAsync({ id: subDialog.quest.id, conditions });
+      toast({ title: 'Условия сохранены' });
+      closeSubDialog();
+    } catch (e) {
+      toast({ title: 'Не удалось сохранить условия', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handlePublish(quest: QuestDto) {
+    try {
+      await publishMut.mutateAsync(quest.id);
+      toast({ title: 'Квест опубликован' });
+    } catch (e) {
+      toast({ title: 'Не удалось опубликовать', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  async function handleArchive(quest: QuestDto) {
+    try {
+      await archiveMut.mutateAsync(quest.id);
+      toast({ title: 'Квест архивирован' });
+    } catch (e) {
+      toast({ title: 'Не удалось архивировать', description: describeError(e), variant: 'destructive' });
+    }
+  }
+
+  const quests = questsQ.data?.items ?? [];
+  const mutating = createMut.isPending || updateMut.isPending;
+
+  return (
+    <>
+      <Dialog open onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Квесты — {tournament.name}</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              onClick={() => {
+                setForm(EMPTY_QUEST_FORM);
+                setSubDialog({ kind: 'create' });
+              }}
+            >
+              Новый квест
+            </Button>
+          </div>
+
+          {questsQ.isLoading && <Skeleton className="h-32 w-full" />}
+          {questsQ.isError && (
+            <div className="text-sm text-destructive">
+              {describeError(questsQ.error)}
+            </div>
+          )}
+          {questsQ.data && quests.length === 0 && (
+            <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+              Квестов пока нет.
+            </div>
+          )}
+          {quests.length > 0 && (
+            <div className="max-h-[50vh] space-y-2 overflow-y-auto">
+              {quests.map((quest) => (
+                <div key={quest.id} className="space-y-2 rounded-md border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="font-medium">{quest.name}</div>
+                      {quest.description && (
+                        <div className="text-xs text-muted-foreground">
+                          {quest.description}
+                        </div>
+                      )}
+                    </div>
+                    <Badge variant={quest.status === 'PUBLISHED' ? 'default' : quest.status === 'ARCHIVED' ? 'outline' : 'secondary'}>
+                      {GAMIFICATION_STATUS_LABEL[quest.status]}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={mutating || quest.status === 'ARCHIVED' || isRowBusy(quest.id)}
+                      onClick={() => {
+                        setForm({ name: quest.name, description: quest.description ?? '' });
+                        setSubDialog({ kind: 'edit', quest });
+                      }}
+                    >
+                      Изм.
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={mutating || quest.status === 'ARCHIVED' || isRowBusy(quest.id)}
+                      onClick={() => {
+                        setConditions(quest.conditions);
+                        setSubDialog({ kind: 'conditions', quest });
+                      }}
+                    >
+                      Условия
+                    </Button>
+                    {quest.status === 'DRAFT' && (
+                      <Button
+                        size="sm"
+                        disabled={isRowBusy(quest.id) || quest.conditions.length === 0}
+                        title={quest.conditions.length === 0 ? 'Нельзя опубликовать без условий' : undefined}
+                        onClick={() => handlePublish(quest)}
+                      >
+                        Опубликовать
+                      </Button>
+                    )}
+                    {quest.status !== 'ARCHIVED' && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={isRowBusy(quest.id)}
+                        onClick={() => handleArchive(quest)}
+                      >
+                        В архив
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={onClose}>Закрыть</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quest create/edit sub-dialog */}
+      <Dialog
+        open={subDialog?.kind === 'create' || subDialog?.kind === 'edit'}
+        onOpenChange={(open) => { if (!open) closeSubDialog(); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {subDialog?.kind === 'edit' ? 'Редактировать квест' : 'Новый квест'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="quest-name">Название</Label>
+              <Input
+                id="quest-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                maxLength={128}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="quest-desc">Описание</Label>
+              <textarea
+                id="quest-desc"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="min-h-[5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeSubDialog}>Отмена</Button>
+            <Button onClick={handleSubmit} disabled={mutating}>
+              {mutating ? 'Сохранение…' : subDialog?.kind === 'edit' ? 'Сохранить' : 'Создать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quest conditions sub-dialog */}
+      <Dialog
+        open={subDialog?.kind === 'conditions'}
+        onOpenChange={(open) => { if (!open) closeSubDialog(); }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Условия — {subDialog?.kind === 'conditions' ? subDialog.quest.name : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <ConditionBuilder
+            conditions={conditions}
+            onChange={setConditions}
+            disabled={conditionsMut.isPending}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeSubDialog}>Отмена</Button>
+            <Button onClick={handleSaveConditions} disabled={conditionsMut.isPending}>
+              {conditionsMut.isPending ? 'Сохранение…' : 'Сохранить условия'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+interface TeamRequestsDialogBodyProps {
+  tournament: TournamentDto;
+  onClose: () => void;
+}
+
+function requestStatusVariant(s: TournamentTeamAdminDto['status']) {
+  switch (s) {
+    case 'APPROVED':
+      return 'default' as const;
+    case 'REJECTED':
+      return 'destructive' as const;
+    default:
+      return 'secondary' as const;
+  }
+}
+
+function TeamRequestsDialogBody({
+  tournament,
+  onClose,
+}: TeamRequestsDialogBodyProps) {
+  const { toast } = useToast();
+  const query = useAdminTournamentTeams(tournament.id);
+  const approveMut = useApproveTournamentTeam();
+  const rejectMut = useRejectTournamentTeam();
+
+  // teamId of the request whose reject reason input is currently open.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReasons, setRejectReasons] = useState<Record<string, string>>(
+    {},
+  );
+  // Панель ручной регистрации команды (свёрнута по умолчанию).
+  const [showRegister, setShowRegister] = useState(false);
+
+  const teams = query.data ?? [];
+
+  // Команды, уже участвующие в турнире (APPROVED) — их не даём регистрировать
+  // повторно, бэкенд для них вернул бы 409.
+  const registeredTeamIds = new Set(
+    teams
+      .filter((t) => t.status === 'APPROVED' && t.teamId)
+      .map((t) => t.teamId as string),
+  );
+
+  async function handleApprove(teamId: string) {
+    try {
+      await approveMut.mutateAsync({ tournamentId: tournament.id, teamId });
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleReject(teamId: string) {
+    const reason = rejectReasons[teamId]?.trim() || undefined;
+    try {
+      await rejectMut.mutateAsync({
+        tournamentId: tournament.id,
+        teamId,
+        reason,
+      });
+      setRejectingId(null);
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Заявки команд — {tournament.name}</DialogTitle>
+        </DialogHeader>
+
+        <div className="rounded-md border bg-muted/30 p-3">
+          {showRegister ? (
+            <RegisterTeamPanel
+              tournamentId={tournament.id}
+              registeredTeamIds={registeredTeamIds}
+              onClose={() => setShowRegister(false)}
+            />
+          ) : (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">
+                Добавить команду вручную, минуя окно регистрации.
+              </span>
+              <Button size="sm" onClick={() => setShowRegister(true)}>
+                Зарегистрировать команду
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {query.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : query.isError ? (
+          <div className="text-sm text-destructive">
+            {describeError(query.error)}
+          </div>
+        ) : teams.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Заявок нет</div>
+        ) : (
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+            {teams.map((team) => {
+              const teamId = team.teamId;
+              // Без teamId нельзя построить корректный URL мутации и React key —
+              // пропускаем такую (в норме не встречается) заявку.
+              if (!teamId) return null;
+              const violations = team.eligibilityViolations ?? [];
+              const isRejecting = rejectingId === teamId;
+              return (
+                <div key={teamId} className="space-y-2 rounded-md border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{team.name}</span>
+                      <Badge variant={requestStatusVariant(team.status)}>
+                        {team.status
+                          ? REQUEST_STATUS_LABEL[team.status]
+                          : '—'}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(teamId)}
+                        disabled={
+                          team.status === 'APPROVED' || approveMut.isPending
+                        }
+                      >
+                        Одобрить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          setRejectingId(isRejecting ? null : teamId)
+                        }
+                        disabled={
+                          team.status === 'REJECTED' || rejectMut.isPending
+                        }
+                      >
+                        Отклонить
+                      </Button>
+                    </div>
+                  </div>
+
+                  {violations.length > 0 && (
+                    <ul className="space-y-0.5 text-xs text-muted-foreground">
+                      {violations.map((v, i) => (
+                        <li key={`${v.code}-${i}`}>{v.message}</li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {team.status === 'REJECTED' && team.rejectReason && (
+                    <div className="text-xs text-muted-foreground">
+                      Причина отклонения: {team.rejectReason}
+                    </div>
+                  )}
+
+                  {isRejecting && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        className="h-8 flex-1"
+                        placeholder="Причина (опционально)"
+                        value={rejectReasons[teamId] ?? ''}
+                        onChange={(e) =>
+                          setRejectReasons((r) => ({
+                            ...r,
+                            [teamId]: e.target.value,
+                          }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(teamId)}
+                        disabled={rejectMut.isPending}
+                      >
+                        Подтвердить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setRejectingId(null)}
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Закрыть
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface RegisterTeamPanelProps {
+  tournamentId: string;
+  registeredTeamIds: Set<string>;
+  onClose: () => void;
+}
+
+function RegisterTeamPanel({
+  tournamentId,
+  registeredTeamIds,
+  onClose,
+}: RegisterTeamPanelProps) {
+  const { toast } = useToast();
+  const registerMut = useAdminRegisterTeam();
+  const [search, setSearch] = useState('');
+  const [debounced, setDebounced] = useState('');
+
+  // Дебаунс поискового запроса, чтобы не дёргать бэкенд на каждый символ.
+  useEffect(() => {
+    const h = setTimeout(() => setDebounced(search.trim()), 250);
+    return () => clearTimeout(h);
+  }, [search]);
+
+  const teamsQ = useAdminTeams(
+    debounced.length >= 2 ? { q: debounced, size: 8 } : { size: 8 },
+  );
+  const results = teamsQ.data?.items ?? [];
+
+  async function handleRegister(teamId: string, name: string) {
+    try {
+      await registerMut.mutateAsync({ tournamentId, teamId });
+      toast({
+        title: 'Команда зарегистрирована',
+        description: `${name} добавлена в турнир (APPROVED).`,
+      });
+    } catch (e) {
+      toast({
+        title: 'Не удалось зарегистрировать',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor="reg-team-search" className="text-sm font-medium">
+          Зарегистрировать команду
+        </Label>
+        <Button size="sm" variant="ghost" onClick={onClose}>
+          Свернуть
+        </Button>
+      </div>
+      <Input
+        id="reg-team-search"
+        placeholder="Поиск по названию команды…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+      {teamsQ.isLoading ? (
+        <div className="text-xs text-muted-foreground">Загрузка…</div>
+      ) : results.length === 0 ? (
+        <div className="text-xs text-muted-foreground">
+          {debounced.length >= 2 ? 'Ничего не найдено' : 'Команд нет'}
+        </div>
+      ) : (
+        <div className="max-h-56 space-y-1 overflow-y-auto">
+          {results.map((team) => {
+            const already = registeredTeamIds.has(team.id);
+            return (
+              <div
+                key={team.id}
+                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5"
+              >
+                <div className="min-w-0 truncate">
+                  <span className="text-sm font-medium">{team.name}</span>
+                  {team.tag && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      [{team.tag}]
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant={already ? 'outline' : 'default'}
+                  disabled={already || registerMut.isPending}
+                  onClick={() => handleRegister(team.id, team.name)}
+                >
+                  {already ? 'Уже в турнире' : 'Добавить'}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface MixPlayersDialogBodyProps {
+  tournament: TournamentDto;
+  onClose: () => void;
+}
+
+function mixPlayerStatusVariant(s: MixPlayerAdminDto['status']) {
+  switch (s) {
+    case 'APPROVED':
+      return 'default' as const;
+    case 'REJECTED':
+      return 'destructive' as const;
+    default:
+      return 'secondary' as const;
+  }
+}
+
+// Пустой список — осознанное «любая роль»; отсутствие поля у админ-DTO
+// трактуем так же (в отличие от публичного списка, здесь нет отдельного
+// смысла «скрыто приватностью» — админ видит настоящие данные).
+function formatMixPositions(
+  positions: PlayerPosition[] | null | undefined,
+): string {
+  if (!positions || positions.length === 0) return 'любая роль';
+  return positions.map((p, i) => `${i + 1}. ${POSITION_LABEL[p]}`).join(', ');
+}
+
+function MixPlayersDialogBody({
+  tournament,
+  onClose,
+}: MixPlayersDialogBodyProps) {
+  const { toast } = useToast();
+  const query = useAdminMixPlayers(tournament.id);
+  const approveMut = useAdminApproveMixPlayer();
+  const rejectMut = useAdminRejectMixPlayer();
+
+  // playerId заявки, у которой сейчас открыт инпут причины отклонения.
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReasons, setRejectReasons] = useState<Record<string, string>>(
+    {},
+  );
+
+  const players = query.data ?? [];
+
+  async function handleApprove(playerId: string) {
+    try {
+      await approveMut.mutateAsync({ tournamentId: tournament.id, playerId });
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function handleReject(playerId: string) {
+    const reason = rejectReasons[playerId]?.trim() || undefined;
+    try {
+      await rejectMut.mutateAsync({
+        tournamentId: tournament.id,
+        playerId,
+        reason,
+      });
+      setRejectingId(null);
+    } catch (e) {
+      toast({
+        title: 'Ошибка',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Заявки MIX-игроков — {tournament.name}</DialogTitle>
+          <DialogDescription>
+            Список включает отклонённые и отозванные заявки — организатору
+            нужно видеть, кто выбыл, а не только тех, кто сейчас в игре.
+          </DialogDescription>
+        </DialogHeader>
+
+        {query.isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ) : query.isError ? (
+          <div className="text-sm text-destructive">
+            {describeError(query.error)}
+          </div>
+        ) : players.length === 0 ? (
+          <div className="text-sm text-muted-foreground">Заявок нет</div>
+        ) : (
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto">
+            {players.map((p, idx) => {
+              const playerId = p.playerId;
+              // Без playerId нельзя построить корректный URL мутации и
+              // React key — пропускаем такую (в норме не встречается)
+              // запись, но не теряем её молча из вида: используем индекс
+              // только как фолбэк-key, действия для неё не показываем.
+              const isWithdrawn = p.withdrawnAt != null;
+              const isRejecting = playerId != null && rejectingId === playerId;
+              return (
+                <div
+                  key={playerId ?? `no-id-${idx}`}
+                  className="space-y-2 rounded-md border p-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">
+                        {p.nickname ?? '—'}
+                      </span>
+                      <Badge variant={mixPlayerStatusVariant(p.status)}>
+                        {p.status ? REQUEST_STATUS_LABEL[p.status] : '—'}
+                      </Badge>
+                      {isWithdrawn && (
+                        <Badge variant="destructive">Отозвана</Badge>
+                      )}
+                      {p.checkedInAt ? (
+                        <Badge variant="secondary">Отметился</Badge>
+                      ) : (
+                        <Badge variant="outline">Не отметился</Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => playerId && handleApprove(playerId)}
+                        disabled={
+                          !playerId ||
+                          p.status !== 'REJECTED' ||
+                          approveMut.isPending
+                        }
+                        title="Возвращает отклонённую заявку в силу"
+                      >
+                        Одобрить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() =>
+                          playerId &&
+                          setRejectingId(isRejecting ? null : playerId)
+                        }
+                        disabled={
+                          !playerId ||
+                          p.status === 'REJECTED' ||
+                          rejectMut.isPending
+                        }
+                      >
+                        Отклонить
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    MMR: {p.mmr ?? '—'} · Роли:{' '}
+                    {formatMixPositions(p.preferredPositions)}
+                  </div>
+
+                  {p.status === 'REJECTED' && p.rejectReason && (
+                    <div className="text-xs text-muted-foreground">
+                      Причина отклонения: {p.rejectReason}
+                    </div>
+                  )}
+
+                  {isRejecting && playerId && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        className="h-8 flex-1"
+                        placeholder="Причина (опционально)"
+                        value={rejectReasons[playerId] ?? ''}
+                        onChange={(e) =>
+                          setRejectReasons((r) => ({
+                            ...r,
+                            [playerId]: e.target.value,
+                          }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(playerId)}
+                        disabled={rejectMut.isPending}
+                      >
+                        Подтвердить
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setRejectingId(null)}
+                      >
+                        Отмена
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
+            Закрыть
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1319,11 +2719,18 @@ interface TournamentRowProps {
   mutating: boolean;
   onEdit: () => void;
   onEligibility: () => void;
+  onTeamRequests: () => void;
+  onMixPlayers: () => void;
   onOpenReg: () => void;
   onCloseReg: () => void;
   onGenerateBracket: () => void;
+  onGenerateStages: () => void;
+  onGroupEdit: () => void;
+  onQuests: () => void;
+  onGeneratePlayoff: () => void;
   onStart: () => void;
   onFinish: () => void;
+  onToggleHidden: () => void;
 }
 
 function TournamentRow({
@@ -1331,11 +2738,18 @@ function TournamentRow({
   mutating,
   onEdit,
   onEligibility,
+  onTeamRequests,
+  onMixPlayers,
   onOpenReg,
   onCloseReg,
   onGenerateBracket,
+  onGenerateStages,
+  onGroupEdit,
+  onQuests,
+  onGeneratePlayoff,
   onStart,
   onFinish,
+  onToggleHidden,
 }: TournamentRowProps) {
   const canOpen = t.status === 'ANNOUNCED';
   const canClose = t.status === 'REGISTRATION_OPEN';
@@ -1354,9 +2768,16 @@ function TournamentRow({
         <Badge variant="outline">{TOURNAMENT_FORMAT_LABEL[t.format]}</Badge>
       </td>
       <td className="px-4 py-3">
-        <Badge variant={statusVariant(t.status)}>
-          {TOURNAMENT_STATUS_LABEL[t.status]}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={statusVariant(t.status)}>
+            {TOURNAMENT_STATUS_LABEL[t.status]}
+          </Badge>
+          {t.hidden && <Badge variant="secondary">Скрыт</Badge>}
+          {/* MIX-турниры устроены принципиально иначе (записываются игроки,
+              а не команды), поэтому видны прямо в списке — иначе отличить их
+              можно только открыв редактирование. */}
+          {t.registrationMode === 'MIX' && <Badge variant="outline">MIX</Badge>}
+        </div>
       </td>
       <td className="px-4 py-3 text-muted-foreground">{t.maxTeams ?? '—'}</td>
       <td className="px-4 py-3 text-right">
@@ -1371,6 +2792,16 @@ function TournamentRow({
             <DropdownMenuItem onClick={onEligibility}>
               Правила (eligibility)
             </DropdownMenuItem>
+            {t.registrationMode !== 'MIX' && (
+              <DropdownMenuItem onClick={onTeamRequests}>
+                Заявки команд
+              </DropdownMenuItem>
+            )}
+            {t.registrationMode === 'MIX' && (
+              <DropdownMenuItem onClick={onMixPlayers}>
+                Заявки MIX-игроков
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={onOpenReg}
               disabled={!canOpen}
@@ -1401,6 +2832,24 @@ function TournamentRow({
               Сгенерировать сетку
             </DropdownMenuItem>
             <DropdownMenuItem
+              onClick={onGenerateStages}
+              disabled={!canGenerate}
+              title={
+                canGenerate
+                  ? undefined
+                  : 'Доступно после закрытия регистрации'
+              }
+            >
+              Сгенерировать группы…
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onGroupEdit}>
+              Состав групп
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onQuests}>Квесты</DropdownMenuItem>
+            <DropdownMenuItem onClick={onGeneratePlayoff}>
+              Сгенерировать плей-офф
+            </DropdownMenuItem>
+            <DropdownMenuItem
               onClick={onStart}
               disabled={!canStart}
               title={
@@ -1415,6 +2864,9 @@ function TournamentRow({
               title={canFinish ? undefined : 'Доступно только для LIVE'}
             >
               Финиш
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onToggleHidden}>
+              {t.hidden ? 'Показать' : 'Скрыть'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

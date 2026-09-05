@@ -1,13 +1,26 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import { TeamNameLink } from '@/components/TeamNameLink';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
+import { GroupStageBlock } from '@/components/GroupStageBlock';
+import { MixRegistrationBlock } from '@/components/MixRegistrationBlock';
+import { MixPlayersList } from '@/components/MixPlayersList';
 import {
+  useAssignBracketCell,
   useBracket,
   useMe,
   useRegisterTournament,
+  useStages,
   useTournament,
   useTournamentMatches,
   useTournamentTeams,
@@ -24,6 +37,21 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { ProblemDetailError } from '@/lib/api/client';
 import { safeHttpUrl } from '@/lib/utils';
@@ -38,6 +66,10 @@ import {
   type TournamentDto,
   type MatchDto,
 } from '@/lib/api/types';
+
+// Пробрасывает id турнира вниз к ячейкам сетки (RoundColumns глубоко вложен),
+// чтобы админ мог назначать команды в пустые ячейки без prop-drilling.
+const BracketTournamentIdContext = createContext<string | null>(null);
 
 function statusVariant(s: TournamentStatus) {
   switch (s) {
@@ -87,9 +119,44 @@ function fmtDate(iso?: string | null): string {
   });
 }
 
+const TOURNAMENT_TABS = [
+  'overview',
+  'regulations',
+  'teams',
+  'matches',
+  'bracket',
+] as const;
+type TournamentTab = (typeof TOURNAMENT_TABS)[number];
+
 export default function TournamentDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
   const q = useTournament(slug);
+
+  // Активная вкладка живёт в URL (?tab=…), чтобы возврат назад со страницы матча
+  // (или любой другой страницы) восстанавливал ту же вкладку, а не сбрасывал на
+  // «Обзор». replace: true — переключение вкладок не плодит записи в истории.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawTab = searchParams.get('tab');
+  const activeTab: TournamentTab = TOURNAMENT_TABS.includes(
+    rawTab as TournamentTab,
+  )
+    ? (rawTab as TournamentTab)
+    : 'overview';
+
+  function handleTabChange(value: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value === 'overview') {
+          next.delete('tab');
+        } else {
+          next.set('tab', value);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   if (q.isLoading) {
     return (
@@ -109,17 +176,29 @@ export default function TournamentDetailsPage() {
     );
   }
 
-  const { tournament, registeredTeamsCount, canRegister, rules } = q.data;
+  const {
+    tournament,
+    approvedTeamsCount = 0,
+    pendingTeamsCount = 0,
+    canRegister,
+    rules,
+  } = q.data;
 
   return (
     <div className="space-y-6">
       <Header tournament={tournament} canRegister={canRegister} />
 
-      <Tabs defaultValue="overview">
+      <Tabs
+        defaultValue="overview"
+        value={activeTab}
+        onValueChange={handleTabChange}
+      >
         <TabsList>
           <TabsTrigger value="overview">Обзор</TabsTrigger>
           <TabsTrigger value="regulations">Регламент</TabsTrigger>
-          <TabsTrigger value="teams">Команды</TabsTrigger>
+          <TabsTrigger value="teams">
+            {tournament.registrationMode === 'MIX' ? 'Игроки' : 'Команды'}
+          </TabsTrigger>
           <TabsTrigger value="matches">Матчи</TabsTrigger>
           <TabsTrigger value="bracket">Сетка</TabsTrigger>
         </TabsList>
@@ -128,7 +207,8 @@ export default function TournamentDetailsPage() {
           <OverviewTab
             tournament={tournament}
             rules={rules}
-            registeredTeamsCount={registeredTeamsCount}
+            approvedTeamsCount={approvedTeamsCount}
+            pendingTeamsCount={pendingTeamsCount}
           />
         </TabsContent>
 
@@ -137,7 +217,14 @@ export default function TournamentDetailsPage() {
         </TabsContent>
 
         <TabsContent value="teams">
-          <TeamsTab tournamentId={tournament.id} />
+          {tournament.registrationMode === 'MIX' ? (
+            <MixPlayersList
+              tournamentId={tournament.id}
+              mixTeamCount={tournament.mixTeamCount}
+            />
+          ) : (
+            <TeamsTab tournamentId={tournament.id} />
+          )}
         </TabsContent>
 
         <TabsContent value="matches">
@@ -164,10 +251,31 @@ function Header({
   const register = useRegisterTournament();
   const { toast } = useToast();
 
-  const captainTeam = me.data?.teams.find(
-    (t) => t.role === 'CAPTAIN' && t.teamStatus === 'ACTIVE',
+  // MIX-турниры: игрок записывается сам, вместо капитана, регистрирующего
+  // готовую команду. Весь блок ниже (выбор команды + «Зарегистрироваться»)
+  // — TEAM-only; для MIX его целиком заменяет MixRegistrationBlock, а не
+  // canRegister (для MIX он теперь всегда false и описывает только
+  // командную регистрацию — им нельзя гейтить MIX-кнопку).
+  const isMix = tournament.registrationMode === 'MIX';
+
+  // All active teams the player captains, ordered deterministically so the
+  // selector (and its default pick) don't depend on the DB's row order.
+  const captainTeams = useMemo(
+    () =>
+      (me.data?.teams ?? [])
+        .filter((t) => t.role === 'CAPTAIN' && t.teamStatus === 'ACTIVE')
+        .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    [me.data?.teams],
   );
-  const userIsCaptainOfActive = !!captainTeam;
+  const userIsCaptainOfActive = captainTeams.length > 0;
+
+  const [selectedTeamId, setSelectedTeamId] = useState<string>('');
+  // Effective team = the explicit pick while it's still valid, otherwise the
+  // first (alphabetical) captained team.
+  const effectiveTeamId =
+    captainTeams.find((t) => t.teamId === selectedTeamId)?.teamId ??
+    captainTeams[0]?.teamId ??
+    '';
 
   const canRegBtn =
     isAuthenticated &&
@@ -187,11 +295,11 @@ function Header({
             : '';
 
   async function handleRegister() {
-    if (!captainTeam) return;
+    if (!effectiveTeamId) return;
     try {
       await register.mutateAsync({
         tournamentId: tournament.id,
-        teamId: captainTeam.teamId,
+        teamId: effectiveTeamId,
       });
       toast({ title: 'Команда зарегистрирована' });
     } catch (e) {
@@ -259,19 +367,45 @@ function Header({
                 </a>
               </Button>
             )}
-            <Button
-              onClick={handleRegister}
-              disabled={!canRegBtn || register.isPending}
-              title={regHint || undefined}
-            >
-              {register.isPending ? 'Регистрируем…' : 'Зарегистрироваться'}
-            </Button>
+            {!isMix &&
+              captainTeams.length > 1 &&
+              tournament.status === 'REGISTRATION_OPEN' && (
+                <Select
+                  value={effectiveTeamId}
+                  onValueChange={setSelectedTeamId}
+                  disabled={register.isPending}
+                >
+                  <SelectTrigger
+                    className="w-[220px] rounded-pill"
+                    aria-label="Команда для регистрации"
+                  >
+                    <SelectValue placeholder="Выберите команду" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {captainTeams.map((t) => (
+                      <SelectItem key={t.teamId} value={t.teamId}>
+                        {teamLabel(t)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            {!isMix && (
+              <Button
+                onClick={handleRegister}
+                disabled={!canRegBtn || register.isPending}
+                title={regHint || undefined}
+              >
+                {register.isPending ? 'Регистрируем…' : 'Зарегистрироваться'}
+              </Button>
+            )}
           </div>
-          {regHint && (
+          {!isMix && regHint && (
             <span className="text-xs text-muted-foreground">{regHint}</span>
           )}
         </div>
       </div>
+      {isMix && <MixRegistrationBlock tournament={tournament} />}
     </header>
   );
 }
@@ -279,11 +413,13 @@ function Header({
 function OverviewTab({
   tournament,
   rules,
-  registeredTeamsCount,
+  approvedTeamsCount,
+  pendingTeamsCount,
 }: {
   tournament: TournamentDto;
   rules?: string | null;
-  registeredTeamsCount: number;
+  approvedTeamsCount: number;
+  pendingTeamsCount: number;
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -313,11 +449,31 @@ function OverviewTab({
           <CardDescription>Слоты и сроки</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div>
-            <span className="text-muted-foreground">Команд:</span>{' '}
-            <span className="font-semibold">{registeredTeamsCount}</span>
-            {tournament.maxTeams ? ` / ${tournament.maxTeams}` : ''}
-          </div>
+          {tournament.registrationMode === 'MIX' ? (
+            // approvedTeamsCount/pendingTeamsCount считают командные заявки
+            // (TournamentRegistrationService) — для MIX их структурно нет,
+            // играют по одиночке через MixRegistrationService, поэтому
+            // здесь всегда были бы нули. Показываем то, что применимо к
+            // MIX: сколько составов планирует организатор.
+            <div>
+              <span className="text-muted-foreground">Составов:</span>{' '}
+              <span className="font-semibold">
+                {tournament.mixTeamCount ?? '—'}
+              </span>
+            </div>
+          ) : (
+            <div>
+              <span className="text-muted-foreground">Команд:</span>{' '}
+              <span className="font-semibold">{approvedTeamsCount}</span>
+              {pendingTeamsCount > 0 ? (
+                <span className="text-muted-foreground">
+                  {' '}
+                  (+{pendingTeamsCount} на модерации)
+                </span>
+              ) : null}
+              {tournament.maxTeams ? ` / ${tournament.maxTeams}` : ''}
+            </div>
+          )}
           <div>
             <span className="text-muted-foreground">Открыта:</span>{' '}
             {fmtDateTime(tournament.registrationOpensAt)}
@@ -459,12 +615,17 @@ function TeamsTab({ tournamentId }: { tournamentId: string }) {
                     {tt.seed ?? '—'}
                   </td>
                   <td className="px-4 py-2">
-                    <TeamNameLink
-                      teamId={tt.team.id}
-                      name={tt.team.name}
-                      tag={tt.team.tag}
-                      className="font-medium"
-                    />
+                    <span className="inline-flex items-center gap-1.5">
+                      <TeamNameLink
+                        teamId={tt.team.id}
+                        name={tt.team.name}
+                        tag={tt.team.tag}
+                        className="font-medium"
+                      />
+                      {tt.status === 'PENDING' ? (
+                        <Badge variant="outline">на модерации</Badge>
+                      ) : null}
+                    </span>
                   </td>
                   <td className="px-4 py-2">
                     <span className="inline-flex items-center gap-1.5">
@@ -584,8 +745,10 @@ function MatchRow({ m }: { m: MatchDto }) {
 
 function BracketTab({ tournamentId }: { tournamentId: string }) {
   const q = useBracket(tournamentId);
+  const stagesQ = useStages(tournamentId);
 
-  if (q.isLoading) return <Skeleton className="h-60 w-full" />;
+  if (q.isLoading || stagesQ.isLoading)
+    return <Skeleton className="h-60 w-full" />;
   if (q.isError)
     return (
       <div className="text-sm text-destructive">
@@ -593,55 +756,83 @@ function BracketTab({ tournamentId }: { tournamentId: string }) {
       </div>
     );
 
-  const bracket = q.data;
-  if (!bracket || bracket.rounds.length === 0)
-    return (
-      <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
-        Сетка ещё не сформирована.
-      </div>
-    );
+  // Ошибка стадий не валит вкладку — считаем, что стадий нет (старое поведение).
+  const stages = stagesQ.data ?? [];
+  const groupStage = stages.find((s) => s.stageType === 'GROUP');
+  const playoffStage = stages.find((s) => s.stageType === 'PLAYOFF');
 
+  const bracket = q.data;
+  const hasBracket = Boolean(bracket && bracket.rounds.length > 0);
+
+  // Турнир без стадий — старое поведение без изменений.
+  if (!groupStage) {
+    if (!hasBracket)
+      return (
+        <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+          Сетка ещё не сформирована.
+        </div>
+      );
+    return <PlayoffBracket bracket={bracket!} tournamentId={tournamentId} />;
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">Групповая стадия</h3>
+        <GroupStageBlock
+          tournamentId={tournamentId}
+          groupConfig={groupStage.config}
+        />
+      </section>
+      <section className="space-y-3">
+        <h3 className="text-base font-semibold">Плей-офф</h3>
+        {hasBracket ? (
+          <PlayoffBracket bracket={bracket!} tournamentId={tournamentId} />
+        ) : (
+          <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+            {playoffStage?.status === 'PENDING'
+              ? 'Плей-офф ещё не сгенерирован.'
+              : 'Сетка ещё не сформирована.'}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function PlayoffBracket({
+  bracket,
+  tournamentId,
+}: {
+  bracket: NonNullable<ReturnType<typeof useBracket>['data']>;
+  tournamentId: string;
+}) {
   const wbRounds = bracket.rounds.filter((r) => r.section === 'WB');
   const lbRounds = bracket.rounds.filter((r) => r.section === 'LB');
   const gfRounds = bracket.rounds.filter((r) => r.section === 'GF');
   const isDoubleElim = bracket.format === 'DOUBLE_ELIM';
 
-  if (!isDoubleElim) {
-    return (
-      <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
-        <RoundColumns rounds={wbRounds} />
-      </div>
-    );
-  }
-
-  // Вся сетка в одном прокручиваемом контейнере: секции сложены вертикально,
-  // контейнер скроллится по вертикали (и по горизонтали для широких раундов),
-  // вместо того чтобы растягиваться на весь экран.
-  return (
-    <div className="max-h-[70vh] space-y-6 overflow-auto rounded-md border p-4">
-      <section>
-        <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-          Верхняя сетка
-        </h3>
-        <RoundColumns rounds={wbRounds} />
-      </section>
-      {lbRounds.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Нижняя сетка
-          </h3>
-          <RoundColumns rounds={lbRounds} />
-        </section>
-      )}
-      {gfRounds.length > 0 && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold uppercase text-muted-foreground">
-            Grand Final
-          </h3>
-          <RoundColumns rounds={gfRounds} />
-        </section>
-      )}
+  // Вся сетка в одном прокручиваемом контейнере: верхняя и нижняя сетки сложены
+  // одна над другой, а Grand Final стоит справа от их финалов — именно туда
+  // приходят победители обеих веток, и к нему тянутся линии от WB- и LB-финала.
+  const inner = !isDoubleElim ? (
+    <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+      <ConnectedRounds rounds={wbRounds} />
     </div>
+  ) : (
+    <div className="max-h-[70vh] overflow-auto rounded-md border p-4">
+      <DoubleElimBracket
+        wbRounds={wbRounds}
+        lbRounds={lbRounds}
+        gfRounds={gfRounds}
+      />
+    </div>
+  );
+
+  return (
+    <BracketTournamentIdContext.Provider value={tournamentId}>
+      {inner}
+    </BracketTournamentIdContext.Provider>
   );
 }
 
@@ -649,41 +840,455 @@ type BracketRound = NonNullable<
   ReturnType<typeof useBracket>['data']
 >['rounds'][number];
 
-function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
+const cellKey = (
+  section: string,
+  roundIndex: number,
+  matchIndex: number,
+): string => `${section}-${roundIndex}-${matchIndex}`;
+
+function useRegisterCell() {
+  const cellsRef = useRef(new Map<string, HTMLElement>());
+  const registerCell = useCallback((key: string, el: HTMLElement | null) => {
+    if (el) cellsRef.current.set(key, el);
+    else cellsRef.current.delete(key);
+  }, []);
+  return { cellsRef, registerCell };
+}
+
+// Считает соединительные линии между ячейками сетки: от правого края
+// матча-источника к левому краю матча, куда проходит его победитель.
+//
+// Внутри одной сетки соединяем WB→WB и LB→LB. Переход проигравшего из WB в LB
+// НЕ рисуем — он пересекал бы всю сетку. Единственное исключение — Grand Final:
+// в него линии идут из обеих веток (победители WB-финала и LB-финала).
+function computeConnectorPaths(
+  container: HTMLElement,
+  cells: Map<string, HTMLElement>,
+  rounds: BracketRound[],
+): string[] {
+  const cRect = container.getBoundingClientRect();
+  const next: string[] = [];
+  for (const round of rounds) {
+    for (const cell of round.matches) {
+      const targetEl = cells.get(
+        cellKey(cell.section, cell.roundIndex, cell.matchIndex),
+      );
+      if (!targetEl) continue;
+      for (const slot of [cell.slotA, cell.slotB]) {
+        // Провенанс слота есть не всегда: для форматов без скелета сетки бэкенд
+        // отдаёт slotA/slotB = null — тогда и линию рисовать не от чего.
+        if (!slot?.section) continue;
+        const sameSection = slot.section === cell.section;
+        // Между сетками соединяем только вход в Grand Final.
+        if (!sameSection && cell.section !== 'GF') continue;
+        if (slot.round == null || slot.matchIndex == null) continue;
+        // `slot.round` может быть 0- или 1-индексным относительно
+        // `roundIndex`; пробуем оба варианта. Внутри своей сетки источник
+        // всегда в предыдущем раунде — этим и отсекаем неверный кандидат.
+        let srcEl: HTMLElement | undefined;
+        for (const cand of [slot.round, slot.round - 1]) {
+          if (sameSection && cand >= cell.roundIndex) continue;
+          srcEl = cells.get(cellKey(slot.section, cand, slot.matchIndex));
+          if (srcEl) break;
+        }
+        if (!srcEl) continue;
+        const s = srcEl.getBoundingClientRect();
+        const t = targetEl.getBoundingClientRect();
+        const x1 = s.right - cRect.left;
+        const y1 = s.top + s.height / 2 - cRect.top;
+        const x2 = t.left - cRect.left;
+        const y2 = t.top + t.height / 2 - cRect.top;
+        const midX = x1 + (x2 - x1) / 2;
+        next.push(`M ${x1} ${y1} H ${midX} V ${y2} H ${x2}`);
+      }
+    }
+  }
+  return next;
+}
+
+// `next` идентичен предыдущему набору путей? Нужно, чтобы не гонять setState в
+// цикле (`rounds` — новый массив на каждый рендер).
+const samePaths = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((p, i) => p === b[i]);
+
+function useConnectorPaths(
+  containerRef: React.RefObject<HTMLElement>,
+  cellsRef: React.MutableRefObject<Map<string, HTMLElement>>,
+  rounds: BracketRound[],
+): string[] {
+  const [paths, setPaths] = useState<string[]>([]);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const compute = () => {
+      const next = computeConnectorPaths(container, cellsRef.current, rounds);
+      setPaths((prev) => (samePaths(prev, next) ? prev : next));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(container);
+    window.addEventListener('resize', compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', compute);
+    };
+  }, [containerRef, cellsRef, rounds]);
+
+  return paths;
+}
+
+function ConnectorOverlay({ paths }: { paths: string[] }) {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0 h-full w-full text-muted-foreground/50"
+      aria-hidden
+    >
+      {paths.map((d, i) => (
+        <path key={i} d={d} fill="none" stroke="currentColor" strokeWidth={2} />
+      ))}
+    </svg>
+  );
+}
+
+// Single-elim (или любая одиночная сетка): одна лента раундов со связями.
+function ConnectedRounds({ rounds }: { rounds: BracketRound[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { cellsRef, registerCell } = useRegisterCell();
+  const paths = useConnectorPaths(containerRef, cellsRef, rounds);
+
+  return (
+    <div ref={containerRef} className="relative w-max min-w-full">
+      <ConnectorOverlay paths={paths} />
+      <RoundColumns rounds={rounds} registerCell={registerCell} />
+    </div>
+  );
+}
+
+const finalCellKey = (rounds: BracketRound[]): string | null => {
+  for (let i = rounds.length - 1; i >= 0; i--) {
+    const last = rounds[i].matches[rounds[i].matches.length - 1];
+    if (last) return cellKey(last.section, last.roundIndex, last.matchIndex);
+  }
+  return null;
+};
+
+// Double-elim: WB сверху, LB снизу; обе ленты прижаты вправо, поэтому WB-финал и
+// LB-финал стоят в одной колонке. Grand Final — правее их, и его сдвигаем ровно
+// на середину между двумя финалами, чтобы линии к нему были симметричны.
+function DoubleElimBracket({
+  wbRounds,
+  lbRounds,
+  gfRounds,
+}: {
+  wbRounds: BracketRound[];
+  lbRounds: BracketRound[];
+  gfRounds: BracketRound[];
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { cellsRef, registerCell } = useRegisterCell();
+  const [paths, setPaths] = useState<string[]>([]);
+  // Вертикальный сдвиг ячейки Grand Final, чтобы она встала по центру между
+  // WB- и LB-финалом (высоты веток разные, поэтому центр контейнера не подходит).
+  const [gfShift, setGfShift] = useState(0);
+
+  const allRounds = [...wbRounds, ...lbRounds, ...gfRounds];
+  const wbFinalKey = finalCellKey(wbRounds);
+  const lbFinalKey = finalCellKey(lbRounds);
+  const gfCellKey = finalCellKey(gfRounds);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cyOf = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    };
+    const recompute = () => {
+      const cells = cellsRef.current;
+      const wbEl = wbFinalKey ? cells.get(wbFinalKey) : null;
+      const lbEl = lbFinalKey ? cells.get(lbFinalKey) : null;
+      const gfEl = gfCellKey ? cells.get(gfCellKey) : null;
+      if (wbEl && lbEl && gfEl) {
+        const delta = (cyOf(wbEl) + cyOf(lbEl)) / 2 - cyOf(gfEl);
+        if (Math.abs(delta) > 0.5) {
+          // Двигаем GF и ждём перерисовки — линии посчитаем на осевшей позиции.
+          setGfShift((prev) => prev + delta);
+          return;
+        }
+      }
+      const next = computeConnectorPaths(container, cells, allRounds);
+      setPaths((prev) => (samePaths(prev, next) ? prev : next));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(container);
+    window.addEventListener('resize', recompute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', recompute);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRounds, gfShift, wbFinalKey, lbFinalKey, gfCellKey]);
+
+  const heading = 'text-sm font-semibold uppercase text-muted-foreground';
+
+  return (
+    <div ref={containerRef} className="relative w-max min-w-full pb-2">
+      <ConnectorOverlay paths={paths} />
+      <div className="flex items-stretch gap-10">
+        <div className="flex flex-col gap-6">
+          <section>
+            <h3 className={`mb-2 ${heading}`}>Верхняя сетка</h3>
+            <RoundColumns rounds={wbRounds} registerCell={registerCell} alignEnd />
+          </section>
+          {lbRounds.length > 0 && (
+            <section>
+              <h3 className={`mb-2 ${heading}`}>Нижняя сетка</h3>
+              <RoundColumns rounds={lbRounds} registerCell={registerCell} alignEnd />
+            </section>
+          )}
+        </div>
+        {gfRounds.length > 0 && (
+          <section
+            className="flex shrink-0 flex-col justify-center"
+            style={{ transform: `translateY(${gfShift}px)` }}
+          >
+            <h3 className={`mb-2 text-center ${heading}`}>Grand Final</h3>
+            <RoundColumns rounds={gfRounds} registerCell={registerCell} />
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+type BracketCell = BracketRound['matches'][number];
+
+const EMPTY_CELL_NONE = '__none__';
+
+// Админ-контрол для пустой ячейки сетки (нет материализованного матча): пикер
+// команд для слотов A/B. Отправка создаёт SCHEDULED-матч в этой координате.
+function EmptyCellAdmin({
+  tournamentId,
+  cell,
+}: {
+  tournamentId: string;
+  cell: BracketCell;
+}) {
+  const { toast } = useToast();
+  const teamsQ = useTournamentTeams(tournamentId);
+  const assignMut = useAssignBracketCell();
+  const [open, setOpen] = useState(false);
+  const [a, setA] = useState<string>(EMPTY_CELL_NONE);
+  const [b, setB] = useState<string>(EMPTY_CELL_NONE);
+
+  function openDialog() {
+    setA(cell.slotA?.team?.id ?? EMPTY_CELL_NONE);
+    setB(cell.slotB?.team?.id ?? EMPTY_CELL_NONE);
+    setOpen(true);
+  }
+
+  const optionMap = new Map<string, { id: string; name: string; tag: string }>();
+  for (const t of teamsQ.data ?? []) {
+    if (!t.withdrawn) optionMap.set(t.team.id, t.team);
+  }
+  if (cell.slotA?.team) optionMap.set(cell.slotA.team.id, cell.slotA.team);
+  if (cell.slotB?.team) optionMap.set(cell.slotB.team.id, cell.slotB.team);
+  const options = Array.from(optionMap.values());
+
+  async function submit() {
+    const teamAId = a === EMPTY_CELL_NONE ? null : a;
+    const teamBId = b === EMPTY_CELL_NONE ? null : b;
+    if (teamAId && teamBId && teamAId === teamBId) {
+      toast({ title: 'Команды должны отличаться', variant: 'destructive' });
+      return;
+    }
+    if (!teamAId && !teamBId) {
+      toast({ title: 'Выберите хотя бы одну команду', variant: 'destructive' });
+      return;
+    }
+    try {
+      await assignMut.mutateAsync({
+        tournamentId,
+        body: {
+          section: cell.section,
+          roundIndex: cell.roundIndex,
+          matchIndex: cell.matchIndex,
+          teamAId,
+          teamBId,
+        },
+      });
+      toast({ title: 'Команды назначены' });
+      setOpen(false);
+    } catch (e) {
+      toast({
+        title: 'Не удалось назначить',
+        description:
+          e instanceof ProblemDetailError
+            ? `${e.title}${e.detail ? `: ${e.detail}` : ''}`
+            : e instanceof Error
+              ? e.message
+              : 'Неизвестная ошибка',
+        variant: 'destructive',
+      });
+    }
+  }
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 opacity-60 hover:opacity-100"
+        aria-label="Назначить команды"
+        title="Назначить команды"
+        onClick={openDialog}
+      >
+        <span aria-hidden className="text-xs">
+          ✎
+        </span>
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Назначить команды в ячейку</DialogTitle>
+            <DialogDescription>
+              Ячейка без матча (BYE или ожидание предыдущих). Назначение создаст
+              матч. Когда предыдущий матч доиграется, его реальный победитель
+              перезапишет свой слот.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {teamsQ.isLoading && (
+              <p className="text-sm text-muted-foreground">Загрузка команд…</p>
+            )}
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Команда A</span>
+              <Select value={a} onValueChange={setA}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Пусто (TBD)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EMPTY_CELL_NONE}>Пусто (TBD)</SelectItem>
+                  {options.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {teamLabel(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Команда B</span>
+              <Select value={b} onValueChange={setB}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Пусто (TBD)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EMPTY_CELL_NONE}>Пусто (TBD)</SelectItem>
+                  {options.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {teamLabel(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setA(b);
+                setB(a);
+              }}
+            >
+              Поменять A ↔ B
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              onClick={submit}
+              disabled={assignMut.isPending || teamsQ.isLoading}
+            >
+              {assignMut.isPending ? 'Сохранение…' : 'Применить'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function RoundColumns({
+  rounds,
+  registerCell,
+  alignEnd,
+}: {
+  rounds: BracketRound[];
+  registerCell?: (key: string, el: HTMLElement | null) => void;
+  // Прижать раунды к правому краю: так финалы WB и LB встают в одну колонку,
+  // даже если у веток разное число раундов.
+  alignEnd?: boolean;
+}) {
   const me = useMe();
   const isStaff =
     me.data?.roles?.some((r) => r === 'ADMIN' || r === 'MODERATOR') ?? false;
+  const tournamentId = useContext(BracketTournamentIdContext);
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <div className={`flex gap-4 ${alignEnd ? 'justify-end' : ''}`}>
       {rounds.map((round) => (
         <div
           key={`${round.section}-${round.roundIndex}`}
           className="flex w-72 shrink-0 flex-col gap-2"
         >
           <div className="text-sm font-medium">{round.title}</div>
-          {round.matches.length === 0 ? (
-            <div className="rounded-md border px-3 py-4 text-center text-xs text-muted-foreground">
-              Нет матчей
-            </div>
-          ) : (
-            round.matches.map((cell) => {
+          {/* justify-around раздвигает матчи по высоте так, чтобы матч
+              следующего раунда вставал по центру между своими источниками —
+              тогда соединительные линии образуют аккуратное «дерево». */}
+          <div className="flex flex-1 flex-col justify-around gap-2">
+            {round.matches.length === 0 ? (
+              <div className="rounded-md border px-3 py-4 text-center text-xs text-muted-foreground">
+                Нет матчей
+              </div>
+            ) : (
+              round.matches.map((cell) => {
               // A cell is either a real materialized match (cell.match) or a
               // placeholder. A slot shows its team when known, otherwise the
               // source label ("Winner of WB R1 M2", "BYE", ...).
               const m = cell.match;
-              const teamA = m?.teamA ?? cell.slotA.team ?? null;
-              const teamB = m?.teamB ?? cell.slotB.team ?? null;
+              const teamA = m?.teamA ?? cell.slotA?.team ?? null;
+              const teamB = m?.teamB ?? cell.slotB?.team ?? null;
               const aWin =
                 m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamA?.id;
               const bWin =
                 m != null && m.status === 'FINISHED' && m.winnerTeamId === m.teamB?.id;
-              return (
-                <div
-                  key={`${cell.section}-${cell.roundIndex}-${cell.matchIndex}`}
-                  className="relative space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm"
-                >
+              const isLive = m?.status === 'LIVE';
+              const key = `${cell.section}-${cell.roundIndex}-${cell.matchIndex}`;
+              // Materialized cells (cell.match) link to the match page; live ones
+              // get a red pulsing marker + ring so they stand out in the bracket.
+              const cardClass = `relative block space-y-1 rounded-md border bg-card p-3 text-sm shadow-sm ${isLive ? 'border-red-500/60 ring-1 ring-red-500/40' : ''}`;
+              const cardBody = (
+                <>
+                  {isStaff && !cell.match && tournamentId ? (
+                    // Пустая ячейка (BYE/ожидающая) — даём назначить команды.
+                    <div
+                      className="absolute bottom-1 right-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <EmptyCellAdmin tournamentId={tournamentId} cell={cell} />
+                    </div>
+                  ) : null}
                   {isStaff && cell.match ? (
-                    <div className="absolute bottom-1 right-1">
+                    // Keep the admin dropdown's clicks from triggering the card link.
+                    <div
+                      className="absolute bottom-1 right-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <MatchAdminMenu match={cell.match} />
                     </div>
                   ) : null}
@@ -691,7 +1296,7 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                     className={`flex justify-between ${aWin ? 'font-semibold text-green-700' : ''} ${teamA ? '' : 'text-muted-foreground'}`}
                   >
                     <span className="truncate">
-                      {teamA ? teamLabel(teamA) : cell.slotA.label}
+                      {teamA ? teamLabel(teamA) : (cell.slotA?.label ?? '—')}
                     </span>
                     {m ? <span className="font-mono">{m.scoreA}</span> : null}
                   </div>
@@ -699,19 +1304,55 @@ function RoundColumns({ rounds }: { rounds: BracketRound[] }) {
                     className={`flex justify-between ${bWin ? 'font-semibold text-green-700' : ''} ${teamB ? '' : 'text-muted-foreground'}`}
                   >
                     <span className="truncate">
-                      {teamB ? teamLabel(teamB) : cell.slotB.label}
+                      {teamB ? teamLabel(teamB) : (cell.slotB?.label ?? '—')}
                     </span>
                     {m ? <span className="font-mono">{m.scoreB}</span> : null}
                   </div>
-                  <div className="pt-1 pr-7 text-xs text-muted-foreground">
-                    {m
-                      ? `${MATCH_STATUS_LABEL[m.status]} · ${fmtDateTime(m.scheduledAt)}`
-                      : '—'}
+                  <div className="flex items-center gap-1.5 pt-1 pr-7 text-xs text-muted-foreground">
+                    {m ? (
+                      <>
+                        {isLive ? (
+                          <span
+                            className="relative flex h-2 w-2 shrink-0"
+                            aria-hidden
+                          >
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+                          </span>
+                        ) : null}
+                        <span
+                          className={`truncate ${isLive ? 'font-medium text-red-600' : ''}`}
+                        >
+                          {MATCH_STATUS_LABEL[m.status]} · {fmtDateTime(m.scheduledAt)}
+                        </span>
+                      </>
+                    ) : (
+                      '—'
+                    )}
                   </div>
+                </>
+              );
+              return m ? (
+                <Link
+                  key={key}
+                  ref={(el) => registerCell?.(key, el)}
+                  to={`/matches/${m.id}`}
+                  className={`${cardClass} transition-colors hover:bg-muted/50`}
+                >
+                  {cardBody}
+                </Link>
+              ) : (
+                <div
+                  key={key}
+                  ref={(el) => registerCell?.(key, el)}
+                  className={cardClass}
+                >
+                  {cardBody}
                 </div>
               );
             })
           )}
+          </div>
         </div>
       ))}
     </div>

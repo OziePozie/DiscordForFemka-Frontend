@@ -5,7 +5,7 @@ import { PlayerStats } from '@/components/PlayerStats';
 import { PlayerMatchesTab } from '@/components/PlayerMatchesTab';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { NicknameHistory } from '@/components/NicknameHistory';
-import { usePlayer, usePlayerHistory } from '@/lib/queries';
+import { usePlayer, usePlayerHistory, usePlayerAchievements } from '@/lib/queries';
 import {
   Avatar,
   AvatarFallback,
@@ -28,6 +28,7 @@ import {
   type TournamentStatus,
 } from '@/lib/api/types';
 import { timeAgo } from '@/lib/utils';
+import { ExternalLink } from 'lucide-react';
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return '—';
@@ -72,6 +73,7 @@ export default function PlayerPublicPage() {
   const { id } = useParams<{ id: string }>();
   const q = usePlayer(id);
   const historyQ = usePlayerHistory(id);
+  const achievementsQ = usePlayerAchievements(id);
 
   if (q.isLoading) {
     return <Skeleton className="h-80 w-full" />;
@@ -137,6 +139,18 @@ export default function PlayerPublicPage() {
             )}
             {p.twitchLogin && (
               <Badge variant="secondary">Twitch: {p.twitchLogin}</Badge>
+            )}
+            {p.dotabuffUrl && (
+              <a
+                href={p.dotabuffUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-3 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                title="Dotabuff"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Dotabuff
+              </a>
             )}
           </div>
 
@@ -237,6 +251,50 @@ export default function PlayerPublicPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Achievements */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Достижения</CardTitle>
+          <CardDescription>
+            {achievementsQ.isLoading
+              ? 'Загрузка…'
+              : `${achievementsQ.data?.length ?? 0} достижений`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {achievementsQ.isLoading && <Skeleton className="h-24 w-full" />}
+          {achievementsQ.isError && (
+            <div className="text-sm text-destructive">
+              Не удалось загрузить достижения.
+            </div>
+          )}
+          {achievementsQ.data && achievementsQ.data.length === 0 && (
+            <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+              Пока нет полученных достижений.
+            </div>
+          )}
+          {achievementsQ.data && achievementsQ.data.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {achievementsQ.data.map((a) => (
+                <div key={a.achievementId} className="rounded-md border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-medium">{a.name}</div>
+                    {a.timesEarned > 1 && (
+                      <Badge variant="secondary">×{a.timesEarned}</Badge>
+                    )}
+                  </div>
+                  {a.description && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {a.description}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

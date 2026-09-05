@@ -53,7 +53,7 @@ export function TabsList({ className, ...props }: TabsListProps) {
     <div
       role="tablist"
       className={cn(
-        'inline-flex h-10 items-center justify-center gap-1 rounded-md bg-muted p-1 text-muted-foreground',
+        'inline-flex items-center gap-6 border-b border-line text-ink-muted',
         className,
       )}
       {...props}
@@ -81,10 +81,10 @@ export function TabsTrigger({
       data-state={active ? 'active' : 'inactive'}
       onClick={() => ctx.setValue(value)}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+        'relative -mb-px inline-flex items-center justify-center whitespace-nowrap border-b-[1.5px] px-1 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
         active
-          ? 'bg-background text-foreground shadow-sm'
-          : 'hover:text-foreground',
+          ? 'border-ink text-ink'
+          : 'border-transparent hover:text-ink',
         className,
       )}
       {...props}

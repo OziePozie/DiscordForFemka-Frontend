@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   useMe,
   useUpdateMe,
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { NicknameHistory } from '@/components/NicknameHistory';
+import { TeamNameLink } from '@/components/TeamNameLink';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -45,6 +47,8 @@ import {
   MMR_CHANGE_REASON_LABEL,
   PLAYER_POSITIONS,
   POSITION_LABEL,
+  TEAM_MEMBER_ROLE_LABEL,
+  TEAM_STATUS_LABEL,
   type CountryCode,
   type GenderType,
   type PlayerPosition,
@@ -65,6 +69,7 @@ const MMR_REASONS: MmrChangeReason[] = ['CALIBRATION', 'ROLE_CHANGE', 'INACTIVE_
 
 export default function ProfilePage() {
   const me = useMe();
+  const navigate = useNavigate();
   const updateMe = useUpdateMe();
   const uploadAvatar = useUploadAvatar();
   const unlink = useUnlinkProvider();
@@ -94,7 +99,6 @@ export default function ProfilePage() {
         gender: me.data.profile.gender ?? undefined,
         primaryRole: me.data.profile.primaryRole ?? undefined,
         secondaryRoles: me.data.profile.secondaryRoles ?? [],
-        dotabuffUrl: me.data.profile.dotabuffUrl ?? '',
         stratzUrl: me.data.profile.stratzUrl ?? '',
       });
     }
@@ -120,6 +124,7 @@ export default function ProfilePage() {
   }
 
   const data = me.data;
+  const isInactive = data.activity?.status === 'INACTIVE';
   const profile = data.profile;
   const profileIncomplete =
     !profile.nickname || !profile.country || !profile.primaryRole;
@@ -399,17 +404,6 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="dotabuff">Dotabuff URL</Label>
-              <Input
-                id="dotabuff"
-                value={form.dotabuffUrl ?? ''}
-                onChange={(e) => update('dotabuffUrl', e.target.value)}
-                disabled={!editing}
-                placeholder="https://www.dotabuff.com/players/..."
-              />
-            </div>
-
-            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="stratz">Stratz URL</Label>
               <Input
                 id="stratz"
@@ -420,6 +414,60 @@ export default function ProfilePage() {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Мои команды */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>Мои команды</CardTitle>
+            <CardDescription>
+              Стаки, в которых вы состоите. Капитан активной команды может
+              зарегистрировать её на турнир.
+            </CardDescription>
+          </div>
+          <Button
+            onClick={() => navigate('/teams/new')}
+            disabled={isInactive}
+            title={isInactive ? 'Профиль не активен' : undefined}
+          >
+            + Создать команду
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.teams.length === 0 ? (
+            <div className="rounded-md border px-4 py-8 text-center text-sm text-muted-foreground">
+              У вас пока нет команды.
+            </div>
+          ) : (
+            data.teams.map((t) => (
+              <div
+                key={t.teamId}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border px-4 py-3"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="font-medium">
+                    <TeamNameLink teamId={t.teamId} name={t.name} tag={t.tag} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline">
+                      {TEAM_MEMBER_ROLE_LABEL[t.role]}
+                    </Badge>
+                    <Badge variant="secondary">
+                      {TEAM_STATUS_LABEL[t.teamStatus]}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/teams/${t.teamId}`)}
+                >
+                  Открыть
+                </Button>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

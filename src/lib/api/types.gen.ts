@@ -74,6 +74,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/oauth/telegram/init": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Аутентификация Mini App по initData
+         * @description Проверяет подпись Telegram WebApp initData. Если Telegram-аккаунт привязан к игроку — устанавливает сессию (LINKED), иначе возвращает UNLINKED для экрана ввода кода. CSRF не требуется (подпись initData — сама по себе proof).
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TelegramInitRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramInitResponse"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth/telegram/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Привязка профиля по AUTH-коду
+         * @description Проверяет initData, гасит одноразовый AUTH-код, привязывает Telegram к игроку кода (снимая stub), устанавливает сессию.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TelegramClaimRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramInitResponse"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/links/{provider}": {
         parameters: {
             query?: never;
@@ -90,7 +181,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    provider: "discord" | "twitch";
+                    provider: "discord" | "twitch" | "telegram";
                 };
                 cookie?: never;
             };
@@ -173,6 +264,75 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v1/me/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Настройки приватности профиля
+         * @description Эффективная видимость по каждому полю (дефолты + явные переопределения).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PrivacySettings"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        /**
+         * Изменить настройки приватности
+         * @description Применяет переданные поля (отсутствующие не меняются) и возвращает эффективные настройки.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PrivacySettings"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PrivacySettings"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/avatar": {
         parameters: {
             query?: never;
@@ -232,6 +392,10 @@ export interface paths {
                     country?: string;
                     role?: components["schemas"]["PlayerPosition"];
                     activity?: "active" | "inactive" | "all";
+                    /** @description Минимальный MMR (включительно) */
+                    mmrMin?: number;
+                    /** @description Максимальный MMR (включительно) */
+                    mmrMax?: number;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                     sort?: components["parameters"]["Sort"];
@@ -444,13 +608,17 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Таблица лидеров по внутреннему рейтингу платформы
-         * @description Игроки, отсортированные по внутреннему рейтингу (по убыванию). Рейтинг
-         *     отдельный от импортированного Dota MMR.
+         * Таблица лидеров по внутреннему рейтингу платформы (в рамках сцены)
+         * @description Игроки выбранной сцены (сезона), отсортированные по внутреннему рейтингу
+         *     (по убыванию). Рейтинг посезонный и отдельный от импортированного Dota MMR.
+         *     В выдачу попадают только игроки, сыгравшие в этой сцене хотя бы один матч.
+         *     Параметр `season` обязателен.
          */
         get: {
             parameters: {
-                query?: {
+                query: {
+                    /** @description Slug сцены (сезона), в рамках которой строится таблица лидеров. */
+                    season: string;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                 };
@@ -471,6 +639,8 @@ export interface paths {
                         };
                     };
                 };
+                400: components["responses"]["Validation"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -489,13 +659,17 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Внутренний рейтинг игрока
-         * @description Текущий внутренний рейтинг игрока. Для игрока без сыгранных матчей
-         *     возвращается синтетическая запись со стартовым рейтингом (ранг Blossom).
+         * Внутренний рейтинг игрока (в рамках сцены)
+         * @description Текущий внутренний рейтинг игрока в выбранной сцене (сезоне). Для игрока
+         *     без сыгранных матчей в этой сцене возвращается синтетическая запись со
+         *     стартовым рейтингом (ранг Blossom). Параметр `season` обязателен.
          */
         get: {
             parameters: {
-                query?: never;
+                query: {
+                    /** @description Slug сцены (сезона), в рамках которой возвращается рейтинг. */
+                    season: string;
+                };
                 header?: never;
                 path: {
                     id: components["parameters"]["IdInPath"];
@@ -513,6 +687,8 @@ export interface paths {
                         "application/json": components["schemas"]["PlayerRatingDto"];
                     };
                 };
+                400: components["responses"]["Validation"];
+                404: components["responses"]["NotFound"];
             };
         };
         put?: never;
@@ -750,7 +926,39 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * Создать профиль-заглушку игрока (steamId + ник + MMR).
+         * @description Создаёт админский профиль-заглушку для игрока, который ещё не входил.
+         *     Первый реальный вход через Steam с этим steamId «подхватывает» профиль
+         *     вместо создания дубликата. Только ADMIN.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminCreatePlayerRequest"];
+                };
+            };
+            responses: {
+                /** @description Заглушка создана */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlayerAdminDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                409: components["responses"]["Conflict"];
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -928,6 +1136,139 @@ export interface paths {
                 };
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/players/{id}/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Выдать одноразовый код игроку
+         * @description Возвращает plaintext-код ровно один раз (в базе хранится только SHA-256-хеш). Предыдущий ACTIVE-код того же типа автоматически отзывается.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["IssueCodeRequest"];
+                };
+            };
+            responses: {
+                /** @description код выпущен */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IssuedCodeDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список кодов */
+        get: {
+            parameters: {
+                query?: {
+                    playerId?: string;
+                    status?: components["schemas"]["CodeStatus"];
+                    type?: components["schemas"]["CodeType"];
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["AccessCodeDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/codes/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отозвать код */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccessCodeDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
             };
         };
         delete?: never;
@@ -1914,6 +2255,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tournaments/{id}/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список этапов турнира */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentStageDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/standings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Турнирные таблицы групповой стадии */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GroupStandingsDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tournaments/{id}/registrations": {
         parameters: {
             query?: never;
@@ -1995,6 +2412,223 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tournaments/{id}/mix/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register for a MIX tournament
+         * @description Registers the authenticated player for the MIX tournament, using the preferred
+         *     positions from the request body or falling back to the player's profile.
+         *     Returns 200 rather than 201 even on a first-time registration: this call does
+         *     not always insert a new row — re-registering after a withdrawal or a rejection
+         *     overwrites the player's existing (withdrawn/rejected) entry in place, so there
+         *     is no single "created vs. not" answer to hang a 201 on.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MixRegisterRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        /**
+         * Withdraw from a MIX tournament
+         * @description Withdraws the authenticated player's registration from the MIX tournament.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/mix/check-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check in for a MIX tournament
+         * @description Marks the authenticated player as checked in and refreshes their MMR snapshot.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/mix/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List MIX tournament registrations
+         * @description Returns a paginated public list of approved, non-withdrawn registrations for
+         *     the MIX tournament. MMR and preferred positions are omitted for players who
+         *     hid them in their privacy settings. 404s for a hidden tournament unless the
+         *     caller is staff, same as the team-side /teams, /matches, /bracket and
+         *     /eligibility endpoints.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                };
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["MixPlayerDto"][];
+                        };
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tournaments/{id}/mix/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get own MIX tournament registration
+         * @description Returns the authenticated player's own registration for the MIX tournament.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tournaments/{id}/eligibility": {
         parameters: {
             query?: never;
@@ -2049,6 +2683,8 @@ export interface paths {
                     status?: components["schemas"]["TournamentStatus"];
                     /** @description Фильтр по подстроке имени (case-insensitive). */
                     q?: string;
+                    /** @description Фильтр по признаку скрытости. */
+                    hidden?: boolean;
                     page?: components["parameters"]["Page"];
                     size?: components["parameters"]["Size"];
                     /** @description field[,asc|desc]; default createdAt,desc */
@@ -2319,6 +2955,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tournaments/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Скрыть турнир с публичной части. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть турнир на публичную часть. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tournaments/{id}/bracket/generate": {
         parameters: {
             query?: never;
@@ -2329,6 +3045,139 @@ export interface paths {
         get?: never;
         put?: never;
         /** Сгенерировать турнирную сетку. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BracketDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/stages/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сгенерировать групповую + плей-офф стадии турнира. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GenerateStagesRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentStageDto"][];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/stages/{stageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Обновить конфигурацию этапа турнира. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateStageRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TournamentStageDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/stages/playoff/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Сгенерировать плей-офф сетку по итогам групповой стадии. */
         post: {
             parameters: {
                 query?: never;
@@ -2552,6 +3401,315 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tournaments/{id}/teams/{teamId}/group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Перенести команду в другую группу. */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    teamId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MoveTeamGroupRequest"];
+                };
+            };
+            responses: {
+                /** @description команда перенесена */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["Validation"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/mix/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List MIX tournament registrations (admin)
+         * @description Returns all registrations for the MIX tournament, including rejected and
+         *     withdrawn ones. MMR and the reject reason are always visible.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MixPlayerAdminDto"][];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/mix/players/{playerId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a MIX tournament registration
+         * @description Returns a previously rejected registration back to play.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    playerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tournaments/{id}/mix/players/{playerId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a MIX tournament registration
+         * @description Rejects the player's registration for the MIX tournament with an optional reason.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    playerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MixRejectRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Админский листинг команд с фильтрами и пагинацией. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Фильтр по подстроке имени/тега (case-insensitive). */
+                    q?: string;
+                    status?: components["schemas"]["TeamStatus"];
+                    /** @description Фильтр по признаку скрытости. */
+                    hidden?: boolean;
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                    /** @description field[,asc|desc]; default createdAt,desc */
+                    sort?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["TeamPublicDto"][];
+                        };
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams/{id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Скрыть команду с публичной части. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/teams/{id}/unhide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Вернуть команду на публичную часть. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/matches/{id}": {
         parameters: {
             query?: never;
@@ -2674,6 +3832,55 @@ export interface paths {
                 403: components["responses"]["Forbidden"];
                 404: components["responses"]["NotFound"];
                 409: components["responses"]["Conflict"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{id}/invite-me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roster member asks the bot to invite them to the active lobby.
+         * @description Caller must be a roster member of `teamA` or `teamB` and the match must
+         *     have an active (LIVE) Dota lobby. The bot sends a Steam lobby invite to
+         *     the caller. Rate-limited per player — repeat calls within the cooldown
+         *     window return 429 with the remaining cooldown.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InviteResultDto"];
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+                429: components["responses"]["RateLimited"];
             };
         };
         delete?: never;
@@ -3648,6 +4855,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams/{id}/members/{playerId}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Сменить роль участника (MAIN ↔ SUB)
+         * @description Меняет роль текущего участника между основой и запасом. Только капитан. Роль капитана меняется через передачу капитанства, не здесь.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                    playerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChangeMemberRoleRequest"];
+                };
+            };
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TeamDto"];
+                    };
+                };
+                400: components["responses"]["Validation"];
+                401: components["responses"]["Unauthenticated"];
+                403: components["responses"]["Forbidden"];
+                404: components["responses"]["NotFound"];
+                409: components["responses"]["Conflict"];
+            };
+        };
+        trace?: never;
+    };
     "/api/v1/match-requests/{id}": {
         parameters: {
             query?: never;
@@ -3855,6 +5113,26 @@ export interface paths {
                 409: components["responses"]["Conflict"];
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{id}/refetch-result": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Подтянуть результат матча заново (ADMIN)
+         * @description Восстанавливает ВСЮ серию: находит все dota-катки матча (в том числе те, что доиграли в одном лобби и своей строки match_game не получили), заводит им катки, поднимает формат под их число и пересчитывает счёт серии по победителям каток. По каждой катке источник выбирается по убыванию качества: Game Coordinator через dota2api, затем Steam GetMatchDetails, затем пересборка из live-снапшотов. Победителя МАТЧА не меняет: если катки расходятся с записанным победителем, счёт не трогается и расхождение возвращается в seriesNote.
+         */
+        post: operations["adminRefetchMatchResult"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4305,6 +5583,203 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Список уведомлений текущего игрока (новые сверху) */
+        get: {
+            parameters: {
+                query?: {
+                    page?: components["parameters"]["Page"];
+                    size?: components["parameters"]["Size"];
+                    /** @description Вернуть только непрочитанные уведомления. */
+                    unreadOnly?: boolean;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Page"] & {
+                            items?: components["schemas"]["NotificationDto"][];
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Количество непрочитанных уведомлений */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: int64 */
+                            count?: number;
+                        };
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметить уведомление прочитанным */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description отмечено */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+                404: components["responses"]["NotFound"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Отметить все уведомления прочитанными */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description отмечено */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Поток уведомлений (SSE)
+         * @description Server-Sent Events. Каждое событие notification несёт в data JSON одного NotificationDto.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description поток */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/event-stream": string;
+                    };
+                };
+                401: components["responses"]["Unauthenticated"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4359,6 +5834,8 @@ export interface components {
         TournamentFormat: "SINGLE_ELIM" | "DOUBLE_ELIM" | "ROUND_ROBIN" | "SWISS" | "SHOWMATCH";
         /** @enum {string} */
         TournamentStatus: "ANNOUNCED" | "REGISTRATION_OPEN" | "REGISTRATION_CLOSED" | "LIVE" | "FINISHED" | "CANCELLED";
+        /** @enum {string} */
+        RegistrationMode: "TEAM" | "MIX";
         /** @enum {string} */
         MatchKind: "TOURNAMENT" | "CLAN_WAR" | "SHOWMATCH";
         /** @enum {string} */
@@ -4428,6 +5905,8 @@ export interface components {
             /** Format: int64 */
             discordId?: string | null;
             twitchLogin?: string | null;
+            /** @description Telegram-логин; по умолчанию скрыт от анонимных зрителей. */
+            telegramUsername?: string | null;
             dotabuffUrl?: string | null;
             stratzUrl?: string | null;
             teams?: components["schemas"]["TeamMembershipDto"][];
@@ -4440,6 +5919,81 @@ export interface components {
             nickname?: string | null;
             /** Format: date-time */
             changedAt: string;
+        };
+        /**
+         * @description Поля профиля с управляемой видимостью.
+         * @enum {string}
+         */
+        ProfileFieldKey: "COUNTRY" | "MMR" | "POSITIONS" | "DOTA_LINKS" | "DISCORD" | "TWITCH" | "TELEGRAM" | "NICKNAME_HISTORY";
+        /**
+         * @description PUBLIC — все; PLAYERS — зарегистрированные игроки; PRIVATE — владелец и администрация.
+         * @enum {string}
+         */
+        FieldVisibility: "PUBLIC" | "PLAYERS" | "PRIVATE";
+        /** @description Карта «поле профиля → уровень видимости». */
+        PrivacySettings: {
+            [key: string]: components["schemas"]["FieldVisibility"];
+        };
+        TelegramInitRequest: {
+            /** @description Сырая строка window.Telegram.WebApp.initData */
+            initData: string;
+        };
+        TelegramClaimRequest: {
+            initData: string;
+            /** @example 7K2M-9PQR-X4VZ */
+            code: string;
+        };
+        TelegramInitResponse: {
+            /** @enum {string} */
+            status: "LINKED" | "UNLINKED";
+            session?: components["schemas"]["SessionDto"] | null;
+            telegramUsername?: string | null;
+        };
+        /** @enum {string} */
+        CodeType: "AUTH" | "START_RATING" | "TOURNAMENT_RATING";
+        /** @enum {string} */
+        CodeStatus: "ACTIVE" | "USED" | "REVOKED" | "EXPIRED";
+        IssueCodeRequest: {
+            type?: components["schemas"]["CodeType"] | null;
+            /** @description null или 0 — код без срока действия */
+            ttlHours?: number | null;
+        };
+        IssuedCodeDto: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description Показывается один раз и не восстанавливается
+             * @example 7K2M-9PQR-X4VZ
+             */
+            code: string;
+            /** Format: date-time */
+            expiresAt?: string | null;
+        };
+        AccessCodeDto: {
+            /** Format: uuid */
+            id: string;
+            /** @description Последние 4 символа кода */
+            codeHint?: string | null;
+            codeType: components["schemas"]["CodeType"];
+            status: components["schemas"]["CodeStatus"];
+            /** Format: uuid */
+            playerId: string;
+            /** Format: uuid */
+            issuedBy?: string | null;
+            /** Format: uuid */
+            usedBy?: string | null;
+            /** Format: uuid */
+            revokedBy?: string | null;
+            /** Format: int64 */
+            usedTelegramId?: number | null;
+            /** Format: date-time */
+            expiresAt?: string | null;
+            /** Format: date-time */
+            usedAt?: string | null;
+            /** Format: date-time */
+            revokedAt?: string | null;
+            /** Format: date-time */
+            createdAt?: string;
         };
         /**
          * @description Внутренний ранг по порогам рейтинга.
@@ -4463,6 +6017,9 @@ export interface components {
             rankName: string;
             /** Format: date-time */
             updatedAt?: string | null;
+            /** Format: uuid */
+            seasonId: string;
+            seasonSlug: string;
         };
         LeaderboardEntryDto: {
             /** Format: int32 */
@@ -4484,6 +6041,9 @@ export interface components {
             currentStreak: number;
             rankTier: components["schemas"]["RankTier"];
             rankName: string;
+            /** Format: uuid */
+            seasonId: string;
+            seasonSlug: string;
         };
         /** @enum {string} */
         GenderType: "MALE" | "FEMALE";
@@ -4549,6 +6109,19 @@ export interface components {
             roles: components["schemas"]["PlayerRole"][];
             mmr: components["schemas"]["PlayerMmrDto"];
             activity: components["schemas"]["PlayerActivityDto"];
+            /** @description Admin-created stub profile not yet claimed by a real login. */
+            stub: boolean;
+            /**
+             * Format: date-time
+             * @description When the real player first logged in and claimed this stub; null if unclaimed or not a stub.
+             */
+            claimedAt?: string | null;
+        };
+        AdminCreatePlayerRequest: {
+            /** @description SteamID64 or 32-bit Dota account/friend id; normalized to SteamID64 server-side. */
+            steamId: string;
+            nickname: string;
+            mmr: number;
         };
         AdminUpdatePlayerRequest: {
             roles?: components["schemas"]["PlayerRole"][];
@@ -4613,6 +6186,11 @@ export interface components {
             captain: components["schemas"]["PlayerPublicDto"];
             avgMmr?: number | null;
             status: components["schemas"]["TeamStatus"];
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             memberCount: number;
             /** Format: date-time */
             createdAt: string;
@@ -4633,6 +6211,11 @@ export interface components {
             captain: components["schemas"]["PlayerPublicDto"];
             avgMmr?: number | null;
             status: components["schemas"]["TeamStatus"];
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             inactiveReasons?: components["schemas"]["InactiveReason"][];
             members: components["schemas"]["TeamMemberDto"][];
             /** Format: date-time */
@@ -4658,6 +6241,9 @@ export interface components {
             inviteePlayerId: string;
             proposedRole: components["schemas"]["TeamMemberRole"];
             position?: components["schemas"]["PlayerPosition"];
+        };
+        ChangeMemberRoleRequest: {
+            role: components["schemas"]["TeamMemberRole"];
         };
         TeamInviteDto: {
             /** Format: uuid */
@@ -4771,6 +6357,11 @@ export interface components {
             winnerTeamId?: string | null;
             name: string;
             slug: string;
+            /**
+             * @description Скрыта ли сущность с публичной части (видна только персоналу MODERATOR/ADMIN)
+             * @example false
+             */
+            hidden: boolean;
             format: components["schemas"]["TournamentFormat"];
             description?: string | null;
             prizePoolText?: string | null;
@@ -4803,6 +6394,12 @@ export interface components {
             regulationsVersion?: string | null;
             /** Format: date-time */
             regulationsUpdatedAt?: string | null;
+            registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number | null;
+            /** Format: date-time */
+            checkInOpensAt?: string | null;
+            /** Format: date-time */
+            checkInClosesAt?: string | null;
         };
         CreateTournamentRequest: {
             name: string;
@@ -4833,6 +6430,12 @@ export interface components {
             grandFinalFormat?: components["schemas"]["MatchFormat"];
             /** @description Опционально. Отсутствие или null = пустой список. Нормализуется на сервере. */
             broadcasterAccountIds?: number[];
+            registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number | null;
+            /** Format: date-time */
+            checkInOpensAt?: string | null;
+            /** Format: date-time */
+            checkInClosesAt?: string | null;
         };
         /** @description PATCH-семантика — поля со значением `null` или отсутствующие не меняются. */
         UpdateTournamentRequest: {
@@ -4866,10 +6469,18 @@ export interface components {
             regulationsUrl?: string;
             regulationsContent?: string;
             regulationsVersion?: string;
+            registrationMode?: components["schemas"]["RegistrationMode"];
+            mixTeamCount?: number;
+            /** Format: date-time */
+            checkInOpensAt?: string;
+            /** Format: date-time */
+            checkInClosesAt?: string;
         };
         TournamentDetailsDto: {
             tournament: components["schemas"]["TournamentDto"];
             registeredTeamsCount: number;
+            approvedTeamsCount?: number;
+            pendingTeamsCount?: number;
             canRegister: boolean;
             topTeams?: components["schemas"]["TournamentTeamDto"][];
             rules?: string | null;
@@ -4880,6 +6491,7 @@ export interface components {
             /** Format: date-time */
             registeredAt: string;
             withdrawn: boolean;
+            status?: components["schemas"]["RequestStatus"];
         };
         BracketDto: {
             format: components["schemas"]["TournamentFormat"];
@@ -4890,6 +6502,53 @@ export interface components {
             roundIndex: number;
             title: string;
             matches: components["schemas"]["BracketCellDto"][];
+        };
+        /** @enum {string} */
+        StageType: "GROUP" | "PLAYOFF";
+        /** @enum {string} */
+        StageStatus: "PENDING" | "LIVE" | "FINISHED";
+        StageConfigDto: {
+            numGroups?: number | null;
+            groupSeriesFormat?: components["schemas"]["MatchFormat"] | null;
+            advanceToUpper?: number | null;
+            advanceToLower?: number | null;
+            bracketType?: components["schemas"]["TournamentFormat"] | null;
+        };
+        TournamentStageDto: {
+            /** Format: uuid */
+            id: string;
+            stageType: components["schemas"]["StageType"];
+            ordinal: number;
+            status: components["schemas"]["StageStatus"];
+            config?: components["schemas"]["StageConfigDto"] | null;
+        };
+        StandingRowDto: {
+            rank: number;
+            team?: components["schemas"]["TeamPublicDto"];
+            points: number;
+            seriesWon: number;
+            seriesLost: number;
+            gamesWon: number;
+            gamesLost: number;
+            gameDiff: number;
+            tied: boolean;
+        };
+        GroupStandingsDto: {
+            groupNo: number;
+            rows: components["schemas"]["StandingRowDto"][];
+        };
+        GenerateStagesRequest: {
+            numGroups: number;
+            groupSeriesFormat: components["schemas"]["MatchFormat"];
+            advanceToUpper: number;
+            advanceToLower: number;
+            playoffBracketType: components["schemas"]["TournamentFormat"];
+        };
+        UpdateStageRequest: {
+            config?: components["schemas"]["StageConfigDto"] | null;
+        };
+        MoveTeamGroupRequest: {
+            groupNo: number;
         };
         /** @enum {string} */
         SlotSourceType: "WINNER" | "LOSER" | "TEAM" | "BYE";
@@ -4907,8 +6566,45 @@ export interface components {
             matchIndex: number;
             placeholder: boolean;
             match?: components["schemas"]["MatchDto"];
-            slotA: components["schemas"]["SlotSourceDto"];
-            slotB: components["schemas"]["SlotSourceDto"];
+            slotA?: components["schemas"]["SlotSourceDto"] | null;
+            slotB?: components["schemas"]["SlotSourceDto"] | null;
+        };
+        /** @description Одна катка серии после восстановления. */
+        RefetchGameDto: {
+            gameNumber: number;
+            /** Format: int64 */
+            dotaMatchId?: number | null;
+            /**
+             * @description Откуда пришли данные; null — данных не нашлось нигде. LIVE_SNAPSHOT — пересборка из realtime-ряда: GPM/XPM и урон/лечение там остаются нулями, фид их не несёт.
+             * @enum {string|null}
+             */
+            source?: "GAME_COORDINATOR" | "STEAM_WEB_API" | "LIVE_SNAPSHOT" | null;
+            /** @description Сколько строк статистики добавил этот вызов (уже существующие не трогаются) */
+            statsWritten: number;
+            teamAKills: number;
+            teamBKills: number;
+            /**
+             * @description Победитель катки; null — определить не удалось
+             * @enum {string|null}
+             */
+            winnerSide?: "A" | "B" | null;
+            /** @description true — финальные цифры катки, false — срез до её конца */
+            finalNumbers: boolean;
+        };
+        /** @description Итог ручного «подтянуть результат» по всей серии матча. */
+        RefetchResultDto: {
+            games: components["schemas"]["RefetchGameDto"][];
+            /** @description Всего добавлено строк статистики этим вызовом */
+            statsWritten: number;
+            format: components["schemas"]["MatchFormat"];
+            /** @description Был ли формат поднят под число найденных каток */
+            formatRaised: boolean;
+            seriesScoreA: number;
+            seriesScoreB: number;
+            /** @description Записан ли пересчитанный счёт в матч */
+            seriesUpdated: boolean;
+            /** @description Почему счёт не записан; null — записан или менять было нечего */
+            seriesNote?: string | null;
         };
         MatchDto: {
             /** Format: uuid */
@@ -4952,6 +6648,17 @@ export interface components {
             bracketSection?: components["schemas"]["BracketSection"];
             roundIndex?: number | null;
             matchIndex?: number | null;
+            /** Format: uuid */
+            stageId?: string | null;
+            groupNo?: number | null;
+            groupRound?: number | null;
+            /** @default false */
+            viewerCanInvite: boolean;
+        };
+        InviteResultDto: {
+            invited: boolean;
+            /** Format: int64 */
+            cooldownRemainingMs: number;
         };
         MatchLiveSnapshotDto: {
             /** @description Seconds since game clock started (may be negative during pick phase) */
@@ -4965,6 +6672,16 @@ export interface components {
             gameState: number;
             radiant: components["schemas"]["TeamLiveDto"];
             dire: components["schemas"]["TeamLiveDto"];
+            /**
+             * Format: uuid
+             * @description Id of the platform team (teamA or teamB) currently on Radiant; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed.
+             */
+            radiantTeamId?: string | null;
+            /**
+             * Format: uuid
+             * @description Id of the platform team (teamA or teamB) currently on Dire; resolved from the live roster so it stays correct through a coin-toss side flip. Null when the side cannot be attributed.
+             */
+            direTeamId?: string | null;
             /**
              * Format: date-time
              * @description When the backend last polled Dota2API for this snapshot
@@ -5004,10 +6721,37 @@ export interface components {
             winnerTeamId?: string | null;
             /** Format: date-time */
             resultFetchedAt: string;
+            /** Format: uuid */
+            radiantTeamId?: string | null;
+            /** Format: uuid */
+            direTeamId?: string | null;
             radiant: components["schemas"]["MatchPlayerStatDto"][];
             dire: components["schemas"]["MatchPlayerStatDto"][];
             /** Format: int64 */
             mvpSteamAccountId?: number | null;
+            /** @description Heroes banned during the draft (empty if the match had no ban phase). */
+            bans?: components["schemas"]["MatchBanDto"][];
+        };
+        /** @description A hero banned during the draft. */
+        MatchBanDto: {
+            /**
+             * Format: int32
+             * @description Dota 2 hero id that was banned.
+             * @example 1
+             */
+            heroId: number;
+            /**
+             * @description Side that banned the hero.
+             * @example RADIANT
+             * @enum {string}
+             */
+            team: "RADIANT" | "DIRE";
+            /**
+             * Format: int32
+             * @description Order within the ban phase (0-based).
+             * @example 0
+             */
+            order: number;
         };
         MatchPlayerStatDto: {
             /** Format: int64 */
@@ -5307,14 +7051,61 @@ export interface components {
         RejectTeamRequest: {
             reason?: string | null;
         };
+        MixPlayerDto: {
+            /** Format: uuid */
+            playerId?: string;
+            nickname?: string;
+            avatarUrl?: string | null;
+            mmr?: number | null;
+            /**
+             * @description Пустой список — согласен на любую позицию; null — игрок скрыл
+             *     позиции в настройках приватности (как и mmr выше — не то же самое,
+             *     что пустой список).
+             */
+            preferredPositions?: components["schemas"]["PlayerPosition"][] | null;
+            status?: components["schemas"]["RequestStatus"];
+            checkedIn?: boolean;
+            teamNo?: number | null;
+            position?: components["schemas"]["PlayerPosition"];
+        };
+        MixPlayerAdminDto: {
+            /** Format: uuid */
+            playerId?: string;
+            nickname?: string;
+            mmr?: number;
+            preferredPositions?: components["schemas"]["PlayerPosition"][];
+            status?: components["schemas"]["RequestStatus"];
+            rejectReason?: string | null;
+            /** Format: date-time */
+            checkedInAt?: string | null;
+            teamNo?: number | null;
+            position?: components["schemas"]["PlayerPosition"];
+            /**
+             * Format: date-time
+             * @description null — заявка не отозвана. listAdmin() возвращает и отозванные
+             *     заявки, поэтому без этого поля отозванная APPROVED-запись
+             *     неотличима от активной.
+             */
+            withdrawnAt?: string | null;
+        };
+        MixRegisterRequest: {
+            preferredPositions?: components["schemas"]["PlayerPosition"][] | null;
+        };
+        MixRejectRequest: {
+            reason?: string | null;
+        };
         AuditLogDto: {
             /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            actorId?: string | null;
             actor?: components["schemas"]["PlayerPublicDto"] | null;
             action?: string;
             targetType?: string;
             /** Format: uuid */
             targetId?: string;
+            targetLabel?: string | null;
+            targetSlug?: string | null;
             payload?: {
                 [key: string]: unknown;
             };
@@ -5331,6 +7122,21 @@ export interface components {
             /** Format: int64 */
             currentLobbyId?: number | null;
             healthy?: boolean;
+        };
+        /** @enum {string} */
+        NotificationType: "MATCH_READY_CHECK" | "MATCH_LIVE";
+        NotificationDto: {
+            /** Format: uuid */
+            id?: string;
+            type?: components["schemas"]["NotificationType"];
+            title?: string;
+            body?: string;
+            link?: string | null;
+            /** Format: uuid */
+            matchId?: string | null;
+            read?: boolean;
+            /** Format: date-time */
+            createdAt?: string;
         };
     };
     responses: {
@@ -5401,4 +7207,30 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    adminRefetchMatchResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["IdInPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description ок */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefetchResultDto"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+}

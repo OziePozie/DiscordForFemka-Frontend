@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { PlayerNameLink } from '@/components/PlayerNameLink';
 import {
   useAdminPlayers,
+  useCreateAdminPlayer,
   useBanAdminPlayer,
   useUnbanAdminPlayer,
   useUpdateAdminPlayer,
   useSetAdminPlayerFemaleVerified,
+  useIssueAccessCode,
 } from '@/lib/queries';
 import { VerifiedFemaleBadge } from '@/components/VerifiedFemaleBadge';
 import { useAuth } from '@/lib/auth';
@@ -41,6 +43,7 @@ import {
   PLAYER_ROLES,
   PLAYER_ROLE_LABEL,
   type ActivityStatus,
+  type IssuedCodeDto,
   type PlayerAdminDto,
   type PlayerRole,
 } from '@/lib/api/types';
@@ -53,8 +56,10 @@ type ActivityFilter = 'ALL' | ActivityStatus;
 type RoleFilter = 'ALL' | PlayerRole;
 
 type DialogState =
+  | { kind: 'create' }
   | { kind: 'ban'; player: PlayerAdminDto }
   | { kind: 'edit'; player: PlayerAdminDto }
+  | { kind: 'issueCode'; player: PlayerAdminDto }
   | null;
 
 function describeError(e: unknown): string {
@@ -85,21 +90,36 @@ export default function AdminPlayersPage() {
     size: PAGE_SIZE,
   });
 
+  const createMut = useCreateAdminPlayer();
   const banMut = useBanAdminPlayer();
   const unbanMut = useUnbanAdminPlayer();
   const updateMut = useUpdateAdminPlayer();
   const verifyMut = useSetAdminPlayerFemaleVerified();
   const mutating =
+    createMut.isPending ||
     banMut.isPending ||
     unbanMut.isPending ||
     updateMut.isPending ||
     verifyMut.isPending;
+
+  const issueCodeMut = useIssueAccessCode();
+  const [issuedCode, setIssuedCode] = useState<IssuedCodeDto | null>(null);
 
   const [dialog, setDialog] = useState<DialogState>(null);
   const [banReason, setBanReason] = useState('');
   const [editRoles, setEditRoles] = useState<PlayerRole[]>([]);
   const [editMmr, setEditMmr] = useState('');
   const [editMmrReason, setEditMmrReason] = useState('');
+  const [createSteamId, setCreateSteamId] = useState('');
+  const [createNickname, setCreateNickname] = useState('');
+  const [createMmr, setCreateMmr] = useState('');
+
+  function openCreate() {
+    setCreateSteamId('');
+    setCreateNickname('');
+    setCreateMmr('');
+    setDialog({ kind: 'create' });
+  }
 
   function openBan(p: PlayerAdminDto) {
     setBanReason('');
@@ -113,12 +133,66 @@ export default function AdminPlayersPage() {
     setDialog({ kind: 'edit', player: p });
   }
 
+  function openIssueCode(p: PlayerAdminDto) {
+    setIssuedCode(null);
+    setDialog({ kind: 'issueCode', player: p });
+  }
+
   function closeDialog() {
     setDialog(null);
     setBanReason('');
     setEditRoles([]);
     setEditMmr('');
     setEditMmrReason('');
+    setCreateSteamId('');
+    setCreateNickname('');
+    setCreateMmr('');
+  }
+
+  async function handleCreate() {
+    if (!dialog || dialog.kind !== 'create') return;
+    const steamId = createSteamId.trim();
+    const nickname = createNickname.trim();
+    const mmrStr = createMmr.trim();
+    if (!steamId) {
+      toast({
+        title: 'Нужен Steam ID',
+        description: 'Укажите SteamID64 или 32-битный Dota account id',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!nickname) {
+      toast({
+        title: 'Нужен ник',
+        description: 'Укажите отображаемый ник заглушки',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!/^\d+$/.test(mmrStr)) {
+      toast({
+        title: 'Невалидный MMR',
+        description: 'MMR должен быть целым неотрицательным числом',
+        variant: 'destructive',
+      });
+      return;
+    }
+    try {
+      await createMut.mutateAsync({
+        steamId,
+        nickname,
+        mmr: Number(mmrStr),
+      });
+      toast({ title: 'Заглушка создана' });
+      closeDialog();
+    } catch (e) {
+      toast({
+        title: 'Не удалось создать заглушку',
+        description: describeError(e),
+        variant: 'destructive',
+      });
+    }
   }
 
   async function handleBan() {
@@ -229,8 +303,15 @@ export default function AdminPlayersPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Игроки</h1>
-        <div className="text-sm text-muted-foreground">
-          {query.data?.totalItems ?? 0} всего
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-muted-foreground">
+            {query.data?.totalItems ?? 0} всего
+          </div>
+          {isAdmin && (
+            <Button size="sm" onClick={openCreate} disabled={mutating}>
+              Создать заглушку
+            </Button>
+          )}
         </div>
       </div>
 
@@ -350,6 +431,23 @@ export default function AdminPlayersPage() {
                       <VerifiedFemaleBadge
                         verified={p.profile.femaleVerified}
                       />
+                      {p.stub ? (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-400"
+                          title="Профиль-заглушка: ещё не подхвачен реальным входом"
+                        >
+                          Заглушка
+                        </Badge>
+                      ) : p.claimedAt ? (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-400"
+                          title={`Заглушка подхвачена при входе: ${new Date(p.claimedAt).toLocaleString()}`}
+                        >
+                          Заклеймлена
+                        </Badge>
+                      ) : null}
                     </span>
                     <div className="font-mono text-xs text-muted-foreground">
                       {p.steamId}
@@ -434,6 +532,9 @@ export default function AdminPlayersPage() {
                         >
                           Изменить
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openIssueCode(p)}>
+                          Выдать код доступа
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -465,6 +566,71 @@ export default function AdminPlayersPage() {
           </Button>
         </div>
       )}
+
+      {/* Create stub dialog (ADMIN only) */}
+      <Dialog
+        open={dialog?.kind === 'create'}
+        onOpenChange={(open) => {
+          if (!open) closeDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Создать профиль-заглушку</DialogTitle>
+            <DialogDescription>
+              Заглушку подхватит первый вход через Steam с этим Steam ID.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="create-steamid">Steam ID</Label>
+              <Input
+                id="create-steamid"
+                inputMode="numeric"
+                value={createSteamId}
+                onChange={(e) => setCreateSteamId(e.target.value)}
+                placeholder="76561198000000000"
+              />
+              <p className="text-xs text-muted-foreground">
+                SteamID64 или 32-битный Dota account/friend id — нормализуется на
+                сервере.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="create-nickname">Ник</Label>
+              <Input
+                id="create-nickname"
+                value={createNickname}
+                maxLength={64}
+                onChange={(e) => setCreateNickname(e.target.value)}
+                placeholder="Отображаемый ник"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="create-mmr">MMR</Label>
+              <Input
+                id="create-mmr"
+                type="number"
+                min={0}
+                value={createMmr}
+                onChange={(e) => setCreateMmr(e.target.value)}
+                placeholder="4200"
+              />
+              <p className="text-xs text-muted-foreground">
+                Сохраняется как ручной подтверждённый MMR.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              Отмена
+            </Button>
+            <Button onClick={handleCreate} disabled={mutating}>
+              {createMut.isPending ? 'Создание…' : 'Создать'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Ban dialog */}
       <Dialog
@@ -573,6 +739,87 @@ export default function AdminPlayersPage() {
             <Button onClick={handleSaveEdit} disabled={mutating}>
               {updateMut.isPending ? 'Сохранение…' : 'Сохранить'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Issue access code */}
+      <Dialog
+        open={dialog?.kind === 'issueCode'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIssuedCode(null);
+            closeDialog();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Код доступа</DialogTitle>
+            <DialogDescription>
+              {dialog?.kind === 'issueCode'
+                ? dialog.player.profile.nickname ?? 'Без ника'
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+
+          {issuedCode ? (
+            <div className="space-y-3">
+              <div className="rounded-md border bg-muted/40 px-4 py-3 text-center font-mono text-lg tracking-widest">
+                {issuedCode.code}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Код показывается один раз — скопируйте и передайте игроку. Действует до{' '}
+                {issuedCode.expiresAt
+                  ? new Date(issuedCode.expiresAt).toLocaleString('ru-RU')
+                  : '—'}
+                . Предыдущий активный код игрока отозван.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard
+                    .writeText(issuedCode.code)
+                    .then(() => toast({ title: 'Скопировано' }))
+                    .catch(() =>
+                      toast({ title: 'Не удалось скопировать', variant: 'destructive' }),
+                    );
+                }}
+              >
+                Скопировать
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Игрок введёт этот код в Telegram-мини-приложении и получит доступ к своей анкете.
+              Код одноразовый, в базе хранится только его хеш.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={closeDialog}>
+              {issuedCode ? 'Готово' : 'Отмена'}
+            </Button>
+            {!issuedCode && (
+              <Button
+                disabled={issueCodeMut.isPending}
+                onClick={() => {
+                  if (dialog?.kind !== 'issueCode') return;
+                  issueCodeMut
+                    .mutateAsync({ playerId: dialog.player.profile.id })
+                    .then(setIssuedCode)
+                    .catch((e) =>
+                      toast({
+                        title: 'Не удалось выдать код',
+                        description: describeError(e),
+                        variant: 'destructive',
+                      }),
+                    );
+                }}
+              >
+                {issueCodeMut.isPending ? 'Выдаём…' : 'Выдать код'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

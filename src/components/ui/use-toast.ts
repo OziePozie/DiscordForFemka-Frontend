@@ -9,6 +9,8 @@ interface ToastItem {
   title?: string;
   description?: string;
   variant?: ToastVariant;
+  onClick?: () => void;
+  icon?: React.ComponentType<{ className?: string }>;
 }
 
 interface ToastStore {

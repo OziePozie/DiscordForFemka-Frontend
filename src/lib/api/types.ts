@@ -22,6 +22,10 @@ export type CreateMmrChangeRequest = S['CreateMmrChangeRequest'];
 export type MmrChangeRequestDto = S['MmrChangeRequestDto'];
 export type MmrChangeRequestAdminDto = S['MmrChangeRequestAdminDto'];
 
+// Notifications
+export type NotificationDto = S['NotificationDto'];
+export type NotificationType = S['NotificationType'];
+
 // Internal platform rating
 export type RankTier = S['RankTier'];
 export type PlayerRatingDto = S['PlayerRatingDto'];
@@ -33,6 +37,7 @@ export type TeamMemberDto = S['TeamMemberDto'];
 export type CreateTeamRequest = S['CreateTeamRequest'];
 export type UpdateTeamRequest = S['UpdateTeamRequest'];
 export type CreateInviteRequest = S['CreateInviteRequest'];
+export type ChangeMemberRoleRequest = S['ChangeMemberRoleRequest'];
 export type TeamInviteDto = S['TeamInviteDto'];
 
 // Match requests (KV lobbies)
@@ -42,6 +47,7 @@ export type CreateMatchRequestDto = S['CreateMatchRequestDto'];
 // Admin: players
 export type PlayerAdminDto = S['PlayerAdminDto'];
 export type AdminUpdatePlayerRequest = S['AdminUpdatePlayerRequest'];
+export type AdminCreatePlayerRequest = S['AdminCreatePlayerRequest'];
 
 // Admin: audit log
 // TODO: replace with types.gen.ts once openapi.yaml is regenerated to expose AuditLogDto.
@@ -54,6 +60,8 @@ export interface AuditLogDto {
   action: string;
   targetType: string;
   targetId?: string | null;
+  targetLabel?: string | null;
+  targetSlug?: string | null;
   payload?: Record<string, unknown> | null;
   at: string;
 }
@@ -77,6 +85,29 @@ export interface CreateBotRequest {
   password: string;
 }
 
+// Admin: Dota lobbies (proxy to Dota2API). Not in openapi.yaml — typed manually.
+// Mirrors DiscordForFemka AdminLobbyDto/AdminLobbyMemberDto (platform.admin.lobby.dto).
+// playerId/nickname/avatarUrl are null when the Steam account is not linked to a platform player.
+export interface AdminLobbyMemberDto {
+  accountId: number;
+  team: string;
+  slot: number;
+  heroId: number;
+  playerId: string | null;
+  nickname: string | null;
+  avatarUrl: string | null;
+}
+
+export interface AdminLobbyDto {
+  lobbyId: string;
+  botUsername: string;
+  gameName: string;
+  state: number;
+  gameState: number;
+  memberCount: number;
+  members: AdminLobbyMemberDto[];
+}
+
 // Seasons / Tournaments / Matches
 export type SeasonDto = S['SeasonDto'];
 export type SeasonDetailsDto = S['SeasonDetailsDto'];
@@ -84,8 +115,20 @@ export type HighlightDto = S['HighlightDto'];
 export type TournamentDto = S['TournamentDto'];
 export type TournamentDetailsDto = S['TournamentDetailsDto'];
 export type TournamentTeamDto = S['TournamentTeamDto'];
+export type TournamentTeamAdminDto = S['TournamentTeamAdminDto'];
+export type RosterMemberAdminDto = S['RosterMemberAdminDto'];
+export type EligibilityViolationDto = S['EligibilityViolationDto'];
+export type RejectTeamRequest = S['RejectTeamRequest'];
 export type BracketDto = S['BracketDto'];
 export type BracketRoundDto = S['BracketRoundDto'];
+export type TournamentStageDto = S['TournamentStageDto'];
+export type StageConfigDto = S['StageConfigDto'];
+export type StageType = S['StageType'];
+export type StageStatus = S['StageStatus'];
+export type GroupStandingsDto = S['GroupStandingsDto'];
+export type StandingRowDto = S['StandingRowDto'];
+export type GenerateStagesRequest = S['GenerateStagesRequest'];
+export type MoveTeamGroupRequest = S['MoveTeamGroupRequest'];
 
 // TODO: replace once openapi regenerates — captain-readiness / lobby fields are
 // not yet in types.gen.ts. We augment the generated MatchDto with the new
@@ -128,7 +171,9 @@ export interface MatchGameDto {
   winnerTeamId?: string | null;
   teamAKills: number;
   teamBKills: number;
-  lobbyId?: string | null;
+  // Human-readable Dota lobby name players search for (was lobbyId; the raw id
+  // is no longer exposed by the backend).
+  lobbyName?: string | null;
   dotaMatchId?: number | null;
   createdAt?: string | null;
   finishedAt?: string | null;
@@ -176,13 +221,24 @@ export type MatchLiveSnapshotDto = S['MatchLiveSnapshotDto'];
 export type TeamLiveDto = S['TeamLiveDto'];
 export type PlayerLiveDto = S['PlayerLiveDto'];
 export type MatchResultDto = S['MatchResultDto'];
+// Итог админского «подтянуть результат»: что нашлось по каждой катке серии,
+// пересчитанный счёт и почему он мог не примениться.
+export type RefetchResultDto = S['RefetchResultDto'];
+export type RefetchGameDto = S['RefetchGameDto'];
+export type MatchBanDto = S['MatchBanDto'];
 export type MatchPlayerStatDto = S['MatchPlayerStatDto'];
 export type PlayerMatchSummaryDto = S['PlayerMatchSummaryDto'];
 export type PlayerStatsDto = S['PlayerStatsDto'];
 export type FavoriteHeroDto = S['FavoriteHeroDto'];
 
+// Result of POST /matches/{id}/invite-me.
+export type InviteResultDto = S['InviteResultDto'];
+
 // TODO: regenerate openapi — admin match update payload (Stage 9).
 export interface UpdateMatchRequest {
+  // Планируемое время начала (ISO-UTC). Бэкенд применяет только не-null:
+  // очистить время этим PATCH нельзя.
+  scheduledAt?: string | null;
   gameMode?: GameMode | null;
   region?: Region | null;
   coinToss?: boolean | null;
@@ -359,6 +415,11 @@ export interface CreateTournamentRequest {
   regulationsUrl?: string | null;
   regulationsContent?: string | null;
   regulationsVersion?: string | null;
+  // Режим регистрации и MIX-настройки. Отсутствие registrationMode = TEAM.
+  registrationMode?: RegistrationMode | null;
+  mixTeamCount?: number | null;
+  checkInOpensAt?: string | null;
+  checkInClosesAt?: string | null;
 }
 
 export interface UpdateTournamentRequest {
@@ -385,6 +446,91 @@ export interface UpdateTournamentRequest {
   regulationsUrl?: string | null;
   regulationsContent?: string | null;
   regulationsVersion?: string | null;
+  // MIX-регистрация: уже есть в types.gen.ts, дублируем здесь по той же
+  // причине, что и остальные поля этого интерфейса. Бэкенд принимает их
+  // только через PATCH — CreateTournamentRequest их сознательно не получает.
+  registrationMode?: RegistrationMode | null;
+  mixTeamCount?: number | null;
+  checkInOpensAt?: string | null;
+  checkInClosesAt?: string | null;
+}
+
+// Gamification: hero groups, achievements, quests
+// TODO: regenerate openapi — backend PR https://github.com/OziePozie/DiscordForFemka/pull/111
+// not yet merged, docs/contracts/openapi.yaml here is stale relative to it.
+export type ConditionType = 'HERO_POOL' | 'WIN_REQUIRED';
+export type GamificationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface ConditionRowDto {
+  type: ConditionType;
+  heroGroupId?: string | null;
+  minPlayers?: number | null;
+}
+
+export interface HeroGroupDto {
+  id: string;
+  name: string;
+  heroIds: number[];
+}
+
+export interface CreateHeroGroupRequest {
+  name: string;
+  heroIds: number[];
+}
+
+export interface UpdateHeroGroupRequest {
+  name?: string;
+  heroIds?: number[];
+}
+
+export interface DotaHeroDto {
+  id: number;
+  name: string;
+}
+
+export interface AchievementDto {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: GamificationStatus;
+  conditions: ConditionRowDto[];
+}
+
+export interface CreateAchievementRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateAchievementRequest {
+  name?: string;
+  description?: string | null;
+}
+
+export interface QuestDto {
+  id: string;
+  tournamentId: string;
+  name: string;
+  description?: string | null;
+  status: GamificationStatus;
+  conditions: ConditionRowDto[];
+}
+
+export interface CreateQuestRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface UpdateQuestRequest {
+  name?: string;
+  description?: string | null;
+}
+
+export interface PlayerAchievementDto {
+  achievementId: string;
+  name: string;
+  description?: string | null;
+  timesEarned: number;
+  lastEarnedAt?: string | null;
 }
 
 // Enums (as union types)
@@ -446,6 +592,17 @@ export const TOURNAMENT_STATUS_LABEL: Record<TournamentStatus, string> = {
   CANCELLED: 'Отменён',
 };
 
+export const CONDITION_TYPE_LABEL: Record<ConditionType, string> = {
+  HERO_POOL: 'Пул героев в команде',
+  WIN_REQUIRED: 'Обязательная победа',
+};
+
+export const GAMIFICATION_STATUS_LABEL: Record<GamificationStatus, string> = {
+  DRAFT: 'Черновик',
+  PUBLISHED: 'Опубликовано',
+  ARCHIVED: 'В архиве',
+};
+
 export const TOURNAMENT_FORMAT_LABEL: Record<TournamentFormat, string> = {
   SINGLE_ELIM: 'Single Elim',
   DOUBLE_ELIM: 'Double Elim',
@@ -493,6 +650,12 @@ export const MATCH_REQUEST_STATUS_LABEL: Record<MatchRequestStatus, string> = {
   MATCHED: 'Принято',
   CANCELLED: 'Отменено',
   EXPIRED: 'Истекло',
+};
+
+export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
+  PENDING: 'На модерации',
+  APPROVED: 'Одобрена',
+  REJECTED: 'Отклонена',
 };
 
 export const INVITE_STATUS_LABEL: Record<InviteStatus, string> = {
@@ -622,3 +785,68 @@ export const OPEN_LOBBY_STATUS_LABEL: Record<OpenLobbyStatus, string> = {
   CANCELLED: 'Отменено',
   EXPIRED: 'Истекло',
 };
+
+// --- Telegram Mini App ---
+export type TelegramInitRequest = S['TelegramInitRequest'];
+export type TelegramClaimRequest = S['TelegramClaimRequest'];
+export type TelegramInitResponse = S['TelegramInitResponse'];
+
+// --- Profile privacy ---
+export type ProfileFieldKey = S['ProfileFieldKey'];
+export type FieldVisibility = S['FieldVisibility'];
+export type PrivacySettings = Partial<Record<ProfileFieldKey, FieldVisibility>>;
+
+export const PROFILE_FIELD_KEYS: ProfileFieldKey[] = [
+  'MMR',
+  'POSITIONS',
+  'COUNTRY',
+  'DOTA_LINKS',
+  'TELEGRAM',
+  'DISCORD',
+  'TWITCH',
+  'NICKNAME_HISTORY',
+];
+
+export const PROFILE_FIELD_LABEL: Record<ProfileFieldKey, string> = {
+  COUNTRY: 'Страна',
+  MMR: 'MMR',
+  POSITIONS: 'Позиции',
+  DOTA_LINKS: 'Dotabuff / Stratz',
+  DISCORD: 'Discord',
+  TWITCH: 'Twitch',
+  TELEGRAM: 'Telegram',
+  NICKNAME_HISTORY: 'История никнеймов',
+};
+
+export const FIELD_VISIBILITY_LABEL: Record<FieldVisibility, string> = {
+  PUBLIC: 'Всем',
+  PLAYERS: 'Игрокам',
+  PRIVATE: 'Только мне',
+};
+
+// --- Access codes ---
+export type CodeType = S['CodeType'];
+export type CodeStatus = S['CodeStatus'];
+export type AccessCodeDto = S['AccessCodeDto'];
+export type IssuedCodeDto = S['IssuedCodeDto'];
+export type IssueCodeRequest = S['IssueCodeRequest'];
+
+export const CODE_TYPE_LABEL: Record<CodeType, string> = {
+  AUTH: 'Привязка профиля',
+  START_RATING: 'Стартовая оценка',
+  TOURNAMENT_RATING: 'Турнирная оценка',
+};
+
+export const CODE_STATUS_LABEL: Record<CodeStatus, string> = {
+  ACTIVE: 'Активен',
+  USED: 'Использован',
+  REVOKED: 'Отозван',
+  EXPIRED: 'Истёк',
+};
+
+// --- Mix tournaments ---
+export type RegistrationMode = S['RegistrationMode'];
+export type MixPlayerDto = S['MixPlayerDto'];
+export type MixPlayerAdminDto = S['MixPlayerAdminDto'];
+export type MixRegisterRequest = S['MixRegisterRequest'];
+export type MixRejectRequest = S['MixRejectRequest'];

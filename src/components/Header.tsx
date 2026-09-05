@@ -1,12 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, User, Users, Mail } from 'lucide-react';
+import { LogOut, Mail, Menu, User, Users, X } from 'lucide-react';
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,12 +18,17 @@ import {
 import { useAuth } from '@/lib/auth';
 import { useLogout, useMyInvites } from '@/lib/queries';
 import { steamLoginUrl } from '@/lib/api/endpoints';
+import { NotificationBell } from './NotificationBell';
+import { ThemeToggle } from './ThemeToggle';
 
 export default function Header() {
   const { session, isAuthenticated, isLoading } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const logout = useLogout();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => setIsMenuOpen(false), [location.pathname]);
 
   const isStaff = !!session?.roles?.some(
     (r) => r === 'MODERATOR' || r === 'ADMIN',
@@ -52,9 +57,22 @@ export default function Header() {
 
   const initials = (session?.nickname ?? '?').slice(0, 2).toUpperCase();
 
+  const navLink = (to: string, exact = false) => {
+    const active = exact
+      ? location.pathname === to
+      : location.pathname === to || location.pathname.startsWith(`${to}/`);
+    return active
+      ? 'font-bold text-ink'
+      : 'font-medium text-ink-muted transition-colors hover:text-ink';
+  };
+
+  function closeMenu() {
+    setIsMenuOpen(false);
+  }
+
   return (
-    <header className="border-b">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-6">
+    <header className="border-b border-line bg-background">
+      <div className="mx-auto flex h-[4.25rem] max-w-7xl items-center justify-between px-6">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center" aria-label="Play Stage — на главную">
             <img
@@ -63,29 +81,26 @@ export default function Header() {
               className="h-10 w-auto object-contain"
             />
           </Link>
-          <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
-            <Link to="/" className="hover:text-foreground">
+          <nav className="hidden gap-6 text-sm sm:flex">
+            <Link to="/" className={navLink('/', true)}>
               Главная
             </Link>
-            <Link to="/scenes" className="hover:text-foreground">
+            <Link to="/scenes" className={navLink('/scenes')}>
               Сцены
             </Link>
-            <Link to="/teams" className="hover:text-foreground">
-              Команды
-            </Link>
-            <Link to="/leaderboard" className="hover:text-foreground">
+            <Link to="/leaderboard" className={navLink('/leaderboard')}>
               Рейтинг
             </Link>
-            <Link to="/archive" className="hover:text-foreground">
+            <Link to="/archive" className={navLink('/archive')}>
               Архив
             </Link>
-            <Link to="/lobbies" className="hover:text-foreground">
+            <Link to="/lobbies" className={navLink('/lobbies')}>
               Лобби
             </Link>
             {isAuthenticated && pendingInviteCount > 0 && (
               <Link
                 to="/me/invites"
-                className="flex items-center gap-1.5 hover:text-foreground"
+                className={`flex items-center gap-1.5 ${navLink('/me/invites')}`}
               >
                 Приглашения
                 <Badge variant="default" className="h-5 px-1.5 text-xs">
@@ -94,19 +109,30 @@ export default function Header() {
               </Link>
             )}
             {isAuthenticated && (
-              <Link to="/profile" className="hover:text-foreground">
+              <Link to="/profile" className={navLink('/profile')}>
                 Профиль
               </Link>
             )}
             {isStaff && (
-              <Link to="/admin/mmr" className="hover:text-foreground">
+              <Link to="/admin/mmr" className={navLink('/admin')}>
                 Админка
               </Link>
             )}
           </nav>
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((v) => !v)}
+            className="flex h-9 w-9 items-center justify-center rounded-md text-ink sm:hidden"
+            aria-label={isMenuOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={isMenuOpen}
+          >
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <NotificationBell />
           {isLoading ? (
             <div className="h-10 w-24 animate-pulse rounded-md bg-muted" />
           ) : isAuthenticated && session ? (
@@ -157,10 +183,86 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={handleLogin}>Войти через Steam</Button>
+            <button
+              type="button"
+              onClick={handleLogin}
+              className="ec-btn ec-btn-dark"
+            >
+              Войти через Steam
+            </button>
           )}
         </div>
       </div>
+
+      {isMenuOpen && (
+        <nav className="flex flex-col gap-1 border-t border-line px-6 py-3 text-sm sm:hidden">
+          <Link
+            to="/"
+            className={`rounded-md px-2 py-2 ${navLink('/', true)}`}
+            onClick={closeMenu}
+          >
+            Главная
+          </Link>
+          <Link
+            to="/scenes"
+            className={`rounded-md px-2 py-2 ${navLink('/scenes')}`}
+            onClick={closeMenu}
+          >
+            Сцены
+          </Link>
+          <Link
+            to="/leaderboard"
+            className={`rounded-md px-2 py-2 ${navLink('/leaderboard')}`}
+            onClick={closeMenu}
+          >
+            Рейтинг
+          </Link>
+          <Link
+            to="/archive"
+            className={`rounded-md px-2 py-2 ${navLink('/archive')}`}
+            onClick={closeMenu}
+          >
+            Архив
+          </Link>
+          <Link
+            to="/lobbies"
+            className={`rounded-md px-2 py-2 ${navLink('/lobbies')}`}
+            onClick={closeMenu}
+          >
+            Лобби
+          </Link>
+          {isAuthenticated && pendingInviteCount > 0 && (
+            <Link
+              to="/me/invites"
+              className={`flex items-center gap-1.5 rounded-md px-2 py-2 ${navLink('/me/invites')}`}
+              onClick={closeMenu}
+            >
+              Приглашения
+              <Badge variant="default" className="h-5 px-1.5 text-xs">
+                {pendingInviteCount}
+              </Badge>
+            </Link>
+          )}
+          {isAuthenticated && (
+            <Link
+              to="/profile"
+              className={`rounded-md px-2 py-2 ${navLink('/profile')}`}
+              onClick={closeMenu}
+            >
+              Профиль
+            </Link>
+          )}
+          {isStaff && (
+            <Link
+              to="/admin/mmr"
+              className={`rounded-md px-2 py-2 ${navLink('/admin')}`}
+              onClick={closeMenu}
+            >
+              Админка
+            </Link>
+          )}
+        </nav>
+      )}
     </header>
   );
 }
