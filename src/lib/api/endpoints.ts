@@ -44,6 +44,7 @@ import type {
   AdminCreatePlayerRequest,
   AuditLogDto,
   BotStatusDto,
+  CreateBotRequest,
   AdminLobbyDto,
   ActivityStatus,
   PlayerRole,
@@ -1398,6 +1399,13 @@ export function adminKickLobbyPlayer(lobbyId: string, accountId: number): Promis
 
 export function listAdminBots(): Promise<BotStatusDto[]> {
   return api<BotStatusDto[]>('/api/v1/admin/bots');
+}
+
+export function createAdminBot(body: CreateBotRequest): Promise<BotStatusDto> {
+  return api<BotStatusDto>('/api/v1/admin/bots', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export function adminBotLeaveLobby(username: string): Promise<void> {

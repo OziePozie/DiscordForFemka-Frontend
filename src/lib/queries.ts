@@ -104,6 +104,7 @@ import {
   setAdminPlayerFemaleVerified,
   getAdminAuditPage,
   listAdminBots,
+  createAdminBot,
   adminBotLeaveLobby,
   listAdminLobbies,
   adminKickLobbyPlayer,
@@ -224,6 +225,7 @@ import type {
   OpenLobbyDto,
   CreateOpenLobbyRequest,
   BotStatusDto,
+  CreateBotRequest,
   AdminLobbyDto,
   LeaderboardEntryDto,
   PlayerRatingDto,
@@ -1659,6 +1661,14 @@ export function useAdminBots() {
     queryFn: listAdminBots,
     refetchInterval: 5000,
     refetchIntervalInBackground: false,
+  });
+}
+
+export function useCreateAdminBot() {
+  const qc = useQueryClient();
+  return useMutation<BotStatusDto, Error, CreateBotRequest>({
+    mutationFn: createAdminBot,
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.adminBots }),
   });
 }
 

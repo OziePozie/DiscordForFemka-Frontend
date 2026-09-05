@@ -80,6 +80,11 @@ export interface BotStatusDto {
   healthy: boolean;
 }
 
+export interface CreateBotRequest {
+  username: string;
+  password: string;
+}
+
 // Admin: Dota lobbies (proxy to Dota2API). Not in openapi.yaml — typed manually.
 // Mirrors DiscordForFemka AdminLobbyDto/AdminLobbyMemberDto (platform.admin.lobby.dto).
 // playerId/nickname/avatarUrl are null when the Steam account is not linked to a platform player.
