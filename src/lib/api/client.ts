@@ -4,6 +4,18 @@ export interface FieldError {
   code: string;
 }
 
+/**
+ * Конкретный повод отказа. Отказ вроде «аккаунт не активен» почти всегда
+ * складывается из нескольких независимых поводов, и показать нужно все:
+ * `message` пригоден как есть, `code` можно перевести по своему словарю,
+ * `meta` несёт числа и списки для подстановки.
+ */
+export interface ErrorReason {
+  code: string;
+  message: string;
+  meta?: Record<string, unknown>;
+}
+
 export class ProblemDetailError extends Error {
   constructor(
     public status: number,
@@ -11,6 +23,7 @@ export class ProblemDetailError extends Error {
     public title: string,
     public detail?: string,
     public errors?: FieldError[],
+    public reasons?: ErrorReason[],
   ) {
     super(`${code}: ${title}`);
     this.name = 'ProblemDetailError';
@@ -57,7 +70,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const title = (body.title as string | undefined) ?? res.statusText;
     const detail = body.detail as string | undefined;
     const errors = body.errors as FieldError[] | undefined;
-    throw new ProblemDetailError(res.status, code, title, detail, errors);
+    const reasons = body.reasons as ErrorReason[] | undefined;
+    throw new ProblemDetailError(res.status, code, title, detail, errors, reasons);
   }
 
   if (res.status === 204) return undefined as T;

@@ -11,7 +11,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { ProblemDetailError } from '@/lib/api/client';
+import { ProblemDetailError, type ErrorReason } from '@/lib/api/client';
+import { describeError } from '@/lib/api/errors';
 import { useCreateTeam, useUploadAttachment } from '@/lib/queries';
 
 const TAG_PATTERN = /^[A-Za-z0-9._-]+$/;
@@ -21,6 +22,8 @@ interface FieldErrors {
   tag?: string;
   logo?: string;
   _global?: string;
+  /** Расшифровка общего отказа — по одному пункту на повод. */
+  _reasons?: ErrorReason[];
 }
 
 export default function TeamCreatePage() {
@@ -95,9 +98,12 @@ export default function TeamCreatePage() {
     } catch (err) {
       if (err instanceof ProblemDetailError) {
         if (err.status === 403 && err.code === 'PLATFORM_ACCOUNT_INACTIVE') {
+          // Раньше здесь стояла одна фраза на все случаи, и игрок не понимал,
+          // обновить ли MMR, подтвердить ли 5600+ или он просто в бане.
+          const described = describeError(err);
           setErrors({
-            _global:
-              'Профиль не активен — заполните MMR и получите одобрение.',
+            _global: described.title,
+            _reasons: described.reasons,
           });
           return;
         }
@@ -120,7 +126,8 @@ export default function TeamCreatePage() {
           setErrors(fieldErrs);
           return;
         }
-        setErrors({ _global: err.detail ?? err.title });
+        const described = describeError(err);
+        setErrors({ _global: described.title, _reasons: described.reasons });
         return;
       }
       setErrors({
@@ -144,7 +151,14 @@ export default function TeamCreatePage() {
         <CardContent>
           {errors._global && (
             <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              {errors._global}
+              <p>{errors._global}</p>
+              {errors._reasons && errors._reasons.length > 0 && (
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {errors._reasons.map((r) => (
+                    <li key={r.code}>{r.message}</li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
