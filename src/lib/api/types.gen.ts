@@ -5792,11 +5792,33 @@ export interface components {
             code?: string;
             instance?: string;
             errors?: components["schemas"]["FieldError"][];
+            /**
+             * @description Конкретные поводы отказа, когда их несколько (аккаунт или команда не активны,
+             *     мест на турнире нет). Поле отсутствует, если расшифровывать нечего.
+             */
+            reasons?: components["schemas"]["ErrorReason"][];
         };
         FieldError: {
             field?: string;
             message?: string;
             code?: string;
+        };
+        /** @description Один повод отказа внутри ошибки. */
+        ErrorReason: {
+            /**
+             * @description Машиночитаемый код причины.
+             * @example MMR_STALE
+             */
+            code?: string;
+            /**
+             * @description Готовый текст, пригодный для показа как есть.
+             * @example MMR обновлялся больше 14 дней назад — обновите его в профиле
+             */
+            message?: string;
+            /** @description Числа и списки для подстановки (лимиты, фактические значения, игроки). */
+            meta?: {
+                [key: string]: unknown;
+            };
         };
         Page: {
             items?: unknown[];

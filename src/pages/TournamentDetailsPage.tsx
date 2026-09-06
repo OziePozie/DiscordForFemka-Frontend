@@ -53,7 +53,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { ProblemDetailError } from '@/lib/api/client';
+import { describeError, errorLine } from '@/lib/api/errors';
 import { safeHttpUrl } from '@/lib/utils';
 import { teamLabel } from '@/lib/format';
 import {
@@ -303,15 +303,15 @@ function Header({
       });
       toast({ title: 'Команда зарегистрирована' });
     } catch (e) {
-      const msg =
-        e instanceof ProblemDetailError
-          ? `${e.title}${e.detail ? `: ${e.detail}` : ''}`
-          : e instanceof Error
-            ? e.message
-            : 'Неизвестная ошибка';
+      // Отказ может складываться из нескольких поводов (неполный состав,
+      // неактивные игроки) — показываем их все, а не только заголовок.
+      const described = describeError(e);
       toast({
-        title: 'Ошибка регистрации',
-        description: msg,
+        title: described.title,
+        description:
+          described.reasons.length > 0
+            ? described.reasons.map((r) => r.message).join('; ')
+            : described.description,
         variant: 'destructive',
       });
     }
@@ -1124,12 +1124,7 @@ function EmptyCellAdmin({
     } catch (e) {
       toast({
         title: 'Не удалось назначить',
-        description:
-          e instanceof ProblemDetailError
-            ? `${e.title}${e.detail ? `: ${e.detail}` : ''}`
-            : e instanceof Error
-              ? e.message
-              : 'Неизвестная ошибка',
+        description: errorLine(e),
         variant: 'destructive',
       });
     }

@@ -2779,12 +2779,34 @@ components:
         errors:
           type: array
           items: { $ref: "#/components/schemas/FieldError" }
+        reasons:
+          type: array
+          description: |
+            Конкретные поводы отказа, когда их несколько (аккаунт или команда не активны,
+            мест на турнире нет). Поле отсутствует, если расшифровывать нечего.
+          items: { $ref: "#/components/schemas/ErrorReason" }
     FieldError:
       type: object
       properties:
         field: { type: string }
         message: { type: string }
         code: { type: string }
+    ErrorReason:
+      type: object
+      description: Один повод отказа внутри ошибки.
+      properties:
+        code:
+          type: string
+          description: Машиночитаемый код причины.
+          example: MMR_STALE
+        message:
+          type: string
+          description: Готовый текст, пригодный для показа как есть.
+          example: MMR обновлялся больше 14 дней назад — обновите его в профиле
+        meta:
+          type: object
+          additionalProperties: true
+          description: Числа и списки для подстановки (лимиты, фактические значения, игроки).
     Page:
       type: object
       properties:

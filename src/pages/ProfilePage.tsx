@@ -43,6 +43,7 @@ import {
   COUNTRY_LABEL,
   GENDERS,
   GENDER_LABEL,
+  INACTIVE_REASON_LABEL,
   MMR_SOURCE_LABEL,
   MMR_CHANGE_REASON_LABEL,
   PLAYER_POSITIONS,
@@ -126,8 +127,10 @@ export default function ProfilePage() {
   const data = me.data;
   const isInactive = data.activity?.status === 'INACTIVE';
   const profile = data.profile;
-  const profileIncomplete =
-    !profile.nickname || !profile.country || !profile.primaryRole;
+  // Что мешает аккаунту быть активным, решает бэкенд — роль, регион и ник в эту
+  // проверку больше не входят, поэтому баннер строится по причинам с сервера,
+  // а не по локальной догадке о «незаполненной анкете».
+  const inactiveReasons = data.activity?.reasons ?? [];
   const initials = (profile.nickname ?? '?').slice(0, 2).toUpperCase();
 
   function update<K extends keyof UpdateMeRequest>(
@@ -248,10 +251,16 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      {profileIncomplete && (
+      {isInactive && (
         <div className="rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-          Заполните профиль (никнейм, страна, основная роль) для активации
-          аккаунта.
+          <p>Аккаунт не активен — создание команды и регистрация недоступны.</p>
+          {inactiveReasons.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {inactiveReasons.map((r) => (
+                <li key={r}>{INACTIVE_REASON_LABEL[r]}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
