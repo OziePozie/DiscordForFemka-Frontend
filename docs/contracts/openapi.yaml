@@ -3160,6 +3160,9 @@ components:
         banReason:         { type: string }
         overrideMmr:       { type: integer }
         overrideMmrReason: { type: string }
+        nickname:          { type: string }
+        # Ручная установка Twitch без OAuth: логин или ссылка twitch.tv/…; пустая строка снимает.
+        twitchLogin:       { type: string }
 
     # ---- MMR ----
     MyMmrDto:

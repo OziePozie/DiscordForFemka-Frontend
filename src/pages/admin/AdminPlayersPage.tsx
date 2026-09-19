@@ -110,6 +110,7 @@ export default function AdminPlayersPage() {
   const [editRoles, setEditRoles] = useState<PlayerRole[]>([]);
   const [editMmr, setEditMmr] = useState('');
   const [editMmrReason, setEditMmrReason] = useState('');
+  const [editTwitch, setEditTwitch] = useState('');
   const [createSteamId, setCreateSteamId] = useState('');
   const [createNickname, setCreateNickname] = useState('');
   const [createMmr, setCreateMmr] = useState('');
@@ -130,6 +131,7 @@ export default function AdminPlayersPage() {
     setEditRoles([...p.roles]);
     setEditMmr('');
     setEditMmrReason('');
+    setEditTwitch(p.twitchLogin ?? '');
     setDialog({ kind: 'edit', player: p });
   }
 
@@ -269,11 +271,14 @@ export default function AdminPlayersPage() {
       });
       return;
     }
+    const twitch = editTwitch.trim();
+    const twitchChanged = twitch !== (dialog.player.twitchLogin ?? '');
     try {
       await updateMut.mutateAsync({
         id: dialog.player.profile.id,
         patch: {
           roles: editRoles,
+          ...(twitchChanged ? { twitchLogin: twitch } : {}),
           ...(mmrStr
             ? {
                 overrideMmr: Number(mmrStr),
@@ -708,6 +713,17 @@ export default function AdminPlayersPage() {
                   );
                 })}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-twitch">Twitch</Label>
+              <Input
+                id="edit-twitch"
+                value={editTwitch}
+                onChange={(e) => setEditTwitch(e.target.value)}
+                placeholder="логин или ссылка twitch.tv/…, пусто — снять"
+                autoComplete="off"
+                spellCheck={false}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-mmr">Override MMR (опционально)</Label>
