@@ -6240,6 +6240,8 @@ export interface components {
             banReason?: string;
             overrideMmr?: number;
             overrideMmrReason?: string;
+            nickname?: string;
+            twitchLogin?: string;
         };
         MyMmrDto: {
             current: components["schemas"]["PlayerMmrDto"];
