@@ -63,7 +63,9 @@ export function LiveStreamsSection({ mode, streams }: Props) {
       <div className="flex items-center justify-between gap-4 border-b border-line pb-3">
         <div className="flex items-center gap-3">
           <span className="ec-dot animate-pulse bg-live" />
-          <h2 className="ec-display text-[1.0625rem] text-ink">Сейчас в эфире</h2>
+          <h2 className="ec-display whitespace-nowrap text-[1rem] text-ink sm:text-[1.0625rem]">
+            Сейчас в эфире
+          </h2>
         </div>
         <span className="ec-num text-[0.8125rem] text-ink-faint">
           {streams.length}
@@ -81,8 +83,8 @@ export function LiveStreamsSection({ mode, streams }: Props) {
               className="h-full w-full"
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[0.8125rem]">
-            <span className="min-w-0 truncate text-ink-muted">
+          <div className="flex items-center justify-between gap-3 text-[0.8125rem]">
+            <span className="min-w-0 flex-1 truncate text-ink-muted">
               {active.player.nickname}
               {active.title ? ` · ${active.title}` : ''}
             </span>
@@ -156,10 +158,6 @@ function StreamCard({ stream: s, mode, active, onToggle }: CardProps) {
         <span className="ec-kicker absolute left-2 top-2 rounded-sm bg-live px-1.5 py-0.5 text-[0.625rem] leading-none text-white [letter-spacing:0.1em]">
           Live
         </span>
-        <span className="ec-num absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-sm bg-ink/80 px-1.5 py-0.5 text-[0.6875rem] leading-none text-white">
-          <Eye className="h-3 w-3" aria-hidden />
-          {fmtViewers(s.viewerCount)}
-        </span>
       </div>
 
       <div className="flex min-w-0 flex-col gap-2 p-3">
@@ -205,7 +203,7 @@ function StreamCard({ stream: s, mode, active, onToggle }: CardProps) {
             to={`/matches/${s.match.id}`}
             onClick={stop}
             onKeyDown={stop}
-            className="min-w-0 truncate text-[0.8125rem] text-brand hover:underline"
+            className="line-clamp-2 text-[0.8125rem] leading-snug text-brand hover:underline"
           >
             {matchLine(s)}
           </Link>
