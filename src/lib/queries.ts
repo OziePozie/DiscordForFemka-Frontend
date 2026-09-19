@@ -15,6 +15,7 @@ import {
   getSeasonsPage,
   getCurrentSeason,
   getSeasonBySlug,
+  getSeasonStreams,
   getTournamentBySlug,
   getTournamentTeams,
   getAdminTournamentTeams,
@@ -81,6 +82,7 @@ import {
   getMatch,
   getMatchLive,
   getMatchResult,
+  getMatchStreams,
   markMatchReady,
   markMatchUnready,
   inviteMe,
@@ -208,6 +210,7 @@ import type {
   InviteResultDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
+  LiveStreamDto,
   RefetchResultDto,
   MatchRequestDto,
   CreateMatchRequestDto,
@@ -404,6 +407,19 @@ export function useSeason(slug: string | undefined) {
     queryKey: slug ? qk.season(slug) : ['season', 'none'],
     queryFn: () => getSeasonBySlug(slug!),
     enabled: Boolean(slug),
+  });
+}
+
+export function useSeasonStreams(
+  slug: string | undefined,
+): UseQueryResult<LiveStreamDto[]> {
+  return useQuery({
+    queryKey: ['season-streams', slug],
+    queryFn: () => getSeasonStreams(slug!),
+    enabled: Boolean(slug),
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -1391,6 +1407,20 @@ export function useMatchResult(
     enabled: !!id && enabled,
     queryFn: () => getMatchResult(id!, gameNumber),
     staleTime: Infinity,
+  });
+}
+
+export function useMatchStreams(
+  id: string | undefined,
+  enabled: boolean,
+): UseQueryResult<LiveStreamDto[]> {
+  return useQuery({
+    queryKey: ['match-streams', id],
+    enabled: !!id && enabled,
+    queryFn: () => getMatchStreams(id!),
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
   });
 }
 

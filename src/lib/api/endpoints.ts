@@ -58,6 +58,7 @@ import type {
   TeamHistoryDto,
   MatchLiveSnapshotDto,
   MatchResultDto,
+  LiveStreamDto,
   RefetchResultDto,
   CreateOpenLobbyRequest,
   OpenLobbyDto,
@@ -331,6 +332,12 @@ export async function getCurrentSeason(): Promise<SeasonDto | null> {
 export function getSeasonBySlug(slug: string): Promise<SeasonDetailsDto> {
   return api<SeasonDetailsDto>(
     `/api/v1/seasons/${encodeURIComponent(slug)}`,
+  );
+}
+
+export function getSeasonStreams(slug: string): Promise<LiveStreamDto[]> {
+  return api<LiveStreamDto[]>(
+    `/api/v1/seasons/${encodeURIComponent(slug)}/streams`,
   );
 }
 
@@ -1137,6 +1144,12 @@ export function getMatchResult(
   const q = gameNumber != null ? `?gameNumber=${gameNumber}` : '';
   return api<MatchResultDto>(
     `/api/v1/matches/${encodeURIComponent(id)}/result${q}`,
+  );
+}
+
+export function getMatchStreams(id: string): Promise<LiveStreamDto[]> {
+  return api<LiveStreamDto[]>(
+    `/api/v1/matches/${encodeURIComponent(id)}/streams`,
   );
 }
 

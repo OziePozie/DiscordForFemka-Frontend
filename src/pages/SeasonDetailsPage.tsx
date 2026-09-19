@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useSeason } from '@/lib/queries';
+import { useSeason, useSeasonStreams } from '@/lib/queries';
 import { ProblemDetailError } from '@/lib/api/client';
 import {
   Card,
@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LiveStreamsSection } from '@/components/streams/LiveStreamsSection';
 import {
   SEASON_STATUS_LABEL,
   TOURNAMENT_FORMAT_LABEL,
@@ -60,6 +61,7 @@ export default function SeasonDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const q = useSeason(slug);
+  const streams = useSeasonStreams(slug);
 
   useEffect(() => {
     if (q.error instanceof ProblemDetailError && q.error.status === 404) {
@@ -112,6 +114,8 @@ export default function SeasonDetailsPage() {
           </p>
         )}
       </header>
+
+      <LiveStreamsSection mode="season" streams={streams.data} />
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Турниры сцены</h2>
