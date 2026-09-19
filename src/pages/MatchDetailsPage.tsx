@@ -10,10 +10,11 @@ import {
   useRecreateLobby,
   useMe,
 } from '@/lib/queries';
-import { useMatchLive, useMatchResult } from '@/lib/queries';
+import { useMatchLive, useMatchResult, useMatchStreams } from '@/lib/queries';
 import { MatchAdminMenu } from '@/components/MatchAdminMenu';
 import { LiveStatsCard } from '@/components/match/LiveStatsCard';
 import { ResultStatsCard } from '@/components/match/ResultStatsCard';
+import { LiveStreamsSection } from '@/components/streams/LiveStreamsSection';
 import { useAuth } from '@/lib/auth';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -576,6 +577,7 @@ export default function MatchDetailsPage() {
     curGameForLive?.status === 'LIVE' && !!curGameForLive?.lobbyName,
   );
   const result = useMatchResult(id, q.data?.status === 'FINISHED');
+  const streams = useMatchStreams(id, isLive);
   const meId = me.data?.profile.id;
 
   if (q.isLoading) {
@@ -699,6 +701,8 @@ export default function MatchDetailsPage() {
         </div>
         <TeamBlock team={m.teamB} align="right" highlight={bWin} finished={finished} />
       </div>
+
+      {isLive && <LiveStreamsSection mode="match" streams={streams.data} />}
 
       {(() => {
         const isSeries = m.format === 'BO3' || m.format === 'BO5';

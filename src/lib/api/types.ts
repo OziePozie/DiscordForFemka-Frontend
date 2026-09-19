@@ -221,6 +221,9 @@ export type MatchLiveSnapshotDto = S['MatchLiveSnapshotDto'];
 export type TeamLiveDto = S['TeamLiveDto'];
 export type PlayerLiveDto = S['PlayerLiveDto'];
 export type MatchResultDto = S['MatchResultDto'];
+export type LiveStreamDto = S['LiveStreamDto'];
+export type LiveStreamPlayerDto = S['LiveStreamPlayerDto'];
+export type LiveStreamMatchDto = S['LiveStreamMatchDto'];
 // Итог админского «подтянуть результат»: что нашлось по каждой катке серии,
 // пересчитанный счёт и почему он мог не примениться.
 export type RefetchResultDto = S['RefetchResultDto'];

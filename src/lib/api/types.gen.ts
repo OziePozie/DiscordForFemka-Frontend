@@ -2099,6 +2099,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/seasons/{slug}/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Twitch-стримы «в эфире» по сезону
+         * @description Стримы игроков из всех LIVE-матчей нескрытых турниров сезона, которые прямо
+         *     сейчас в эфире на Twitch. Отдаётся из in-memory кеша (бэкенд опрашивает Helix
+         *     раз в ~60с). Сортировка: viewerCount DESC. Пустой массив, если ничего не идёт
+         *     в эфире или интеграция Twitch выключена.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ок */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveStreamDto"][];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tournaments/{slug}": {
         parameters: {
             query?: never;
@@ -3974,6 +4019,50 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["MatchResultDto"];
+                    };
+                };
+                404: components["responses"]["NotFound"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{id}/streams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Twitch-стримы «в эфире» по матчу
+         * @description Стримы игроков обеих команд матча, которые прямо сейчас в эфире на Twitch.
+         *     Сортировка: viewerCount DESC. Пустой массив, если матч не LIVE, никто не
+         *     стримит или интеграция Twitch выключена.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: components["parameters"]["IdInPath"];
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description список стримов (может быть пустым) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LiveStreamDto"][];
                     };
                 };
                 404: components["responses"]["NotFound"];
@@ -6753,6 +6842,36 @@ export interface components {
             mvpSteamAccountId?: number | null;
             /** @description Heroes banned during the draft (empty if the match had no ban phase). */
             bans?: components["schemas"]["MatchBanDto"][];
+        };
+        LiveStreamDto: {
+            twitchLogin: string;
+            title?: string | null;
+            gameName?: string | null;
+            viewerCount: number;
+            thumbnailUrl?: string | null;
+            /** Format: date-time */
+            startedAt?: string | null;
+            player: components["schemas"]["LiveStreamPlayerDto"];
+            /** Format: uuid */
+            teamId: string;
+            match: components["schemas"]["LiveStreamMatchDto"];
+        };
+        LiveStreamPlayerDto: {
+            /** Format: uuid */
+            id: string;
+            nickname: string;
+            avatarUrl?: string | null;
+        };
+        LiveStreamMatchDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tournamentId?: string | null;
+            tournamentName?: string | null;
+            tournamentSlug?: string | null;
+            teamAName?: string | null;
+            teamBName?: string | null;
+            status: components["schemas"]["MatchStatus"];
         };
         /** @description A hero banned during the draft. */
         MatchBanDto: {

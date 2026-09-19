@@ -1045,6 +1045,31 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
 
   # =================== TOURNAMENT ===================
+  /api/v1/seasons/{slug}/streams:
+    get:
+      tags: [Season]
+      summary: Twitch-стримы «в эфире» по сезону
+      description: |
+        Стримы игроков из всех LIVE-матчей нескрытых турниров сезона, которые прямо
+        сейчас в эфире на Twitch. Отдаётся из in-memory кеша (бэкенд опрашивает Helix
+        раз в ~60с). Сортировка: viewerCount DESC. Пустой массив, если ничего не идёт
+        в эфире или интеграция Twitch выключена.
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: ок
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LiveStreamDto" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /api/v1/tournaments/{slug}:
     get:
       tags: [Tournament]
@@ -1888,6 +1913,26 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/MatchResultDto" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/matches/{id}/streams:
+    get:
+      tags: [Match]
+      summary: Twitch-стримы «в эфире» по матчу
+      description: |
+        Стримы игроков обеих команд матча, которые прямо сейчас в эфире на Twitch.
+        Сортировка: viewerCount DESC. Пустой массив, если матч не LIVE, никто не
+        стримит или интеграция Twitch выключена.
+      security: []
+      parameters: [{ $ref: "#/components/parameters/IdInPath" }]
+      responses:
+        "200":
+          description: список стримов (может быть пустым)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LiveStreamDto" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /api/v1/admin/matches/{id}/lobby/recreate:
@@ -3778,6 +3823,37 @@ components:
           description: Heroes banned during the draft (empty if the match had no ban phase).
           items:
             $ref: '#/components/schemas/MatchBanDto'
+    LiveStreamDto:
+      type: object
+      required: [twitchLogin, viewerCount, player, teamId, match]
+      properties:
+        twitchLogin:  { type: string }
+        title:        { type: string, nullable: true }
+        gameName:     { type: string, nullable: true }
+        viewerCount:  { type: integer }
+        thumbnailUrl: { type: string, nullable: true }
+        startedAt:    { type: string, format: date-time, nullable: true }
+        player:       { $ref: "#/components/schemas/LiveStreamPlayerDto" }
+        teamId:       { type: string, format: uuid }
+        match:        { $ref: "#/components/schemas/LiveStreamMatchDto" }
+    LiveStreamPlayerDto:
+      type: object
+      required: [id, nickname]
+      properties:
+        id:        { type: string, format: uuid }
+        nickname:  { type: string }
+        avatarUrl: { type: string, nullable: true }
+    LiveStreamMatchDto:
+      type: object
+      required: [id, status]
+      properties:
+        id:             { type: string, format: uuid }
+        tournamentId:   { type: string, format: uuid, nullable: true }
+        tournamentName: { type: string, nullable: true }
+        tournamentSlug: { type: string, nullable: true }
+        teamAName:      { type: string, nullable: true }
+        teamBName:      { type: string, nullable: true }
+        status:         { $ref: "#/components/schemas/MatchStatus" }
     MatchBanDto:
       type: object
       description: A hero banned during the draft.
